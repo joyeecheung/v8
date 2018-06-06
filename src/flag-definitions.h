@@ -208,9 +208,9 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 // Update bootstrapper.cc whenever adding a new feature flag.
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS_BASE(V)                            \
-  V(harmony_do_expressions, "harmony do-expressions")         \
-  V(harmony_class_fields, "harmony fields in class literals") \
+#define HARMONY_INPROGRESS_BASE(V)                                    \
+  V(harmony_do_expressions, "harmony do-expressions")                 \
+  V(harmony_class_fields, "harmony fields in class literals")         \
   V(harmony_static_fields, "harmony static fields in class literals") \
   V(harmony_symbol_description, "harmony Symbol.prototype.description")
 
