@@ -211,7 +211,8 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 #define HARMONY_INPROGRESS_BASE(V)                            \
   V(harmony_do_expressions, "harmony do-expressions")         \
   V(harmony_class_fields, "harmony fields in class literals") \
-  V(harmony_static_fields, "harmony static fields in class literals")
+  V(harmony_static_fields, "harmony static fields in class literals") \
+  V(harmony_symbol_description, "harmony Symbol.prototype.description")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \

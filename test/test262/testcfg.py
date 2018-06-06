@@ -49,6 +49,7 @@ FEATURE_FLAGS = {
   'Array.prototype.flatMap': '--harmony-array-flat',
   'String.prototype.matchAll': '--harmony-string-matchall',
   'Symbol.matchAll': '--harmony-string-matchall',
+  'Symbol.prototype.description': '--harmony-symbol-description',
   'numeric-separator-literal': '--harmony-numeric-separator',
 }
 
