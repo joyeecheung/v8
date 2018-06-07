@@ -7,7 +7,7 @@
 {
   let desc = Object.getOwnPropertyDescriptor(Symbol.prototype, 'description');
   assertEquals(desc.set, undefined);
-  assertFalse(!!desc.writable);
+  assertEquals(desc.writable, undefined);
   assertFalse(desc.enumerable);
   assertTrue(desc.configurable);
 }
