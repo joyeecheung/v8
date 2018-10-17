@@ -247,6 +247,7 @@ class ParserBase {
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
         allow_harmony_private_fields_(false),
+        allow_harmony_private_methods_(false),
         allow_eval_cache_(true) {
     pointer_buffer_.reserve(128);
   }
@@ -278,6 +279,13 @@ class ParserBase {
   }
   void set_allow_harmony_private_fields(bool allow) {
     scanner()->set_allow_harmony_private_fields(allow);
+  }
+
+  bool allow_harmony_private_methods() const {
+    return scanner()->allow_harmony_private_methods();
+  }
+  void set_allow_harmony_private_methods(bool allow) {
+    scanner()->set_allow_harmony_private_methods(allow);
   }
 
   uintptr_t stack_limit() const { return stack_limit_; }
@@ -1451,6 +1459,7 @@ class ParserBase {
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
   bool allow_harmony_private_fields_;
+  bool allow_harmony_private_methods_;
   bool allow_eval_cache_;
 };
 
