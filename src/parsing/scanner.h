@@ -396,6 +396,12 @@ class Scanner {
   void set_allow_harmony_private_fields(bool allow) {
     allow_harmony_private_fields_ = allow;
   }
+  bool allow_harmony_private_methods() const {
+    return allow_harmony_private_methods_;
+  }
+  void set_allow_harmony_private_methods(bool allow) {
+    allow_harmony_private_methods_ = allow;
+  }
   bool allow_harmony_numeric_separator() const {
     return allow_harmony_numeric_separator_;
   }
@@ -810,6 +816,7 @@ class Scanner {
 
   // Harmony flags to allow ESNext features.
   bool allow_harmony_private_fields_;
+  bool allow_harmony_private_methods_;
   bool allow_harmony_numeric_separator_;
 
   const bool is_module_;
