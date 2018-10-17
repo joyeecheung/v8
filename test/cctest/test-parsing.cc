@@ -1507,6 +1507,7 @@ enum ParserFlag {
   kAllowNatives,
   kAllowHarmonyPublicFields,
   kAllowHarmonyPrivateFields,
+  kAllowHarmonyPrivateMethods,
   kAllowHarmonyStaticFields,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
@@ -1523,6 +1524,7 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
   i::FLAG_harmony_public_fields = flags.Contains(kAllowHarmonyPublicFields);
   i::FLAG_harmony_private_fields = flags.Contains(kAllowHarmonyPrivateFields);
+  i::FLAG_harmony_private_methods = flags.Contains(kAllowHarmonyPrivateMethods);
   i::FLAG_harmony_static_fields = flags.Contains(kAllowHarmonyStaticFields);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
@@ -1536,6 +1538,8 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyPublicFields));
   parser->set_allow_harmony_private_fields(
       flags.Contains(kAllowHarmonyPrivateFields));
+  parser->set_allow_harmony_private_methods(
+      flags.Contains(kAllowHarmonyPrivateMethods));
   parser->set_allow_harmony_static_fields(
       flags.Contains(kAllowHarmonyStaticFields));
   parser->set_allow_harmony_dynamic_import(
