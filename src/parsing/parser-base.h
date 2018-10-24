@@ -1017,7 +1017,8 @@ class ParserBase {
 
   ExpressionT ParsePropertyName(IdentifierT* name, ParsePropertyKind* kind,
                                 ParseFunctionFlags* flags,
-                                bool* is_computed_name, bool* is_private);
+                                bool* is_computed_name, bool* is_private,
+                                bool* is_static);
   ExpressionT ParseObjectLiteral();
   ClassLiteralPropertyT ParseClassPropertyDefinition(
       ClassLiteralChecker* checker, ClassInfo* class_info,
@@ -1995,9 +1996,6 @@ inline bool ParsePropertyKindFromToken(Token::Value token,
     case Token::SEMICOLON:
       *kind = ParsePropertyKind::kClassField;
       return true;
-    case Token::PRIVATE_NAME:
-      *kind = ParsePropertyKind::kClassField;
-      return true;
     default:
       break;
   }
@@ -2015,14 +2013,13 @@ inline bool ParseAsAccessor(Token::Value token, Token::Value contextual_token,
   } else {
     return false;
   }
-
   return true;
 }
 
 template <class Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     IdentifierT* name, ParsePropertyKind* kind, ParseFunctionFlags* flags,
-    bool* is_computed_name, bool* is_private) {
+    bool* is_computed_name, bool* is_private, bool* is_static) {
   DCHECK_EQ(ParsePropertyKind::kNotSet, *kind);
   DCHECK_EQ(*flags, ParseFunctionFlag::kIsNormal);
   DCHECK(!*is_computed_name);
@@ -2044,11 +2041,83 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     *kind = ParsePropertyKind::kMethod;
   }
 
-  if (*kind == ParsePropertyKind::kNotSet && Check(Token::IDENTIFIER) &&
-      !ParseAsAccessor(peek(), scanner()->current_contextual_token(), kind)) {
+  if (peek() == Token::PRIVATE_NAME) {
+    if (*is_static ||
+        !(allow_harmony_private_fields() || allow_harmony_private_methods())) {
+      // TODO(joyee): Make a better error message for this.
+      ReportUnexpectedToken(Next());
+      return impl()->NullExpression();
+    }
+
+    *is_private = true;
+    Consume(Token::PRIVATE_NAME);
     *name = impl()->GetSymbol();
     impl()->PushLiteralName(*name);
-    return factory()->NewStringLiteral(*name, position());
+
+    if (*kind == ParsePropertyKind::kNotSet) {
+      ParsePropertyKindFromToken(peek(), kind);
+    }
+
+    switch (*kind) {
+      case ParsePropertyKind::kMethod:
+        if (allow_harmony_private_methods()) {
+          return factory()->NewStringLiteral(*name, position());
+        }
+        break;
+      case ParsePropertyKind::kClassField:
+        if (allow_harmony_private_fields()) {
+          return factory()->NewStringLiteral(*name, position());
+        }
+        break;
+      case ParsePropertyKind::kShorthand:
+        if (peek() != Token::COMMA) {
+          return factory()->NewStringLiteral(*name, position());
+        }
+        break;
+      default:
+        // Allow ASI.
+        return factory()->NewStringLiteral(*name, position());
+        break;
+    }
+
+    // TODO(joyee): Make a better error message for this.
+    ReportUnexpectedToken(Next());
+    return impl()->NullExpression();
+  }
+
+  if (*kind == ParsePropertyKind::kNotSet && Check(Token::IDENTIFIER)) {
+    if (ParsePropertyKindFromToken(peek(), kind)) {
+      *name = impl()->GetSymbol();
+      impl()->PushLiteralName(*name);
+      return factory()->NewStringLiteral(*name, position());
+    }
+
+    switch (scanner()->current_contextual_token()) {
+      case Token::GET:
+        *kind = ParsePropertyKind::kAccessorGetter;
+        break;
+      case Token::SET:
+        *kind = ParsePropertyKind::kAccessorSetter;
+        break;
+      default:
+        *name = impl()->GetSymbol();
+        impl()->PushLiteralName(*name);
+        return factory()->NewStringLiteral(*name, position());
+    }
+
+    if (peek() == Token::PRIVATE_NAME) {
+      if (allow_harmony_private_methods()) {
+        *is_private = true;
+        Consume(Token::PRIVATE_NAME);
+        *name = impl()->GetSymbol();
+        impl()->PushLiteralName(*name);
+        return factory()->NewStringLiteral(*name, position());
+      } else {
+        // TODO(joyee): Make a better error message for this.
+        ReportUnexpectedToken(Next());
+        return impl()->NullExpression();
+      }
+    }
   }
 
   int pos = peek_position();
@@ -2157,8 +2226,9 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
   ParsePropertyKind kind = ParsePropertyKind::kNotSet;
 
   Token::Value name_token = peek();
-  DCHECK_IMPLIES(name_token == Token::PRIVATE_NAME,
-                 allow_harmony_private_fields());
+  DCHECK_IMPLIES(
+      name_token == Token::PRIVATE_NAME,
+      allow_harmony_private_fields() || allow_harmony_private_methods());
 
   int property_beg_pos = scanner()->peek_location().beg_pos;
   int name_token_position = property_beg_pos;
@@ -2176,29 +2246,20 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       *name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
       name_expression = factory()->NewStringLiteral(*name, position());
     } else if (peek() == Token::PRIVATE_NAME) {
-      DCHECK(allow_harmony_private_fields());
       // TODO(gsathya): Make a better error message for this.
       ReportUnexpectedToken(Next());
       return impl()->NullLiteralProperty();
     } else {
       *is_static = true;
-      name_expression = ParsePropertyName(name, &kind, &function_flags,
-                                          is_computed_name, is_private);
+      name_expression =
+          ParsePropertyName(name, &kind, &function_flags, is_computed_name,
+                            is_private, is_static);
     }
-  } else if (name_token == Token::PRIVATE_NAME) {
-    Consume(Token::PRIVATE_NAME);
-    *is_private = true;
-    *name = impl()->GetSymbol();
-    name_expression = factory()->NewStringLiteral(*name, position());
   } else {
-    name_expression = ParsePropertyName(name, &kind, &function_flags,
-                                        is_computed_name, is_private);
+    name_expression = ParsePropertyName(
+        name, &kind, &function_flags, is_computed_name, is_private, is_static);
   }
 
-  if (!class_info->has_name_static_property && *is_static &&
-      impl()->IsName(*name)) {
-    class_info->has_name_static_property = true;
-  }
 
   switch (kind) {
     case ParsePropertyKind::kClassField:
@@ -2374,13 +2435,16 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
   int next_end_pos = peek_end_position();
 
   bool is_private = false;
+  bool is_static = false;
   ExpressionT name_expression = ParsePropertyName(
-      &name, &kind, &function_flags, is_computed_name, &is_private);
+      &name, &kind, &function_flags, is_computed_name, &is_private, &is_static);
 
-  if (is_private) {
-    // TODO(joyee): private names in object literals should be Syntax Errors
-    // https://tc39.github.io/proposal-private-methods/#prod-PropertyDefinition
-  }
+  // TODO(joyee): private names or static in object literals should
+  // be Syntax Errors
+  // https://tc39.github.io/proposal-private-methods/#prod-PropertyDefinition
+  DCHECK(!is_private);
+  DCHECK(!is_static);
+
   switch (kind) {
     case ParsePropertyKind::kSpread:
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);

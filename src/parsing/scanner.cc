@@ -591,7 +591,7 @@ Token::Value Scanner::ScanString() {
 }
 
 Token::Value Scanner::ScanPrivateName() {
-  if (!allow_harmony_private_fields()) {
+  if (!allow_harmony_private_fields() && !allow_harmony_private_methods()) {
     ReportScannerError(source_pos(),
                        MessageTemplate::kInvalidOrUnexpectedToken);
     return Token::ILLEGAL;
