@@ -2751,6 +2751,8 @@ TEST(PrivateClassFields) {
   i::FLAG_harmony_private_fields = old_flag;
 }
 
+// TODO(joyee): add private methods test
+
 TEST(StaticClassFields) {
   bool old_flag = i::FLAG_harmony_public_fields;
   bool old_static_flag = i::FLAG_harmony_static_fields;

@@ -5403,7 +5403,8 @@ TEST(PrivateClassFieldsNoErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
+  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields,
+                                              kAllowHarmonyPublicFields};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     private_fields, arraysize(private_fields));
 }
@@ -5572,7 +5573,8 @@ TEST(PrivateClassFieldsErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
+  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields,
+                                              kAllowHarmonyPublicFields};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     private_fields, arraysize(private_fields));
 }

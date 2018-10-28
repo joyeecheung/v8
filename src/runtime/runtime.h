@@ -285,6 +285,9 @@ namespace internal {
   F(AddElement, 3, 1)                                           \
   F(AddNamedProperty, 4, 1)                                     \
   F(AddPrivateField, 3, 1)                                      \
+  F(AddPrivateSetter, 3, 1)                                     \
+  F(AddPrivateGetter, 3, 1)                                     \
+  F(AddPrivateMethod, 3, 1)                                     \
   F(AllocateHeapNumber, 0, 1)                                   \
   F(ClassOf, 1, 1)                                              \
   F(CollectTypeProfile, 3, 1)                                   \
