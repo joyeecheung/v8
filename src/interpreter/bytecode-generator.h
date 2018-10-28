@@ -195,6 +195,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
   void BuildClassLiteral(ClassLiteral* expr, Register name);
+  void BuildPrivateMethods(
+      ZonePtrList<ClassLiteral::Property>* methods_or_accessors);
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);

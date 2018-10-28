@@ -333,7 +333,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name);
   FunctionLiteral* CreateInitializerFunction(
       const char* name, DeclarationScope* scope,
-      ZonePtrList<ClassLiteral::Property>* fields);
+      ZonePtrList<ClassLiteral::Property>* fields,
+      ZonePtrList<ClassLiteral::Property>* methods_or_accessors);
 
   bool IdentifierEquals(const AstRawString* identifier,
                         const AstRawString* other) {

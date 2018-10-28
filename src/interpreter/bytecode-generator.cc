@@ -1804,7 +1804,7 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  DCHECK(expr->scope()->outer_scope() == current_scope());
+  DCHECK_EQ(expr->scope()->outer_scope(), current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
@@ -1899,15 +1899,16 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         }
       }
 
+      // We don't compute field's or private method's value here, but instead
+      // do it in the initializer function.
+      if (property->is_private()) {
+        builder()->CallRuntime(Runtime::kCreatePrivateNameSymbol);
+        DCHECK_NOT_NULL(property->private_name_var());
+        BuildVariableAssignment(property->private_name_var(), Token::INIT,
+                                HoleCheckMode::kElided);
+        continue;
+      }
       if (property->kind() == ClassLiteral::Property::FIELD) {
-        if (property->is_private()) {
-          builder()->CallRuntime(Runtime::kCreatePrivateNameSymbol);
-          DCHECK_NOT_NULL(property->private_name_var());
-          BuildVariableAssignment(property->private_name_var(), Token::INIT,
-                                  HoleCheckMode::kElided);
-        }
-        // We don't compute field's value here, but instead do it in the
-        // initializer function.
         continue;
       }
 
@@ -2008,11 +2009,48 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
   Register constructor = args[0], key = args[1], value = args[2];
   builder()->MoveRegister(builder()->Receiver(), constructor);
 
+  ZonePtrList<ClassLiteral::Property>* methods_or_accessors =
+      stmt->methods_or_accessors();
+  if (methods_or_accessors != nullptr) {
+    for (int i = 0; i < methods_or_accessors->length(); i++) {
+      ClassLiteral::Property* property = methods_or_accessors->at(i);
+
+      DCHECK(property->is_private());
+      Variable* private_name_var = property->private_name_var();
+      DCHECK_NOT_NULL(private_name_var);
+      BuildVariableLoad(private_name_var, HoleCheckMode::kElided);
+      builder()->StoreAccumulatorInRegister(key);
+
+      builder()->SetExpressionAsStatementPosition(property->value());
+      VisitForRegisterValue(property->value(), value);
+      VisitSetHomeObject(value, constructor, property);
+
+      Runtime::FunctionId function_id;
+      switch (property->kind()) {
+        case ClassLiteral::Property::GETTER:
+          DCHECK(property->is_private());
+          function_id = Runtime::kAddPrivateGetter;
+          break;
+        case ClassLiteral::Property::SETTER:
+          DCHECK(property->is_private());
+          function_id = Runtime::kAddPrivateSetter;
+          break;
+        case ClassLiteral::Property::METHOD:
+          DCHECK(property->is_private());
+          function_id = Runtime::kAddPrivateMethod;
+          break;
+        default:
+          UNREACHABLE();
+      }
+      builder()->CallRuntime(function_id, args);
+    }
+  }
+
   for (int i = 0; i < stmt->fields()->length(); i++) {
     ClassLiteral::Property* property = stmt->fields()->at(i);
+    DCHECK_EQ(property->kind(), ClassLiteral::Property::FIELD);
 
     if (property->is_computed_name()) {
-      DCHECK_EQ(property->kind(), ClassLiteral::Property::FIELD);
       DCHECK(!property->is_private());
       Variable* var = property->computed_name_var();
       DCHECK_NOT_NULL(var);
@@ -2020,8 +2058,7 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
       // variable at class definition time.
       BuildVariableLoad(var, HoleCheckMode::kElided);
       builder()->StoreAccumulatorInRegister(key);
-    } else if (property->kind() == ClassLiteral::Property::FIELD &&
-               property->is_private()) {
+    } else if (property->is_private()) {
       Variable* private_name_var = property->private_name_var();
       DCHECK_NOT_NULL(private_name_var);
       BuildVariableLoad(private_name_var, HoleCheckMode::kElided);
@@ -2034,11 +2071,9 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
     VisitForRegisterValue(property->value(), value);
     VisitSetHomeObject(value, constructor, property);
 
-    Runtime::FunctionId function_id =
-        property->kind() == ClassLiteral::Property::FIELD &&
-                !property->is_private()
-            ? Runtime::kCreateDataProperty
-            : Runtime::kAddPrivateField;
+    Runtime::FunctionId function_id = property->is_private()
+                                          ? Runtime::kAddPrivateField
+                                          : Runtime::kCreateDataProperty;
     builder()->CallRuntime(function_id, args);
   }
 }

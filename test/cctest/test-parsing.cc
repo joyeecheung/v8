@@ -5221,9 +5221,10 @@ TEST(PrivateMethodsNoErrors) {
     "async *#a() { }",
 
     "#a() { } #b() {}",
-    "get #a() { } set #a(foo) {}",
-    "get #a() { } get #b() {} set #a(foo) {}",
-    "get #a() { } get #b() {} set #a(foo) {} set #b(foo) {}",
+    // TODO(joyee): support complementary private accessors.
+    // "get #a() { } set #a(foo) {}",
+    // "get #a() { } get #b() {} set #a(foo) {}",
+    // "get #a() { } get #b() {} set #a(foo) {} set #b(foo) {}",
     "set #a(foo) { } set #b(foo) {}",
     "get #a() { } get #b() {}",
 
@@ -5389,6 +5390,18 @@ TEST(PrivateMethodsErrors) {
     "async *#['a]() { }",
 
     // TODO(joyee): check duplicate accessors
+
+    // TODO(joyee): errors early in the parser base
+    // "#a() {} get #a() {}",
+    // "#a() {} set #a(foo) {}",
+    // "get #a() {} get #a() {}",
+    // "#a() {} async #a() {}",
+    // "#a() {} async #a() {}",
+    // "#a() {} *#a() {}",
+    // "#a() {} async *#a() {}",
+    // "get #a() {} async #a() {}",
+    // "get #a() {} *#a() {}",
+    // "get #a() {} async *#a() {}",
 
     "#a\n#",
     "#a() c",

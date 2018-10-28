@@ -3060,12 +3060,10 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     return;
   }
 
-  if (kind != ClassLiteralProperty::FIELD) {
+  if (kind != ClassLiteralProperty::FIELD && !is_private) {
     class_info->properties->Add(property, zone());
     return;
   }
-
-  DCHECK(allow_harmony_public_fields() || allow_harmony_private_fields());
 
   if (is_static) {
     DCHECK(allow_harmony_static_fields());
@@ -3073,7 +3071,11 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     DCHECK(!is_private);
     class_info->static_fields->Add(property, zone());
   } else {
-    class_info->instance_fields->Add(property, zone());
+    if (kind == ClassLiteralProperty::FIELD) {
+      class_info->instance_fields->Add(property, zone());
+    } else {
+      class_info->instance_methods_or_accessors->Add(property, zone());
+    }
   }
 
   if (is_computed_name) {
@@ -3086,25 +3088,29 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
             ast_value_factory(), class_info->computed_field_count));
     property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
-  }
-
-  if (kind == ClassLiteralProperty::FIELD && is_private) {
+  } else if (is_private) {
+    DCHECK(allow_harmony_private_methods() || allow_harmony_private_fields());
+    // TODO(joyee): check duplicate getter/setters for early errors
     Variable* private_name_var = CreateSyntheticContextVariable(property_name);
     property->set_private_name_var(private_name_var);
+    class_info->properties->Add(property, zone());
+  } else {
     class_info->properties->Add(property, zone());
   }
 }
 
 FunctionLiteral* Parser::CreateInitializerFunction(
     const char* name, DeclarationScope* scope,
-    ZonePtrList<ClassLiteral::Property>* fields) {
+    ZonePtrList<ClassLiteral::Property>* fields,
+    ZonePtrList<ClassLiteral::Property>* methods_or_accessors) {
   DCHECK_EQ(scope->function_kind(),
             FunctionKind::kClassMembersInitializerFunction);
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
-  InitializeClassMembersStatement* static_fields =
-      factory()->NewInitializeClassMembersStatement(fields, kNoSourcePosition);
-  statements.Add(static_fields);
+  InitializeClassMembersStatement* stmt =
+      factory()->NewInitializeClassMembersStatement(
+          fields, methods_or_accessors, kNoSourcePosition);
+  statements.Add(stmt);
   return factory()->NewFunctionLiteral(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
@@ -3145,14 +3151,14 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
   if (class_info->has_static_class_fields) {
     static_fields_initializer = CreateInitializerFunction(
         "<static_fields_initializer>", class_info->static_fields_scope,
-        class_info->static_fields);
+        class_info->static_fields, nullptr);
   }
 
   FunctionLiteral* instance_members_initializer_function = nullptr;
   if (class_info->has_instance_members) {
     instance_members_initializer_function = CreateInitializerFunction(
         "<instance_members_initializer>", class_info->instance_members_scope,
-        class_info->instance_fields);
+        class_info->instance_fields, class_info->instance_methods_or_accessors);
     class_info->constructor->set_requires_instance_members_initializer(true);
   }
 

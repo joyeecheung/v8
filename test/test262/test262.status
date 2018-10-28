@@ -768,6 +768,12 @@
   'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-1': [FAIL],
   'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-2': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8330
+  'language/expressions/class/private-accessor-name/*': [FAIL],
+  'language/statements/class/private-accessor-name/*': [FAIL],
+  'language/expressions/class/syntax/valid/grammar-privatemeth-duplicate-get-set': [FAIL],
+  'language/statements/class/syntax/valid/grammar-privatemeth-duplicate-get-set': [FAIL],
+
   ############################ SLOW TESTS #############################
 
   'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, SLOW],
