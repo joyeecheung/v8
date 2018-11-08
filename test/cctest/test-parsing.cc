@@ -5315,6 +5315,17 @@ TEST(PrivateMethodsErrors) {
 
     "#a(arguments) {}",
     "set #a(arguments) {}",
+
+    "#a\n#",
+    "#a() c",
+    "#a() #",
+    "#a(arg) c",
+    "#a(arg) #",
+    "#a(arg) #c",
+    "#a#",
+    "#a#b",
+    "#a#b(){}",
+    "#[test](){}",
     nullptr
   };
   // clang-format on
@@ -5389,7 +5400,8 @@ TEST(PrivateClassFieldsNoErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
+  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields,
+                                              kAllowHarmonyPublicFields};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     private_fields, arraysize(private_fields));
 }
@@ -5558,7 +5570,8 @@ TEST(PrivateClassFieldsErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
+  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields,
+                                              kAllowHarmonyPublicFields};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     private_fields, arraysize(private_fields));
 }
@@ -5603,16 +5616,18 @@ TEST(PrivateStaticClassFieldsErrors) {
     "static #'a';",
 
     "static # a = 0",
+    "static #get a() { }",
+    "static #set a() { }",
+    "static #*a() { }",
+    "static async #*a() { }",
+
+    // TODO(joyee): support static private methods
     "static #a() { }",
     "static get #a() { }",
-    "static #get a() { }",
     "static set #a() { }",
-    "static #set a() { }",
     "static *#a() { }",
-    "static #*a() { }",
     "static async #a() { }",
     "static async *#a() { }",
-    "static async #*a() { }",
 
     // ASI
     "static #a = 0\n",

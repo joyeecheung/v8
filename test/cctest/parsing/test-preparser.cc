@@ -680,6 +680,7 @@ TEST(PreParserScopeAnalysis) {
          i::FLAG_harmony_public_fields = false;
          i::FLAG_harmony_static_fields = false;
        }},
+      // TODO(joyee): add private methods tests
       {"class X { #x = 1 }; new X;",
        [] { i::FLAG_harmony_private_fields = true; },
        [] { i::FLAG_harmony_private_fields = false; }},
