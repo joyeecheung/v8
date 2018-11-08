@@ -1986,20 +1986,6 @@ inline bool ParsePropertyKindFromToken(Token::Value token,
   return false;
 }
 
-inline bool ParseAsAccessor(Token::Value token, Token::Value contextual_token,
-                            ParsePropertyKind* kind) {
-  if (ParsePropertyKindFromToken(token, kind)) return false;
-
-  if (contextual_token == Token::GET) {
-    *kind = ParsePropertyKind::kAccessorGetter;
-  } else if (contextual_token == Token::SET) {
-    *kind = ParsePropertyKind::kAccessorSetter;
-  } else {
-    return false;
-  }
-  return true;
-}
-
 template <class Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     IdentifierT* name, ParsePropertyKind* kind, ParseFunctionFlags* flags,
@@ -2242,6 +2228,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
         name, &kind, &function_flags, is_computed_name, is_private, is_static);
   }
 
+  if (!class_info->has_name_static_property && *is_static &&
+      impl()->IsName(*name)) {
+    class_info->has_name_static_property = true;
+  }
 
   switch (kind) {
     case ParsePropertyKind::kClassField:

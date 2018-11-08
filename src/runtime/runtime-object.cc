@@ -1220,11 +1220,6 @@ RUNTIME_FUNCTION(Runtime_AddPrivateSetter) {
   LookupIterator it =
       LookupIterator::PropertyOrElement(isolate, o, key, LookupIterator::OWN);
 
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kVarRedeclaration, key));
-  }
-
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
 
@@ -1244,11 +1239,6 @@ RUNTIME_FUNCTION(Runtime_AddPrivateGetter) {
 
   LookupIterator it =
       LookupIterator::PropertyOrElement(isolate, o, key, LookupIterator::OWN);
-
-  if (it.IsFound()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kVarRedeclaration, key));
-  }
 
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);

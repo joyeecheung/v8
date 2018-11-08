@@ -5620,15 +5620,17 @@ TEST(PrivateStaticClassFieldsErrors) {
 
     "static # a = 0",
     "static #a() { }",
-    "static get #a() { }",
     "static #get a() { }",
-    "static set #a() { }",
     "static #set a() { }",
-    "static *#a() { }",
     "static #*a() { }",
-    "static async #a() { }",
-    "static async *#a() { }",
     "static async #*a() { }",
+
+    // TODO(joyee): support static private methods
+    // "static get #a() { }",
+    // "static set #a() { }",
+    // "static *#a() { }",
+    // "static async #a() { }",
+    // "static async *#a() { }",
 
     // ASI
     "static #a = 0\n",

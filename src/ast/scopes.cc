@@ -973,6 +973,8 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
     return variables_.Lookup(name);
   }
 
+  // TODO(joyee): special case for redeclared private accessor here?
+  // https://tc39.github.io/proposal-private-methods/#sec-static-semantics-early-errors
   VariableKind kind = NORMAL_VARIABLE;
   if (location == VariableLocation::CONTEXT &&
       index == scope_info_->ReceiverContextSlotIndex()) {
