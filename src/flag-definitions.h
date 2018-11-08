@@ -189,6 +189,8 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_public_fields)
 DEFINE_IMPLICATION(harmony_class_fields, harmony_static_fields)
 DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
+DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
+
 // Update bootstrapper.cc whenever adding a new feature flag.
 
 // Features that are still work in progress (behind individual flags).

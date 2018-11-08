@@ -3117,6 +3117,7 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     class_info->properties->Add(property, zone());
   } else if (is_private) {
     DCHECK(allow_harmony_private_methods() || allow_harmony_private_fields());
+    // TODO(joyee): check duplicate getter/setters for early errors
     Variable* private_name_var = CreateSyntheticContextVariable(property_name);
     property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());
