@@ -2731,6 +2731,68 @@ TEST(PrivateClassFields) {
   i::FLAG_harmony_private_fields = old_flag;
 }
 
+TEST(PrivateMethods) {
+  bool old_flag = i::FLAG_harmony_private_fields;
+  bool old_methods_flag = i::FLAG_harmony_private_methods;
+  i::FLAG_harmony_private_fields = true;
+  i::FLAG_harmony_private_methods = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "{\n"
+      "  class A {\n"
+      "    #a() { return 1; }\n"
+      "    constructor() { this.#a(); }\n"
+      "  }\n"
+      "\n"
+      "  new A;\n"
+      "}\n",
+
+      "{\n"
+      "  class A {\n"
+      "    get #a() { return 1; }\n"
+      "    constructor() { this.#a; }\n"
+      "  }\n"
+      "\n"
+      "  new A;\n"
+      "}\n",
+
+      "{\n"
+      "  class A {\n"
+      "    set #a(a) {}\n"
+      "    constructor(a) { this.#a = a; }\n"
+      "  }\n"
+      "\n"
+      "  new A(1);\n"
+      "}\n",
+
+      "{\n"
+      "  class A extends class {} {\n"
+      "    #a() {}\n"
+      "    constructor() {\n"
+      "      super();\n"
+      "      this.#a();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  class B extends A {\n"
+      "    #a() {}\n"
+      "    constructor() {\n"
+      "      super();\n"
+      "      this.#a();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  new A;\n"
+      "  new B;\n"
+      "};\n"};
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PrivateMethods.golden")));
+  i::FLAG_harmony_private_fields = old_flag;
+  i::FLAG_harmony_private_methods = old_methods_flag;
+}
+
 TEST(StaticClassFields) {
   bool old_flag = i::FLAG_harmony_public_fields;
   bool old_static_flag = i::FLAG_harmony_static_fields;
