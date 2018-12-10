@@ -2786,7 +2786,7 @@ TEST(PrivateMethods) {
       "\n"
       "  new A;\n"
       "  new B;\n"
-      "};\n"};
+      "}\n"};
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("PrivateMethods.golden")));
   i::FLAG_harmony_private_fields = old_flag;

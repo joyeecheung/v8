@@ -3090,10 +3090,20 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     class_info->properties->Add(property, zone());
   } else if (is_private) {
     DCHECK(allow_harmony_private_methods() || allow_harmony_private_fields());
-    // TODO(joyee): check duplicate getter/setters for early errors
+    // TODO(joyee): if this is an accessor, check that
+    // 1. If a complementary accessor is already declared, use that
+    //    SyntheticContextVariable as the private name variable instead of
+    //    building a new one
+    // 2. If a conflicting accessor is declared, throw SyntaxError
     Variable* private_name_var = CreateSyntheticContextVariable(property_name);
     property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());
+    if (kind != ClassLiteralProperty::FIELD) {
+      Variable* private_value_var =
+          CreateSyntheticContextVariable(ClassPrivateVariableName(
+              ast_value_factory(), class_info->private_value_count));
+      property->set_private_value_var(private_value_var);
+    }
   } else {
     class_info->properties->Add(property, zone());
   }

@@ -1240,8 +1240,17 @@ class PreParser : public ParserBase<PreParser> {
           VariableMode::kConst);
     }
 
-    if (is_private && property_name.string_ != nullptr) {
-      scope()->DeclareVariableName(property_name.string_, VariableMode::kConst);
+    if (is_private) {
+      if (property_name.string_ != nullptr) {
+        scope()->DeclareVariableName(property_name.string_,
+                                     VariableMode::kConst);
+      }
+      if (kind != ClassLiteralProperty::FIELD) {
+        scope()->DeclareVariableName(
+            ClassPrivateVariableName(ast_value_factory(),
+                                     class_info->private_value_count),
+            VariableMode::kConst);
+      }
     }
   }
 

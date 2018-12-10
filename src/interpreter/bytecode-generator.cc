@@ -1899,21 +1899,30 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         }
       }
 
-      // We don't compute field's or private method's value here, but instead
-      // do it in the initializer function.
       if (property->is_private()) {
         builder()->CallRuntime(Runtime::kCreatePrivateNameSymbol);
         DCHECK_NOT_NULL(property->private_name_var());
         BuildVariableAssignment(property->private_name_var(), Token::INIT,
                                 HoleCheckMode::kElided);
-        continue;
       }
+
+      // We don't compute field's value here, but instead
+      // do it in the initializer function. The private methods/accessors
+      // will be created here, however.
       if (property->kind() == ClassLiteral::Property::FIELD) {
         continue;
       }
 
-      Register value = register_allocator()->GrowRegisterList(&args);
-      VisitForRegisterValue(property->value(), value);
+      if (property->is_private()) {
+        VisitForAccumulatorValue(property->value());
+        DCHECK_NE(property->kind(), ClassLiteral::Property::FIELD);
+        DCHECK_NOT_NULL(property->private_value_var());
+        BuildVariableAssignment(property->private_value_var(), Token::INIT,
+                                HoleCheckMode::kElided);
+      } else {
+        Register value = register_allocator()->GrowRegisterList(&args);
+        VisitForRegisterValue(property->value(), value);
+      }
     }
 
     builder()->CallRuntime(Runtime::kDefineClass, args);
@@ -2021,9 +2030,11 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
       BuildVariableLoad(private_name_var, HoleCheckMode::kElided);
       builder()->StoreAccumulatorInRegister(key);
 
-      builder()->SetExpressionAsStatementPosition(property->value());
-      VisitForRegisterValue(property->value(), value);
-      VisitSetHomeObject(value, constructor, property);
+      Variable* private_value_var = property->private_value_var();
+      DCHECK_NOT_NULL(private_value_var);
+      builder()->SetExpressionPosition(property->value());
+      BuildVariableLoad(private_value_var, HoleCheckMode::kElided);
+      builder()->StoreAccumulatorInRegister(value);
 
       Runtime::FunctionId function_id;
       switch (property->kind()) {

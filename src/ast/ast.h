@@ -2570,6 +2570,16 @@ class ClassLiteralProperty final : public LiteralProperty {
     return private_or_computed_name_var_;
   }
 
+  void set_private_value_var(Variable* var) {
+    DCHECK(is_private());
+    private_value_var_ = var;
+  }
+
+  Variable* private_value_var() const {
+    DCHECK(is_private());
+    return private_value_var_;
+  }
+
  private:
   friend class AstNodeFactory;
 
@@ -2580,6 +2590,7 @@ class ClassLiteralProperty final : public LiteralProperty {
   bool is_static_;
   bool is_private_;
   Variable* private_or_computed_name_var_;
+  Variable* private_value_var_;
 };
 
 class InitializeClassMembersStatement final : public Statement {

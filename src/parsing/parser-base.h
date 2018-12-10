@@ -559,7 +559,8 @@ class ParserBase {
           is_anonymous(false),
           static_fields_scope(nullptr),
           instance_members_scope(nullptr),
-          computed_field_count(0) {}
+          computed_field_count(0),
+          private_value_count(0) {}
     Variable* variable;
     ExpressionT extends;
     ClassPropertyListT properties;
@@ -577,6 +578,7 @@ class ParserBase {
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_members_scope;
     int computed_field_count;
+    int private_value_count;
   };
 
   enum class PropertyPosition { kObjectLiteral, kClassLiteral };
@@ -652,6 +654,12 @@ class ParserBase {
   const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,
                                              int index) {
     std::string name = ".class-field-" + std::to_string(index);
+    return ast_value_factory->GetOneByteString(name.c_str());
+  }
+
+  const AstRawString* ClassPrivateVariableName(
+      AstValueFactory* ast_value_factory, int index) {
+    std::string name = ".class-private-" + std::to_string(index);
     return ast_value_factory->GetOneByteString(name.c_str());
   }
 
@@ -2312,8 +2320,6 @@ ParserBase<Impl>::ParseClassMemberInitializer(
 
   ExpressionT initializer;
   if (property_kind != ClassLiteralProperty::FIELD) {
-    FunctionState initializer_state(&function_state_, &scope_,
-                                    initializer_scope);
     initializer = impl()->ParseFunctionLiteral(
         name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
         name_token_position, FunctionLiteral::kAccessorOrMethod,
@@ -4258,6 +4264,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     if (prop_info.is_computed_name && !prop_info.is_private &&
         property_kind == ClassLiteralProperty::FIELD) {
       class_info.computed_field_count++;
+    }
+    if (prop_info.is_private && property_kind != ClassLiteralProperty::FIELD) {
+      class_info.private_value_count++;
     }
     is_constructor &= class_info.has_seen_constructor;
 
