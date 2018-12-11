@@ -1840,6 +1840,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
 
   VisitDeclarations(expr->scope()->declarations());
   Register class_constructor = register_allocator()->NewRegister();
+  Register private_name = register_allocator()->NewRegister();
 
   {
     RegisterAllocationScope register_scope(this);
@@ -1900,7 +1901,9 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
       }
 
       if (property->is_private()) {
-        builder()->CallRuntime(Runtime::kCreatePrivateNameSymbol);
+        VisitForRegisterValue(property->key(), private_name);
+        builder()->CallRuntime(Runtime::kCreatePrivateNameSymbol, private_name);
+
         DCHECK_NOT_NULL(property->private_name_var());
         BuildVariableAssignment(property->private_name_var(), Token::INIT,
                                 HoleCheckMode::kElided);

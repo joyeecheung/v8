@@ -26,8 +26,10 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
 
 RUNTIME_FUNCTION(Runtime_CreatePrivateNameSymbol) {
   HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   Handle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol();
+  symbol->set_name(*name);
   return *symbol;
 }
 
