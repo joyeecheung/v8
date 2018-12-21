@@ -518,6 +518,11 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   for (int i = 0; i < expr->properties()->length(); i++) {
     ClassLiteral::Property* property = expr->properties()->at(i);
 
+    // We will define the private fields/methods/accessors in the
+    // initializer function.
+    if (property->is_private()) {
+      continue;
+    }
     ClassBoilerplate::ValueKind value_kind;
     switch (property->kind()) {
       case ClassLiteral::Property::METHOD:

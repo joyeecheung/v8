@@ -221,6 +221,14 @@ void CallPrinter::VisitClassLiteral(ClassLiteral* node) {
 
 void CallPrinter::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* node) {
+  ZonePtrList<ClassLiteral::Property>* methods_or_accessors =
+      node->methods_or_accessors();
+  if (methods_or_accessors != nullptr) {
+    for (int i = 0; i < methods_or_accessors->length(); i++) {
+      Find(methods_or_accessors->at(i)->value());
+    }
+  }
+
   for (int i = 0; i < node->fields()->length(); i++) {
     Find(node->fields()->at(i)->value());
   }
@@ -1054,7 +1062,7 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
                        node->static_fields_initializer());
   }
   if (node->instance_members_initializer_function() != nullptr) {
-    PrintIndentedVisit("INSTANCE ELEMENTS INITIALIZER",
+    PrintIndentedVisit("INSTANCE MEMBERS INITIALIZER",
                        node->instance_members_initializer_function());
   }
   PrintClassProperties(node->properties());
@@ -1062,7 +1070,10 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
 
 void AstPrinter::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* node) {
-  IndentedScope indent(this, "INITIALIZE CLASS ELEMENTS", node->position());
+  IndentedScope indent(this, "INITIALIZE CLASS MEMBERS", node->position());
+  if (node->methods_or_accessors() != nullptr) {
+    PrintClassProperties(node->methods_or_accessors());
+  }
   PrintClassProperties(node->fields());
 }
 

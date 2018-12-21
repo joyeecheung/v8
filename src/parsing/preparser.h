@@ -1227,10 +1227,21 @@ class PreParser : public ParserBase<PreParser> {
                           &was_added);
     }
   }
-  V8_INLINE void DeclareClassProperty(const PreParserIdentifier& class_name,
+  V8_INLINE void DeclareClassProperty(const PreParserIdentifier& property_name,
                                       const PreParserExpression& property,
-                                      bool is_constructor,
-                                      ClassInfo* class_info) {}
+                                      bool is_constructor, bool is_private,
+                                      bool is_static, ClassInfo* class_info) {
+    if (is_private) {
+      bool name_was_added;
+      bool value_was_added;
+      DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
+                          &name_was_added);
+      DeclareVariableName(
+          ClassPrivateVariableName(ast_value_factory(),
+                                   class_info->private_value_count),
+          VariableMode::kConst, scope(), &value_was_added);
+    }
+  }
 
   V8_INLINE void DeclareClassField(const PreParserExpression& property,
                                    const PreParserIdentifier& property_name,

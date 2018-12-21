@@ -1148,6 +1148,70 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
   return *desc.ToPropertyDescriptorObject(isolate);
 }
 
+RUNTIME_FUNCTION(Runtime_AddPrivateSetter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, o, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Symbol, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, setter, 2);
+  DCHECK(key->is_private_name());
+
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(isolate, o, key, LookupIterator::OWN);
+
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::DefineAccessor(&it, isolate->factory()->null_value(),
+                                        setter, attributes));
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AddPrivateGetter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, o, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Symbol, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, getter, 2);
+  DCHECK(key->is_private_name());
+
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(isolate, o, key, LookupIterator::OWN);
+
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
+
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::DefineAccessor(
+                   &it, getter, isolate->factory()->null_value(), attributes));
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AddPrivateMethod) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, o, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Symbol, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, value, 2);
+  DCHECK(key->is_private_name());
+
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(isolate, o, key, LookupIterator::OWN);
+
+  if (it.IsFound()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kVarRedeclaration, key));
+  }
+
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+  CHECK(Object::AddDataProperty(&it, value, attributes, Just(kDontThrow),
+                                StoreOrigin::kMaybeKeyed)
+            .FromJust());
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_AddPrivateField) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

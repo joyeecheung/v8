@@ -42,6 +42,7 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
+  'class-methods-private': '--harmony-private-methods',
   'class-fields-public': '--harmony-public-fields',
   'class-static-fields-public': '--harmony-class-fields',
   'class-fields-private': '--harmony-private-fields',
@@ -59,7 +60,9 @@ FEATURE_FLAGS = {
   'Object.fromEntries': '--harmony-object-from-entries',
 }
 
-SKIPPED_FEATURES = set(['class-methods-private',
+SKIPPED_FEATURES = set(['class-fields-private',
+                        'class-methods-private',
+                        'class-static-fields-private',
                         'class-static-methods-private',
                         'Intl.NumberFormat-unified'])
 

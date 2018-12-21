@@ -2440,14 +2440,24 @@ class ClassLiteralProperty final : public LiteralProperty {
   }
 
   void set_private_name_var(Variable* var) {
-    DCHECK_EQ(FIELD, kind());
     DCHECK(is_private());
     private_or_computed_name_var_ = var;
   }
   Variable* private_name_var() const {
-    DCHECK_EQ(FIELD, kind());
     DCHECK(is_private());
     return private_or_computed_name_var_;
+  }
+
+  void set_private_value_var(Variable* var) {
+    DCHECK_NE(kind(), FIELD);
+    DCHECK(is_private());
+    private_value_var_ = var;
+  }
+
+  Variable* private_value_var() const {
+    DCHECK_NE(kind(), FIELD);
+    DCHECK(is_private());
+    return private_value_var_;
   }
 
  private:
@@ -2460,6 +2470,7 @@ class ClassLiteralProperty final : public LiteralProperty {
   bool is_static_;
   bool is_private_;
   Variable* private_or_computed_name_var_;
+  Variable* private_value_var_;
 };
 
 class InitializeClassMembersStatement final : public Statement {
@@ -2467,14 +2478,22 @@ class InitializeClassMembersStatement final : public Statement {
   typedef ClassLiteralProperty Property;
 
   ZonePtrList<Property>* fields() const { return fields_; }
+  ZonePtrList<Property>* methods_or_accessors() const {
+    return methods_or_accessors_;
+  }
 
  private:
   friend class AstNodeFactory;
 
-  InitializeClassMembersStatement(ZonePtrList<Property>* fields, int pos)
-      : Statement(pos, kInitializeClassMembersStatement), fields_(fields) {}
+  InitializeClassMembersStatement(ZonePtrList<Property>* fields,
+                                  ZonePtrList<Property>* methods_or_accessors,
+                                  int pos)
+      : Statement(pos, kInitializeClassMembersStatement),
+        fields_(fields),
+        methods_or_accessors_(methods_or_accessors) {}
 
   ZonePtrList<Property>* fields_;
+  ZonePtrList<Property>* methods_or_accessors_;
 };
 
 class ClassLiteral final : public Expression {
@@ -3290,8 +3309,10 @@ class AstNodeFactory final {
   }
 
   InitializeClassMembersStatement* NewInitializeClassMembersStatement(
-      ZonePtrList<ClassLiteral::Property>* args, int pos) {
-    return new (zone_) InitializeClassMembersStatement(args, pos);
+      ZonePtrList<ClassLiteral::Property>* fields,
+      ZonePtrList<ClassLiteral::Property>* methods_or_accessors, int pos) {
+    return new (zone_)
+        InitializeClassMembersStatement(fields, methods_or_accessors, pos);
   }
 
   Zone* zone() const { return zone_; }

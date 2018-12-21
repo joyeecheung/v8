@@ -649,6 +649,12 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7187
   'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': [SKIP],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8330
+  'language/expressions/class/private-accessor-name/*': [FAIL],
+  'language/statements/class/private-accessor-name/*': [FAIL],
+  'language/expressions/class/syntax/valid/grammar-privatemeth-duplicate-get-set': [FAIL],
+  'language/statements/class/syntax/valid/grammar-privatemeth-duplicate-get-set': [FAIL],
+
   ############################ SLOW TESTS #############################
 
   'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, SLOW],

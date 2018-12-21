@@ -346,7 +346,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name);
   FunctionLiteral* CreateInitializerFunction(
       const char* name, DeclarationScope* scope,
-      ZonePtrList<ClassLiteral::Property>* fields);
+      ZonePtrList<ClassLiteral::Property>* fields,
+      ZonePtrList<ClassLiteral::Property>* methods_or_accessors);
 
   bool IdentifierEquals(const AstRawString* identifier,
                         const AstRawString* other) {
@@ -358,8 +359,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                           int class_token_pos, int end_pos);
   void DeclareClassVariable(const AstRawString* name, ClassInfo* class_info,
                             int class_token_pos);
-  void DeclareClassProperty(const AstRawString* class_name,
+  void DeclareClassProperty(const AstRawString* property_name,
                             ClassLiteralProperty* property, bool is_constructor,
+                            bool is_private, bool is_static,
                             ClassInfo* class_info);
   void DeclareClassField(ClassLiteralProperty* property,
                          const AstRawString* property_name, bool is_static,

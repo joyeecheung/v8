@@ -533,6 +533,8 @@ class ParserBase {
           properties(parser->impl()->NewClassPropertyList(4)),
           static_fields(parser->impl()->NewClassPropertyList(4)),
           instance_fields(parser->impl()->NewClassPropertyList(4)),
+          instance_methods_or_accessors(
+              parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
           has_seen_constructor(false),
           has_name_static_property(false),
@@ -542,12 +544,14 @@ class ParserBase {
           is_anonymous(false),
           static_fields_scope(nullptr),
           instance_members_scope(nullptr),
-          computed_field_count(0) {}
+          computed_field_count(0),
+          private_value_count(0) {}
     Variable* variable;
     ExpressionT extends;
     ClassPropertyListT properties;
     ClassPropertyListT static_fields;
     ClassPropertyListT instance_fields;
+    ClassPropertyListT instance_methods_or_accessors;
     FunctionLiteralT constructor;
 
     bool has_seen_constructor;
@@ -559,6 +563,7 @@ class ParserBase {
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_members_scope;
     int computed_field_count;
+    int private_value_count;
   };
 
   enum class PropertyPosition { kObjectLiteral, kClassLiteral };
@@ -637,6 +642,12 @@ class ParserBase {
   const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,
                                              int index) {
     std::string name = ".class-field-" + std::to_string(index);
+    return ast_value_factory->GetOneByteString(name.c_str());
+  }
+
+  const AstRawString* ClassPrivateVariableName(
+      AstValueFactory* ast_value_factory, int index) {
+    std::string name = ".class-private-" + std::to_string(index);
     return ast_value_factory->GetOneByteString(name.c_str());
   }
 
@@ -1029,8 +1040,10 @@ class ParserBase {
   void CheckClassMethodName(IdentifierT name, ParsePropertyKind type,
                             ParseFunctionFlags flags, bool is_static,
                             bool* has_seen_constructor);
-  ExpressionT ParseMemberInitializer(ClassInfo* class_info, int beg_pos,
-                                     bool is_static);
+  ExpressionT ParseClassMemberInitializer(
+      ClassInfo* class_info, int beg_pos, bool is_static, IdentifierT name,
+      int name_token_position, ClassLiteralProperty::Kind property_kind,
+      FunctionKind function_kind);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ParsePropertyInfo* prop_info, bool* has_seen_proto);
   void ParseArguments(
@@ -2129,8 +2142,14 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
           CheckClassFieldName(prop_info->name, prop_info->is_static);
         }
 
-        ExpressionT initializer = ParseMemberInitializer(
-            class_info, property_beg_pos, prop_info->is_static);
+        // TODO(joyee): FunctionKind is meaningless in the case of class fields,
+        // it's only needed in the method/accessor branches.
+        // Refactor to remove that dependency.
+        ExpressionT initializer = ParseClassMemberInitializer(
+            class_info, property_beg_pos, prop_info->is_static, prop_info->name,
+            name_token_position, ClassLiteralProperty::FIELD,
+            FunctionKind::kNormalFunction);
+
         ExpectSemicolon();
 
         ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
@@ -2169,10 +2188,17 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
                            : FunctionKind::kBaseConstructor;
       }
 
-      ExpressionT value = impl()->ParseFunctionLiteral(
-          prop_info->name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          name_token_position, FunctionLiteral::kAccessorOrMethod,
-          language_mode(), nullptr);
+      ExpressionT value;
+      if (prop_info->is_private) {
+        value = ParseClassMemberInitializer(
+            class_info, property_beg_pos, prop_info->is_static, prop_info->name,
+            name_token_position, ClassLiteralProperty::METHOD, kind);
+      } else {
+        value = impl()->ParseFunctionLiteral(
+            prop_info->name, scanner()->location(), kSkipFunctionNameCheck,
+            kind, name_token_position, FunctionLiteral::kAccessorOrMethod,
+            language_mode(), nullptr);
+      }
 
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
           name_expression, value, ClassLiteralProperty::METHOD,
@@ -2200,14 +2226,21 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
 
       FunctionKind kind = is_get ? FunctionKind::kGetterFunction
                                  : FunctionKind::kSetterFunction;
-
-      FunctionLiteralT value = impl()->ParseFunctionLiteral(
-          prop_info->name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          name_token_position, FunctionLiteral::kAccessorOrMethod,
-          language_mode(), nullptr);
-
       ClassLiteralProperty::Kind property_kind =
           is_get ? ClassLiteralProperty::GETTER : ClassLiteralProperty::SETTER;
+
+      ExpressionT value;
+      if (prop_info->is_private) {
+        value = ParseClassMemberInitializer(
+            class_info, property_beg_pos, prop_info->is_static, prop_info->name,
+            name_token_position, property_kind, kind);
+      } else {
+        value = impl()->ParseFunctionLiteral(
+            prop_info->name, scanner()->location(), kSkipFunctionNameCheck,
+            kind, name_token_position, FunctionLiteral::kAccessorOrMethod,
+            language_mode(), nullptr);
+      }
+
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
           name_expression, value, property_kind, prop_info->is_static,
           prop_info->is_computed_name, prop_info->is_private);
@@ -2229,8 +2262,14 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
-    ClassInfo* class_info, int beg_pos, bool is_static) {
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseClassMemberInitializer(
+    ClassInfo* class_info, int beg_pos, bool is_static, IdentifierT name,
+    int name_token_position, ClassLiteralProperty::Kind property_kind,
+    FunctionKind function_kind) {
+  // TODO(joyee): class_info is only passed here so that we can update
+  // the scope information, can we refactor the logic somehow to make it
+  // independent of the parsing of class members?
   DeclarationScope* initializer_scope =
       is_static ? class_info->static_fields_scope
                 : class_info->instance_members_scope;
@@ -2244,14 +2283,22 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
   }
 
   ExpressionT initializer;
-  if (Check(Token::ASSIGN)) {
-    FunctionState initializer_state(&function_state_, &scope_,
-                                    initializer_scope);
+  if (property_kind != ClassLiteralProperty::FIELD) {
+    initializer = impl()->ParseFunctionLiteral(
+        name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
+        name_token_position, FunctionLiteral::kAccessorOrMethod,
+        language_mode(), nullptr);
+    initializer_scope->set_end_position(end_position());
+  } else {  // fields
+    if (Check(Token::ASSIGN)) {
+      FunctionState initializer_state(&function_state_, &scope_,
+                                      initializer_scope);
 
-    AcceptINScope scope(this, true);
-    initializer = ParseAssignmentExpression();
-  } else {
-    initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
+      AcceptINScope scope(this, true);
+      initializer = ParseAssignmentExpression();
+    } else {
+      initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
+    }
   }
 
   initializer_scope->set_end_position(end_position());
@@ -4215,7 +4262,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
                                 prop_info.is_computed_name,
                                 prop_info.is_private, &class_info);
     } else {
-      impl()->DeclareClassProperty(name, property, is_constructor, &class_info);
+      if (prop_info.is_private) {
+        class_info.private_value_count++;
+      }
+      impl()->DeclareClassProperty(
+          is_constructor ? name : prop_info.name, property, is_constructor,
+          prop_info.is_private, prop_info.is_static, &class_info);
     }
     impl()->InferFunctionName();
   }
