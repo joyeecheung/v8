@@ -1218,6 +1218,12 @@ class PreParser : public ParserBase<PreParser> {
     }
     return PreParserStatement::Default();
   }
+  V8_INLINE void DeclareClassBrandVariable(ClassInfo* class_info,
+                                           int class_token_pos) {
+    bool was_added;
+    DeclareVariableName(ast_value_factory()->dot_brand_string(),
+                        VariableMode::kConst, scope(), &was_added);
+  }
   V8_INLINE void DeclareClassVariable(const PreParserIdentifier& name,
                                       ClassInfo* class_info,
                                       int class_token_pos) {
@@ -1227,26 +1233,33 @@ class PreParser : public ParserBase<PreParser> {
                           &was_added);
     }
   }
-  V8_INLINE void DeclareClassProperty(const PreParserIdentifier& class_name,
-                                      const PreParserExpression& property,
-                                      bool is_constructor,
-                                      ClassInfo* class_info) {}
+  V8_INLINE void DeclarePrivateClassMember(
+      const PreParserIdentifier& property_name,
+      const PreParserExpression& property, ClassLiteralProperty::Kind kind,
+      bool is_static, ClassInfo* class_info) {
+    DCHECK_NE(property_name.string_, nullptr);
+    if (kind == ClassLiteralProperty::Kind::METHOD ||
+        kind == ClassLiteralProperty::Kind::FIELD) {
+      bool was_added;
+      DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
+                          &was_added);
+    }
+  }
+  V8_INLINE void DeclarePublicClassMethod(
+      const PreParserIdentifier& property_name,
+      const PreParserExpression& property, bool is_constructor, bool is_static,
+      ClassInfo* class_info) {}
 
-  V8_INLINE void DeclareClassField(const PreParserExpression& property,
-                                   const PreParserIdentifier& property_name,
-                                   bool is_static, bool is_computed_name,
-                                   bool is_private, ClassInfo* class_info) {
-    DCHECK_IMPLIES(is_computed_name, !is_private);
+  V8_INLINE void DeclarePublicClassField(
+      const PreParserExpression& property,
+      const PreParserIdentifier& property_name, bool is_static,
+      bool is_computed_name, ClassInfo* class_info) {
     if (is_computed_name) {
       bool was_added;
       DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           VariableMode::kConst, scope(), &was_added);
-    } else if (is_private && property_name.string_ != nullptr) {
-      bool was_added;
-      DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
-                          &was_added);
     }
   }
 

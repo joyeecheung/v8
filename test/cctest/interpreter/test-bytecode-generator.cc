@@ -2762,6 +2762,41 @@ TEST(PrivateClassFields) {
   i::FLAG_harmony_private_fields = old_flag;
 }
 
+TEST(PrivateMethods) {
+  bool old_flag = i::FLAG_harmony_private_fields;
+  bool old_methods_flag = i::FLAG_harmony_private_methods;
+  i::FLAG_harmony_private_fields = true;
+  i::FLAG_harmony_private_methods = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "{\n"
+      "  class A {\n"
+      "    #a() { return 1; }\n"
+      "  }\n"
+      "\n"
+      "  new A;\n"
+      "}\n",
+
+      "{\n"
+      "  class D extends class {} {\n"
+      "    #d() {}\n"
+      "  }\n"
+      "\n"
+      "  class E extends D {\n"
+      "    #e() {}\n"
+      "  }\n"
+      "\n"
+      "  new D;\n"
+      "  new E;\n"
+      "}\n"};
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("PrivateMethods.golden")));
+  i::FLAG_harmony_private_fields = old_flag;
+  i::FLAG_harmony_private_methods = old_methods_flag;
+}
+
 TEST(StaticClassFields) {
   bool old_flag = i::FLAG_harmony_public_fields;
   bool old_static_flag = i::FLAG_harmony_static_fields;

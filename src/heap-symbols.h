@@ -114,6 +114,7 @@
   V(_, buffer_string, "buffer")                                       \
   V(_, byte_length_string, "byteLength")                              \
   V(_, byte_offset_string, "byteOffset")                              \
+  V(_, dot_brand_string, ".brand")                                    \
   V(_, call_string, "call")                                           \
   V(_, callee_string, "callee")                                       \
   V(_, caller_string, "caller")                                       \

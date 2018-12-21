@@ -498,13 +498,14 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* stmt) {
   PROCESS_NODE(stmt);
-  ZonePtrList<ClassLiteral::Property>* props = stmt->fields();
-  for (int i = 0; i < props->length(); ++i) {
-    ClassLiteralProperty* prop = props->at(i);
-    if (!prop->key()->IsLiteral()) {
-      RECURSE(Visit(prop->key()));
+
+  ZonePtrList<ClassLiteral::Property>* fields = stmt->fields();
+  for (int i = 0; i < fields->length(); ++i) {
+    ClassLiteralProperty* field = fields->at(i);
+    if (!field->key()->IsLiteral()) {
+      RECURSE(Visit(field->key()));
     }
-    RECURSE(Visit(prop->value()));
+    RECURSE(Visit(field->value()));
   }
 }
 

@@ -5580,7 +5580,17 @@ TEST(PrivateMethodsErrors) {
     "async #['a']() { }",
     "async *#['a]() { }",
 
-    // TODO(joyee): check duplicate accessors
+    // TODO(joyee): check duplicate accessors and methods
+    // "#a() {} get #a() {}",
+    // "#a() {} set #a(foo) {}",
+    // "get #a() {} get #a() {}",
+    // "#a() {} async #a() {}",
+    // "#a() {} async #a() {}",
+    // "#a() {} *#a() {}",
+    // "#a() {} async *#a() {}",
+    // "get #a() {} async #a() {}",
+    // "get #a() {} *#a() {}",
+    // "get #a() {} async *#a() {}",
 
     "#a\n#",
     "#a() c",
@@ -5707,7 +5717,8 @@ TEST(PrivateClassFieldsNoErrors) {
 
   RunParserSyncTest(context_data, class_body_data, kError);
 
-  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
+  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields,
+                                              kAllowHarmonyPublicFields};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     private_fields, arraysize(private_fields));
 }
