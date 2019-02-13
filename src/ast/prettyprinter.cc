@@ -221,14 +221,6 @@ void CallPrinter::VisitClassLiteral(ClassLiteral* node) {
 
 void CallPrinter::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* node) {
-  ZonePtrList<ClassLiteral::Property>* methods_or_accessors =
-      node->methods_or_accessors();
-  if (methods_or_accessors != nullptr) {
-    for (int i = 0; i < methods_or_accessors->length(); i++) {
-      Find(methods_or_accessors->at(i)->value());
-    }
-  }
-
   for (int i = 0; i < node->fields()->length(); i++) {
     Find(node->fields()->at(i)->value());
   }
@@ -1070,10 +1062,11 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
 
 void AstPrinter::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* node) {
-  IndentedScope indent(this, "INITIALIZE CLASS MEMBERS", node->position());
-  if (node->methods_or_accessors() != nullptr) {
-    PrintClassProperties(node->methods_or_accessors());
+  if (node->brand_var() != nullptr) {
+    PrintLiteralWithModeIndented("BRAND", node->brand_var(),
+                                 node->brand_var()->raw_name());
   }
+  IndentedScope indent(this, "INITIALIZE CLASS MEMBERS", node->position());
   PrintClassProperties(node->fields());
 }
 

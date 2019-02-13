@@ -2448,18 +2448,6 @@ class ClassLiteralProperty final : public LiteralProperty {
     return private_or_computed_name_var_;
   }
 
-  void set_private_value_var(Variable* var) {
-    DCHECK_NE(kind(), FIELD);
-    DCHECK(is_private());
-    private_value_var_ = var;
-  }
-
-  Variable* private_value_var() const {
-    DCHECK_NE(kind(), FIELD);
-    DCHECK(is_private());
-    return private_value_var_;
-  }
-
  private:
   friend class AstNodeFactory;
 
@@ -2470,7 +2458,6 @@ class ClassLiteralProperty final : public LiteralProperty {
   bool is_static_;
   bool is_private_;
   Variable* private_or_computed_name_var_;
-  Variable* private_value_var_;
 };
 
 class InitializeClassMembersStatement final : public Statement {
@@ -2478,22 +2465,19 @@ class InitializeClassMembersStatement final : public Statement {
   typedef ClassLiteralProperty Property;
 
   ZonePtrList<Property>* fields() const { return fields_; }
-  ZonePtrList<Property>* methods_or_accessors() const {
-    return methods_or_accessors_;
-  }
+  Variable* brand_var() { return brand_var_; }
 
  private:
   friend class AstNodeFactory;
 
   InitializeClassMembersStatement(ZonePtrList<Property>* fields,
-                                  ZonePtrList<Property>* methods_or_accessors,
-                                  int pos)
+                                  Variable* brand_var, int pos)
       : Statement(pos, kInitializeClassMembersStatement),
         fields_(fields),
-        methods_or_accessors_(methods_or_accessors) {}
+        brand_var_(brand_var) {}
 
   ZonePtrList<Property>* fields_;
-  ZonePtrList<Property>* methods_or_accessors_;
+  Variable* brand_var_;
 };
 
 class ClassLiteral final : public Expression {
@@ -2501,6 +2485,7 @@ class ClassLiteral final : public Expression {
   typedef ClassLiteralProperty Property;
 
   Scope* scope() const { return scope_; }
+  Variable* brand_variable() const { return brand_variable_; }
   Variable* class_variable() const { return class_variable_; }
   Expression* extends() const { return extends_; }
   FunctionLiteral* constructor() const { return constructor_; }
@@ -2532,8 +2517,9 @@ class ClassLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  ClassLiteral(Scope* scope, Variable* class_variable, Expression* extends,
-               FunctionLiteral* constructor, ZonePtrList<Property>* properties,
+  ClassLiteral(Scope* scope, Variable* class_variable, Variable* brand_variable,
+               Expression* extends, FunctionLiteral* constructor,
+               ZonePtrList<Property>* properties,
                FunctionLiteral* static_fields_initializer,
                FunctionLiteral* instance_members_initializer_function,
                int start_position, int end_position,
@@ -2543,6 +2529,7 @@ class ClassLiteral final : public Expression {
         end_position_(end_position),
         scope_(scope),
         class_variable_(class_variable),
+        brand_variable_(brand_variable),
         extends_(extends),
         constructor_(constructor),
         properties_(properties),
@@ -2557,6 +2544,7 @@ class ClassLiteral final : public Expression {
   int end_position_;
   Scope* scope_;
   Variable* class_variable_;
+  Variable* brand_variable_;
   Expression* extends_;
   FunctionLiteral* constructor_;
   ZonePtrList<Property>* properties_;
@@ -3251,7 +3239,7 @@ class AstNodeFactory final {
   }
 
   ClassLiteral* NewClassLiteral(
-      Scope* scope, Variable* variable, Expression* extends,
+      Scope* scope, Variable* variable, Variable* brand, Expression* extends,
       FunctionLiteral* constructor,
       ZonePtrList<ClassLiteral::Property>* properties,
       FunctionLiteral* static_fields_initializer,
@@ -3259,7 +3247,7 @@ class AstNodeFactory final {
       int start_position, int end_position, bool has_name_static_property,
       bool has_static_computed_names, bool is_anonymous) {
     return new (zone_) ClassLiteral(
-        scope, variable, extends, constructor, properties,
+        scope, variable, brand, extends, constructor, properties,
         static_fields_initializer, instance_members_initializer_function,
         start_position, end_position, has_name_static_property,
         has_static_computed_names, is_anonymous);
@@ -3309,10 +3297,9 @@ class AstNodeFactory final {
   }
 
   InitializeClassMembersStatement* NewInitializeClassMembersStatement(
-      ZonePtrList<ClassLiteral::Property>* fields,
-      ZonePtrList<ClassLiteral::Property>* methods_or_accessors, int pos) {
-    return new (zone_)
-        InitializeClassMembersStatement(fields, methods_or_accessors, pos);
+      ZonePtrList<ClassLiteral::Property>* fields, Variable* brand_var,
+      int pos) {
+    return new (zone_) InitializeClassMembersStatement(fields, brand_var, pos);
   }
 
   Zone* zone() const { return zone_; }

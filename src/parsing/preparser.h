@@ -1218,6 +1218,15 @@ class PreParser : public ParserBase<PreParser> {
     }
     return PreParserStatement::Default();
   }
+  V8_INLINE void DeclareClassBrandVariable(const PreParserIdentifier& name,
+                                           ClassInfo* class_info,
+                                           int class_token_pos) {
+    DCHECK_NOT_NULL(name.string_);
+    bool was_added;
+    const AstRawString* brand_name =
+        ClassPrivateBrandName(ast_value_factory(), name.string_);
+    DeclareVariableName(brand_name, VariableMode::kConst, scope(), &was_added);
+  }
   V8_INLINE void DeclareClassVariable(const PreParserIdentifier& name,
                                       ClassInfo* class_info,
                                       int class_token_pos) {
@@ -1229,17 +1238,16 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void DeclareClassProperty(const PreParserIdentifier& property_name,
                                       const PreParserExpression& property,
+                                      ClassLiteralProperty::Kind kind,
                                       bool is_constructor, bool is_private,
                                       bool is_static, ClassInfo* class_info) {
     if (is_private) {
-      bool name_was_added;
-      bool value_was_added;
-      DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
-                          &name_was_added);
-      DeclareVariableName(
-          ClassPrivateVariableName(ast_value_factory(),
-                                   class_info->private_value_count),
-          VariableMode::kConst, scope(), &value_was_added);
+      bool was_added;
+      DCHECK_NE(property_name.string_, nullptr);
+      DCHECK_NE(kind, ClassLiteralProperty::Kind::FIELD);
+      DeclareVariableName(ClassPrivateMethodName(ast_value_factory(),
+                                                 property_name.string_, kind),
+                          VariableMode::kConst, scope(), &was_added);
     }
   }
 

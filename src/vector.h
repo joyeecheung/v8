@@ -33,6 +33,10 @@ class Vector {
     return Vector<T>(NewArray<T>(length), length);
   }
 
+  static Vector<T> New(size_t length) {
+    return Vector<T>(NewArray<T>(length), length);
+  }
+
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
   Vector<T> SubVector(size_t from, size_t to) const {

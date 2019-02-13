@@ -202,6 +202,7 @@ class AstBigInt {
   F(await, "await")                             \
   F(bigint, "bigint")                           \
   F(boolean, "boolean")                         \
+  F(brand, "brand")                             \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
   F(done, "done")                               \
@@ -302,6 +303,36 @@ class AstValueFactory {
   }
   const AstRawString* GetTwoByteString(Vector<const uint16_t> literal) {
     return GetTwoByteStringInternal(literal);
+  }
+  const AstRawString* GetPrefixedString(const char* prefix,
+                                        const AstRawString* str) {
+    size_t prefix_len = strlen(prefix);
+    size_t name_len = static_cast<size_t>(str->length());
+    // TODO(joyee): data should be owned by the zone
+    size_t total_len = prefix_len + name_len;
+    if (str->is_one_byte()) {
+      Vector<uint8_t> data =
+          Vector<uint8_t>(zone_->NewArray<uint8_t>(total_len), total_len);
+      for (size_t i = 0; i < prefix_len; i++) {
+        data[i] = prefix[i];
+      }
+      const unsigned char* raw = str->raw_data();
+      for (size_t i = 0; i < name_len; i++) {
+        data[prefix_len + i] = raw[i];
+      }
+      return GetOneByteString(data);
+    } else {
+      Vector<uint16_t> data =
+          Vector<uint16_t>(zone_->NewArray<uint16_t>(total_len), total_len);
+      for (size_t i = 0; i < prefix_len; i++) {
+        data[i] = prefix[i];
+      }
+      const uint16_t* raw = reinterpret_cast<const uint16_t*>(str->raw_data());
+      for (size_t i = 0; i < name_len; i++) {
+        data[prefix_len + i] = raw[i];
+      }
+      return GetTwoByteString(data);
+    }
   }
   const AstRawString* GetString(Handle<String> literal);
 

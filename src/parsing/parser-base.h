@@ -529,6 +529,7 @@ class ParserBase {
    public:
     explicit ClassInfo(ParserBase* parser)
         : variable(nullptr),
+          brand(nullptr),
           extends(parser->impl()->NullExpression()),
           properties(parser->impl()->NewClassPropertyList(4)),
           static_fields(parser->impl()->NewClassPropertyList(4)),
@@ -541,12 +542,13 @@ class ParserBase {
           has_static_computed_names(false),
           has_static_class_fields(false),
           has_instance_members(false),
+          has_brand(false),
           is_anonymous(false),
           static_fields_scope(nullptr),
           instance_members_scope(nullptr),
-          computed_field_count(0),
-          private_value_count(0) {}
+          computed_field_count(0) {}
     Variable* variable;
+    Variable* brand;
     ExpressionT extends;
     ClassPropertyListT properties;
     ClassPropertyListT static_fields;
@@ -559,11 +561,11 @@ class ParserBase {
     bool has_static_computed_names;
     bool has_static_class_fields;
     bool has_instance_members;
+    bool has_brand;
     bool is_anonymous;
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_members_scope;
     int computed_field_count;
-    int private_value_count;
   };
 
   enum class PropertyPosition { kObjectLiteral, kClassLiteral };
@@ -645,10 +647,24 @@ class ParserBase {
     return ast_value_factory->GetOneByteString(name.c_str());
   }
 
-  const AstRawString* ClassPrivateVariableName(
-      AstValueFactory* ast_value_factory, int index) {
-    std::string name = ".class-private-" + std::to_string(index);
-    return ast_value_factory->GetOneByteString(name.c_str());
+  const AstRawString* ClassPrivateBrandName(AstValueFactory* ast_value_factory,
+                                            const AstRawString* name) {
+    return ast_value_factory->GetPrefixedString(".brand-", name);
+  }
+
+  const AstRawString* ClassPrivateMethodName(AstValueFactory* ast_value_factory,
+                                             const AstRawString* property_name,
+                                             ClassLiteralProperty::Kind kind) {
+    switch (kind) {
+      case ClassLiteralProperty::Kind::GETTER:
+        return ast_value_factory->GetPrefixedString(".get-", property_name);
+      case ClassLiteralProperty::Kind::SETTER:
+        return ast_value_factory->GetPrefixedString(".set-", property_name);
+      case ClassLiteralProperty::Kind::METHOD:
+        return property_name;
+      default:
+        UNREACHABLE();
+    }
   }
 
   DeclarationScope* NewScriptScope() const {
@@ -4263,11 +4279,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
                                 prop_info.is_private, &class_info);
     } else {
       if (prop_info.is_private) {
-        class_info.private_value_count++;
+        class_info.has_brand = true;
       }
-      impl()->DeclareClassProperty(
-          is_constructor ? name : prop_info.name, property, is_constructor,
-          prop_info.is_private, prop_info.is_static, &class_info);
+      impl()->DeclareClassProperty(is_constructor ? name : prop_info.name,
+                                   property, property_kind, is_constructor,
+                                   prop_info.is_private, prop_info.is_static,
+                                   &class_info);
     }
     impl()->InferFunctionName();
   }
@@ -4275,6 +4292,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   Expect(Token::RBRACE);
   int end_pos = end_position();
   block_scope->set_end_position(end_pos);
+
+  if (class_info.has_brand) {
+    impl()->DeclareClassBrandVariable(name, &class_info, class_token_pos);
+  }
+
   return impl()->RewriteClassLiteral(block_scope, name, &class_info,
                                      class_token_pos, end_pos);
 }

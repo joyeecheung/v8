@@ -1980,31 +1980,28 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         }
       }
 
-      if (property->is_private()) {
-        RegisterAllocationScope private_name_register_scope(this);
-        Register private_name = register_allocator()->NewRegister();
-        VisitForRegisterValue(property->key(), private_name);
-        builder()
-            ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
-            .StoreAccumulatorInRegister(private_name)
-            .CallRuntime(Runtime::kCreatePrivateNameSymbol, private_name);
-        DCHECK_NOT_NULL(property->private_name_var());
-        BuildVariableAssignment(property->private_name_var(), Token::INIT,
-                                HoleCheckMode::kElided);
-
-        if (property->kind() != ClassLiteral::Property::FIELD) {
-          DCHECK_NOT_NULL(property->private_value_var());
-          VisitForAccumulatorValue(property->value());
-          BuildVariableAssignment(property->private_value_var(), Token::INIT,
+      if (property->kind() == ClassLiteral::Property::FIELD) {
+        if (property->is_private()) {
+          RegisterAllocationScope private_name_register_scope(this);
+          Register private_name = register_allocator()->NewRegister();
+          VisitForRegisterValue(property->key(), private_name);
+          builder()
+              ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
+              .StoreAccumulatorInRegister(private_name)
+              .CallRuntime(Runtime::kCreatePrivateNameSymbol, private_name);
+          DCHECK_NOT_NULL(property->private_name_var());
+          BuildVariableAssignment(property->private_name_var(), Token::INIT,
                                   HoleCheckMode::kElided);
-          continue;
         }
+        // We don't compute field's value here, but instead do it in the
+        // initializer function.
+        continue;
       }
 
-      if (property->kind() == ClassLiteral::Property::FIELD) {
-        // We don't compute field's value here, but instead
-        // do it in the initializer function. The private methods/accessors
-        // will be created here, however.
+      if (property->is_private()) {
+        VisitForAccumulatorValue(property->value());
+        BuildVariableAssignment(property->private_name_var(), Token::INIT,
+                                HoleCheckMode::kElided);
         continue;
       }
 
@@ -2023,6 +2020,16 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
            expr->class_variable()->IsContextSlot());
     builder()->LoadAccumulatorWithRegister(class_constructor);
     BuildVariableAssignment(expr->class_variable(), Token::INIT,
+                            HoleCheckMode::kElided);
+  }
+
+  if (expr->brand_variable() != nullptr) {
+    Register brand = register_allocator()->NewRegister();
+    builder()
+        ->LoadLiteral(expr->brand_variable()->raw_name())
+        .StoreAccumulatorInRegister(brand)
+        .CallRuntime(Runtime::kCreatePrivateNameSymbol, brand);
+    BuildVariableAssignment(expr->brand_variable(), Token::INIT,
                             HoleCheckMode::kElided);
   }
 
@@ -2105,48 +2112,14 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
   Register constructor = args[0], key = args[1], value = args[2];
   builder()->MoveRegister(builder()->Receiver(), constructor);
 
-  ZonePtrList<ClassLiteral::Property>* methods_or_accessors =
-      stmt->methods_or_accessors();
-  if (methods_or_accessors != nullptr) {
-    for (int i = 0; i < methods_or_accessors->length(); i++) {
-      ClassLiteral::Property* property = methods_or_accessors->at(i);
-
-      DCHECK(property->is_private());
-      Variable* private_name_var = property->private_name_var();
-      DCHECK_NOT_NULL(private_name_var);
-      BuildVariableLoad(private_name_var, HoleCheckMode::kElided);
-      builder()->StoreAccumulatorInRegister(key);
-
-      Variable* private_value_var = property->private_value_var();
-      DCHECK_NOT_NULL(private_value_var);
-      builder()->SetExpressionPosition(property->value());
-      BuildVariableLoad(private_value_var, HoleCheckMode::kElided);
-      builder()->StoreAccumulatorInRegister(value);
-
-      Runtime::FunctionId function_id;
-      switch (property->kind()) {
-        case ClassLiteral::Property::GETTER:
-          DCHECK(property->is_private());
-          function_id = Runtime::kAddPrivateGetter;
-          break;
-        case ClassLiteral::Property::SETTER:
-          DCHECK(property->is_private());
-          function_id = Runtime::kAddPrivateSetter;
-          break;
-        case ClassLiteral::Property::METHOD:
-          DCHECK(property->is_private());
-          function_id = Runtime::kAddPrivateMethod;
-          break;
-        default:
-          UNREACHABLE();
-      }
-      builder()->CallRuntime(function_id, args);
-    }
+  if (stmt->brand_var() != nullptr) {
+    BuildVariableLoad(stmt->brand_var(), HoleCheckMode::kElided);
+    builder()->StoreAccumulatorInRegister(key).CallRuntime(
+        Runtime::kAddPrivateBrand, args);
   }
 
   for (int i = 0; i < stmt->fields()->length(); i++) {
     ClassLiteral::Property* property = stmt->fields()->at(i);
-    DCHECK_EQ(property->kind(), ClassLiteral::Property::FIELD);
 
     if (property->is_computed_name()) {
       DCHECK(!property->is_private());

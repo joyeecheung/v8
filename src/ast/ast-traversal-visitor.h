@@ -500,15 +500,6 @@ void AstTraversalVisitor<Subclass>::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* stmt) {
   PROCESS_NODE(stmt);
 
-  ZonePtrList<ClassLiteral::Property>* methods_or_accessors =
-      stmt->methods_or_accessors();
-  if (methods_or_accessors != nullptr) {
-    for (int i = 0; i < methods_or_accessors->length(); ++i) {
-      ClassLiteralProperty* prop = methods_or_accessors->at(i);
-      RECURSE(Visit(prop->value()));
-    }
-  }
-
   ZonePtrList<ClassLiteral::Property>* fields = stmt->fields();
   for (int i = 0; i < fields->length(); ++i) {
     ClassLiteralProperty* field = fields->at(i);

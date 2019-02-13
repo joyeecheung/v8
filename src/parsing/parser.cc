@@ -2756,6 +2756,15 @@ void Parser::DeclareClassVariable(const AstRawString* name,
   }
 }
 
+void Parser::DeclareClassBrandVariable(const AstRawString* name,
+                                       ClassInfo* class_info,
+                                       int class_token_pos) {
+  const AstRawString* brand_name =
+      ClassPrivateBrandName(ast_value_factory(), name);
+  class_info->brand = CreateSyntheticContextVariable(brand_name);
+  class_info->brand->set_initializer_position(class_token_pos);
+}
+
 // TODO(gsathya): Ideally, this should just bypass scope analysis and
 // allocate a slot directly on the context. We should just store this
 // index in the AST, instead of storing the variable.
@@ -2801,8 +2810,11 @@ void Parser::DeclareClassField(ClassLiteralProperty* property,
 //   - properties
 void Parser::DeclareClassProperty(const AstRawString* property_name,
                                   ClassLiteralProperty* property,
+                                  ClassLiteralProperty::Kind kind,
                                   bool is_constructor, bool is_private,
                                   bool is_static, ClassInfo* class_info) {
+  DCHECK_NE(kind, ClassLiteralProperty::Kind::FIELD);
+
   if (is_constructor) {
     DCHECK(!class_info->constructor);
     class_info->constructor = property->value()->AsFunctionLiteral();
@@ -2814,43 +2826,33 @@ void Parser::DeclareClassProperty(const AstRawString* property_name,
     return;
   }
 
+  class_info->properties->Add(property, zone());
+
   if (!is_private) {
-    class_info->properties->Add(property, zone());
     return;
   }
 
   DCHECK(allow_harmony_private_methods());
-  DCHECK_NE(property->kind(), ClassLiteralProperty::Kind::FIELD);
   if (!is_static) {
     class_info->instance_methods_or_accessors->Add(property, zone());
   }
-  // TODO(joyee): if this is an accessor, check that
-  // 1. If a complementary accessor is already declared, use that
-  //    SyntheticContextVariable as the private name variable instead of
-  //    building a new one
-  // 2. If a conflicting accessor is declared, throw SyntaxError
-  Variable* private_name_var = CreateSyntheticContextVariable(property_name);
+  Variable* private_name_var =
+      CreateSyntheticContextVariable(ClassPrivateMethodName(
+          ast_value_factory(), property_name, property->kind()));
   private_name_var->set_initializer_position(property->value()->position());
   property->set_private_name_var(private_name_var);
-  Variable* private_value_var =
-      CreateSyntheticContextVariable(ClassPrivateVariableName(
-          ast_value_factory(), class_info->private_value_count));
-  private_value_var->set_initializer_position(property->value()->position());
-  property->set_private_value_var(private_value_var);
-  class_info->properties->Add(property, zone());
 }
 
 FunctionLiteral* Parser::CreateInitializerFunction(
     const char* name, DeclarationScope* scope,
-    ZonePtrList<ClassLiteral::Property>* fields,
-    ZonePtrList<ClassLiteral::Property>* methods_or_accessors) {
+    ZonePtrList<ClassLiteral::Property>* fields, Variable* brand) {
   DCHECK_EQ(scope->function_kind(),
             FunctionKind::kClassMembersInitializerFunction);
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
   InitializeClassMembersStatement* stmt =
-      factory()->NewInitializeClassMembersStatement(
-          fields, methods_or_accessors, kNoSourcePosition);
+      factory()->NewInitializeClassMembersStatement(fields, brand,
+                                                    kNoSourcePosition);
   statements.Add(stmt);
   return factory()->NewFunctionLiteral(
       ast_value_factory()->GetOneByteString(name), scope, statements, 0, 0, 0,
@@ -2891,7 +2893,7 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
   FunctionLiteral* static_fields_initializer = nullptr;
   if (class_info->has_static_class_fields) {
     static_fields_initializer = CreateInitializerFunction(
-        "<static_fields_initializer>", class_info->static_fields_scope,
+        "<static_fields_initializer>", class_info->instance_members_scope,
         class_info->static_fields, nullptr);
   }
 
@@ -2899,12 +2901,12 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
   if (class_info->has_instance_members) {
     instance_members_initializer_function = CreateInitializerFunction(
         "<instance_members_initializer>", class_info->instance_members_scope,
-        class_info->instance_fields, class_info->instance_methods_or_accessors);
+        class_info->instance_fields, class_info->brand);
     class_info->constructor->set_requires_instance_members_initializer(true);
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
-      block_scope, class_info->variable, class_info->extends,
+      block_scope, class_info->variable, class_info->brand, class_info->extends,
       class_info->constructor, class_info->properties,
       static_fields_initializer, instance_members_initializer_function, pos,
       end_pos, class_info->has_name_static_property,
