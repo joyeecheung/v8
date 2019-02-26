@@ -656,6 +656,10 @@ class ParserBase {
     return new (zone()) DeclarationScope(zone(), parent, EVAL_SCOPE);
   }
 
+  ClassScope* NewClassScope(Scope* parent) const {
+    return new (zone()) ClassScope(zone(), parent);
+  }
+
   Scope* NewScope(ScopeType scope_type) const {
     return NewScopeWithParent(scope(), scope_type);
   }
@@ -4232,7 +4236,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
   }
 
-  Scope* block_scope = NewScope(BLOCK_SCOPE);
+  Scope* block_scope = NewClassScope(scope());
   BlockState block_state(&scope_, block_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 

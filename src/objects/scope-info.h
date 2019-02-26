@@ -47,6 +47,9 @@ class ScopeInfo : public FixedArray {
   // True if this scope is a (var) declaration scope.
   bool is_declaration_scope() const;
 
+  // True if this scope is a class scope.
+  bool is_class_scope() const;
+
   // Does this scope make a sloppy eval call?
   bool CallsSloppyEval() const;
 
@@ -222,9 +225,10 @@ class ScopeInfo : public FixedArray {
       : public BitField<LanguageMode, CallsSloppyEvalField::kNext, 1> {};
   class DeclarationScopeField
       : public BitField<bool, LanguageModeField::kNext, 1> {};
+  class ClassScopeField
+      : public BitField<bool, DeclarationScopeField::kNext, 1> {};
   class ReceiverVariableField
-      : public BitField<VariableAllocationInfo, DeclarationScopeField::kNext,
-                        2> {};
+      : public BitField<VariableAllocationInfo, ClassScopeField::kNext, 2> {};
   class HasNewTargetField
       : public BitField<bool, ReceiverVariableField::kNext, 1> {};
   class FunctionVariableField
