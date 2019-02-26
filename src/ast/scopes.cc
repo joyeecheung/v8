@@ -140,6 +140,18 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
   set_language_mode(LanguageMode::kStrict);
 }
 
+ClassScope::ClassScope(Zone* zone, Scope* outer_scope)
+    : Scope(zone, outer_scope, BLOCK_SCOPE) {
+  set_language_mode(LanguageMode::kStrict);
+  is_class_scope_ = true;
+}
+
+ClassScope::ClassScope(Zone* zone, Handle<ScopeInfo> scope_info)
+    : Scope(zone, BLOCK_SCOPE, scope_info) {
+  set_language_mode(LanguageMode::kStrict);
+  is_class_scope_ = true;
+}
+
 Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
     : zone_(zone),
       outer_scope_(nullptr),
@@ -193,6 +205,7 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
 
 void DeclarationScope::SetDefaults() {
   is_declaration_scope_ = true;
+  is_class_scope_ = false;
   has_simple_parameters_ = true;
   is_asm_module_ = false;
   force_eager_compilation_ = false;
@@ -249,6 +262,7 @@ void Scope::SetDefaults() {
   force_context_allocation_for_parameters_ = false;
 
   is_declaration_scope_ = false;
+  is_class_scope_ = false;
 
   must_use_preparsed_scope_data_ = false;
 }
@@ -323,7 +337,9 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       outer_scope = new (zone)
           DeclarationScope(zone, EVAL_SCOPE, handle(scope_info, isolate));
     } else if (scope_info->scope_type() == BLOCK_SCOPE) {
-      if (scope_info->is_declaration_scope()) {
+      if (scope_info->is_class_scope()) {
+        outer_scope = new (zone) ClassScope(zone, handle(scope_info, isolate));
+      } else if (scope_info->is_declaration_scope()) {
         outer_scope = new (zone)
             DeclarationScope(zone, BLOCK_SCOPE, handle(scope_info, isolate));
       } else {
@@ -389,6 +405,16 @@ ModuleScope* Scope::AsModuleScope() {
 const ModuleScope* Scope::AsModuleScope() const {
   DCHECK(is_module_scope());
   return static_cast<const ModuleScope*>(this);
+}
+
+ClassScope* Scope::AsClassScope() {
+  DCHECK(is_class_scope());
+  return static_cast<ClassScope*>(this);
+}
+
+const ClassScope* Scope::AsClassScope() const {
+  DCHECK(is_class_scope());
+  return static_cast<const ClassScope*>(this);
 }
 
 void DeclarationScope::DeclareSloppyBlockFunction(
@@ -1615,6 +1641,9 @@ void Scope::Print(int n) {
   // Scope info.
   if (is_strict(language_mode())) {
     Indent(n1, "// strict mode scope\n");
+  }
+  if (is_class_scope()) {
+    Indent(n1, "// class block scope\n");
   }
   if (IsAsmModule()) Indent(n1, "// scope is an asm module\n");
   if (is_declaration_scope() && AsDeclarationScope()->calls_sloppy_eval()) {

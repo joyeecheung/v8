@@ -180,6 +180,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         CallsSloppyEvalField::encode(calls_sloppy_eval) |
         LanguageModeField::encode(scope->language_mode()) |
         DeclarationScopeField::encode(scope->is_declaration_scope()) |
+        ClassScopeField::encode(scope->is_class_scope()) |
         ReceiverVariableField::encode(receiver_info) |
         HasNewTargetField::encode(has_new_target) |
         FunctionVariableField::encode(function_name_info) |
@@ -353,7 +354,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   int flags =
       ScopeTypeField::encode(WITH_SCOPE) | CallsSloppyEvalField::encode(false) |
       LanguageModeField::encode(LanguageMode::kSloppy) |
-      DeclarationScopeField::encode(false) |
+      DeclarationScopeField::encode(false) | ClassScopeField::encode(false) |
       ReceiverVariableField::encode(NONE) | HasNewTargetField::encode(false) |
       FunctionVariableField::encode(NONE) | IsAsmModuleField::encode(false) |
       HasSimpleParametersField::encode(true) |
@@ -414,7 +415,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
   int flags =
       ScopeTypeField::encode(type) | CallsSloppyEvalField::encode(false) |
       LanguageModeField::encode(LanguageMode::kSloppy) |
-      DeclarationScopeField::encode(true) |
+      DeclarationScopeField::encode(true) | ClassScopeField::encode(false) |
       ReceiverVariableField::encode(is_empty_function ? UNUSED : CONTEXT) |
       HasNewTargetField::encode(false) |
       FunctionVariableField::encode(is_empty_function ? UNUSED : NONE) |
@@ -500,6 +501,10 @@ LanguageMode ScopeInfo::language_mode() const {
 
 bool ScopeInfo::is_declaration_scope() const {
   return DeclarationScopeField::decode(Flags());
+}
+
+bool ScopeInfo::is_class_scope() const {
+  return ClassScopeField::decode(Flags());
 }
 
 int ScopeInfo::ContextLength() const {

@@ -525,6 +525,7 @@ constexpr uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
 class AccessorInfo;
 class Arguments;
 class Assembler;
+class ClassScope;
 class Code;
 class CodeSpace;
 class Context;
