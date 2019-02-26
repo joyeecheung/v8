@@ -86,6 +86,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   const DeclarationScope* AsDeclarationScope() const;
   ModuleScope* AsModuleScope();
   const ModuleScope* AsModuleScope() const;
+  ClassScope* AsClassScope();
+  const ClassScope* AsClassScope() const;
 
   class Snapshot final {
    public:
@@ -350,6 +352,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_block_scope() const { return scope_type_ == BLOCK_SCOPE; }
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_declaration_scope() const { return is_declaration_scope_; }
+  bool is_class_scope() const { return is_class_scope_; }
 
   bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
@@ -638,6 +641,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void SetDefaults();
 
   friend class DeclarationScope;
+  friend class ClassScope;
   friend class ScopeTestHelper;
 
   Zone* zone_;
@@ -708,6 +712,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
+
+  // True if it's a class's block scope
+  bool is_class_scope_ : 1;
 
   bool must_use_preparsed_scope_data_ : 1;
 };
@@ -1154,6 +1161,13 @@ class ModuleScope final : public DeclarationScope {
 
  private:
   ModuleDescriptor* const module_descriptor_;
+};
+
+class V8_EXPORT_PRIVATE ClassScope : public Scope {
+ public:
+  ClassScope(Zone* zone, Scope* outer_scope);
+  // Deserialization.
+  ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
 };
 
 }  // namespace internal
