@@ -141,13 +141,13 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
 }
 
 ClassScope::ClassScope(Zone* zone, Scope* outer_scope)
-    : Scope(zone, outer_scope, BLOCK_SCOPE) {
+    : Scope(zone, outer_scope, BLOCK_SCOPE), synthetic_variables_(4, zone) {
   set_language_mode(LanguageMode::kStrict);
   is_class_scope_ = true;
 }
 
 ClassScope::ClassScope(Zone* zone, Handle<ScopeInfo> scope_info)
-    : Scope(zone, BLOCK_SCOPE, scope_info) {
+    : Scope(zone, BLOCK_SCOPE, scope_info), synthetic_variables_(0, zone) {
   set_language_mode(LanguageMode::kStrict);
   is_class_scope_ = true;
 }
@@ -2183,6 +2183,9 @@ void Scope::AllocateNonParameterLocal(Variable* var) {
 }
 
 void Scope::AllocateNonParameterLocalsAndDeclaredGlobals() {
+  if (is_class_scope()) {
+    AsClassScope()->AllocateSyntheticContextVariables();
+  }
   for (Variable* local : locals_) {
     AllocateNonParameterLocal(local);
   }
@@ -2330,6 +2333,18 @@ int Scope::ContextLocalCount() const {
       function != nullptr && function->IsContextSlot();
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
          (is_function_var_in_context ? 1 : 0);
+}
+
+void ClassScope::AddSyntheticContextVariable(Variable* var) {
+  DCHECK_NOT_NULL(var);
+  synthetic_variables_.Add(var, zone());
+}
+
+void ClassScope::AllocateSyntheticContextVariables() {
+  for (Variable* var : synthetic_variables_) {
+    DCHECK(var->IsUnallocated());
+    AllocateHeapSlot(var);
+  }
 }
 
 }  // namespace internal

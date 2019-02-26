@@ -2760,14 +2760,18 @@ void Parser::DeclareClassVariable(const AstRawString* name,
 // TODO(gsathya): Ideally, this should just bypass scope analysis and
 // allocate a slot directly on the context. We should just store this
 // index in the AST, instead of storing the variable.
-Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
+Variable* Parser::DeclareSyntheticContextVariable(ClassScope* scope,
+                                                  const AstRawString* name) {
   VariableProxy* proxy =
       DeclareBoundVariable(name, VariableMode::kConst, kNoSourcePosition);
-  proxy->var()->ForceContextAllocation();
-  return proxy->var();
+  Variable* var = proxy->var();
+  if (var != nullptr) {
+    scope->AddSyntheticContextVariable(var);
+  }
+  return var;
 }
 
-void Parser::DeclareClassField(ClassLiteralProperty* property,
+void Parser::DeclareClassField(Scope* scope, ClassLiteralProperty* property,
                                const AstRawString* property_name,
                                bool is_static, bool is_computed_name,
                                bool is_private, ClassInfo* class_info) {
@@ -2779,17 +2783,19 @@ void Parser::DeclareClassField(ClassLiteralProperty* property,
     class_info->instance_fields->Add(property, zone());
   }
 
+  ClassScope* class_scope = scope->AsClassScope();
   DCHECK_IMPLIES(is_computed_name, !is_private);
   if (is_computed_name) {
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
-    Variable* computed_name_var =
-        CreateSyntheticContextVariable(ClassFieldVariableName(
-            ast_value_factory(), class_info->computed_field_count));
+    Variable* computed_name_var = DeclareSyntheticContextVariable(
+        class_scope, ClassFieldVariableName(ast_value_factory(),
+                                            class_info->computed_field_count));
     property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
   } else if (is_private) {
-    Variable* private_name_var = CreateSyntheticContextVariable(property_name);
+    Variable* private_name_var =
+        DeclareSyntheticContextVariable(class_scope, property_name);
     private_name_var->set_initializer_position(property->value()->position());
     property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());

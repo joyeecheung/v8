@@ -4217,8 +4217,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
   }
 
-  Scope* block_scope = NewClassScope(scope());
-  BlockState block_state(&scope_, block_scope);
+  Scope* class_scope = NewClassScope(scope());
+  BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 
   ClassInfo class_info(this);
@@ -4263,8 +4263,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         class_info.computed_field_count++;
       }
 
-      impl()->DeclareClassField(property, prop_info.name, prop_info.is_static,
-                                prop_info.is_computed_name,
+      impl()->DeclareClassField(class_scope, property, prop_info.name,
+                                prop_info.is_static, prop_info.is_computed_name,
                                 prop_info.is_private, &class_info);
     } else {
       impl()->DeclareClassProperty(name, property, is_constructor, &class_info);
@@ -4274,8 +4274,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   Expect(Token::RBRACE);
   int end_pos = end_position();
-  block_scope->set_end_position(end_pos);
-  return impl()->RewriteClassLiteral(block_scope, name, &class_info,
+  class_scope->set_end_position(end_pos);
+  return impl()->RewriteClassLiteral(class_scope, name, &class_info,
                                      class_token_pos, end_pos);
 }
 

@@ -1124,6 +1124,16 @@ class PreParser : public ParserBase<PreParser> {
     return var;
   }
 
+  void DeclareSyntheticContextVariableName(ClassScope* scope,
+                                           const AstRawString* name) {
+    bool was_added;
+    Variable* var = scope->DeclareVariableName(name, VariableMode::kConst,
+                                               &was_added, NORMAL_VARIABLE);
+    if (var == nullptr) {
+      ReportUnidentifiableError();
+    }
+  }
+
   V8_INLINE PreParserBlock RewriteCatchPattern(CatchInfo* catch_info) {
     return PreParserBlock::Default();
   }
@@ -1230,21 +1240,20 @@ class PreParser : public ParserBase<PreParser> {
                                       bool is_constructor,
                                       ClassInfo* class_info) {}
 
-  V8_INLINE void DeclareClassField(const PreParserExpression& property,
+  V8_INLINE void DeclareClassField(Scope* scope,
+                                   const PreParserExpression& property,
                                    const PreParserIdentifier& property_name,
                                    bool is_static, bool is_computed_name,
                                    bool is_private, ClassInfo* class_info) {
     DCHECK_IMPLIES(is_computed_name, !is_private);
+    ClassScope* class_scope = scope->AsClassScope();
     if (is_computed_name) {
-      bool was_added;
-      DeclareVariableName(
+      DeclareSyntheticContextVariableName(
+          class_scope,
           ClassFieldVariableName(ast_value_factory(),
-                                 class_info->computed_field_count),
-          VariableMode::kConst, scope(), &was_added);
+                                 class_info->computed_field_count));
     } else if (is_private) {
-      bool was_added;
-      DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
-                          &was_added);
+      DeclareSyntheticContextVariableName(class_scope, property_name.string_);
     }
   }
 
