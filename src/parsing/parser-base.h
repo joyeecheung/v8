@@ -534,6 +534,7 @@ class ParserBase {
           static_fields(parser->impl()->NewClassPropertyList(4)),
           instance_fields(parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
+          has_private_members(false),
           has_seen_constructor(false),
           has_name_static_property(false),
           has_static_computed_names(false),
@@ -550,6 +551,7 @@ class ParserBase {
     ClassPropertyListT instance_fields;
     FunctionLiteralT constructor;
 
+    bool has_private_members;
     bool has_seen_constructor;
     bool has_name_static_property;
     bool has_static_computed_names;
@@ -656,6 +658,10 @@ class ParserBase {
     return new (zone()) DeclarationScope(zone(), parent, EVAL_SCOPE);
   }
 
+  ClassScope* NewClassScope(Scope* parent) const {
+    return new (zone()) ClassScope(zone(), parent);
+  }
+
   Scope* NewScope(ScopeType scope_type) const {
     return NewScopeWithParent(scope(), scope_type);
   }
@@ -703,6 +709,15 @@ class ParserBase {
   VariableProxy* NewRawVariable(const AstRawString* name, int pos) {
     return factory()->ast_node_factory()->NewVariableProxy(
         name, NORMAL_VARIABLE, pos);
+  }
+
+  VariableProxy* NewPrivateNameVariable(const AstRawString* name, int pos) {
+    VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
+        name, NORMAL_VARIABLE, pos);
+    ClassScope* class_scope = scope()->GetClassScope();
+    DCHECK_NOT_NULL(class_scope);
+    class_scope->AddUnresolvedPrivateName(proxy);
+    return proxy;
   }
 
   VariableProxy* NewUnresolved(const AstRawString* name) {
@@ -1580,7 +1595,7 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     }
 
     name = impl()->GetIdentifier();
-    key = impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
+    key = impl()->ExpressionFromPrivateName(name, pos);
   } else {
     ReportUnexpectedToken(next);
     return impl()->FailureExpression();
@@ -2156,6 +2171,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
   if (!class_info->has_name_static_property && prop_info->is_static &&
       impl()->IsName(prop_info->name)) {
     class_info->has_name_static_property = true;
+  }
+
+  if (!class_info->has_private_members && prop_info->is_private) {
+    class_info->has_private_members = true;
   }
 
   switch (prop_info->kind) {
@@ -4232,8 +4251,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
   }
 
-  Scope* block_scope = NewScope(BLOCK_SCOPE);
-  BlockState block_state(&scope_, block_scope);
+  ClassScope* class_scope = NewClassScope(scope());
+  BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 
   ClassInfo class_info(this);
@@ -4278,19 +4297,33 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         class_info.computed_field_count++;
       }
 
-      impl()->DeclareClassField(property, prop_info.name, prop_info.is_static,
-                                prop_info.is_computed_name,
-                                prop_info.is_private, &class_info);
+      if (!impl()->DeclareClassField(
+              class_scope, property, prop_info.name, prop_info.is_static,
+              prop_info.is_computed_name, prop_info.is_private, &class_info)) {
+        return impl()->FailureExpression();
+      }
     } else {
-      impl()->DeclareClassProperty(name, property, is_constructor, &class_info);
+      impl()->DeclareClassProperty(class_scope, name, property, is_constructor,
+                                   &class_info);
     }
     impl()->InferFunctionName();
   }
 
   Expect(Token::RBRACE);
   int end_pos = end_position();
-  block_scope->set_end_position(end_pos);
-  return impl()->RewriteClassLiteral(block_scope, name, &class_info,
+  class_scope->set_end_position(end_pos);
+
+  VariableProxy* unresolved_proxy =
+      class_scope->ResolvePrivateNamesPartially(class_info.has_private_members);
+  if (unresolved_proxy != nullptr) {
+    impl()->ReportMessageAt(Scanner::Location(unresolved_proxy->position(),
+                                              unresolved_proxy->position() + 1),
+                            MessageTemplate::kInvalidPrivateFieldResolution,
+                            unresolved_proxy->raw_name(), kSyntaxError);
+    return impl()->FailureExpression();
+  }
+
+  return impl()->RewriteClassLiteral(class_scope, name, &class_info,
                                      class_token_pos, end_pos);
 }
 

@@ -86,6 +86,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   const DeclarationScope* AsDeclarationScope() const;
   ModuleScope* AsModuleScope();
   const ModuleScope* AsModuleScope() const;
+  ClassScope* AsClassScope();
+  const ClassScope* AsClassScope() const;
 
   class Snapshot final {
    public:
@@ -350,6 +352,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_block_scope() const { return scope_type_ == BLOCK_SCOPE; }
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_declaration_scope() const { return is_declaration_scope_; }
+  bool is_class_scope() const { return is_class_scope_; }
 
   bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
@@ -455,6 +458,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // The number of contexts between this and the outermost context that has a
   // sloppy eval call. One if this->calls_sloppy_eval().
   int ContextChainLengthUntilOutermostSloppyEval() const;
+
+  // Find the closest class scope in the current scope and outer scopes. If no
+  // class scope is found, nullptr will be returned.
+  ClassScope* GetClassScope();
 
   // Find the first function, script, eval or (declaration) block scope. This is
   // the scope where var declarations will be hoisted to in the implementation.
@@ -638,6 +645,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void SetDefaults();
 
   friend class DeclarationScope;
+  friend class ClassScope;
   friend class ScopeTestHelper;
 
   Zone* zone_;
@@ -708,6 +716,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
+
+  // True if it's a class's block scope
+  bool is_class_scope_ : 1;
 
   bool must_use_preparsed_scope_data_ : 1;
 };
@@ -993,7 +1004,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   V8_INLINE void AllocateParameterLocals();
   V8_INLINE void AllocateReceiver();
 
-  void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
+  void ResetAfterPreparsing(AstNodeFactory* ast_value_factory, bool aborted);
 
   bool is_skipped_function() const { return is_skipped_function_; }
   void set_is_skipped_function(bool is_skipped_function) {
@@ -1154,6 +1165,49 @@ class ModuleScope final : public DeclarationScope {
 
  private:
   ModuleDescriptor* const module_descriptor_;
+};
+
+class V8_EXPORT_PRIVATE ClassScope : public Scope {
+ public:
+  ClassScope(Zone* zone, Scope* outer_scope);
+  // Deserialization.
+  ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
+  Variable* DeclarePrivateName(const AstRawString* name, bool* was_added);
+  Variable* DeclarePrivateNameVariable(Declaration* declaration,
+                                       const AstRawString* name,
+                                       bool* was_added);
+  Variable* LookupPrivateName(const AstRawString* name);
+  void AddUnresolvedPrivateName(VariableProxy* proxy);
+  Variable* LookupPrivateNameInScopeInfo(const AstRawString* name,
+                                         ClassScope* cache);
+  bool ResolvePrivateName(VariableProxy* proxy);
+  bool ResolvePrivateNames(ParseInfo* info);
+  VariableProxy* ResolvePrivateNamesPartially(bool try_in_current_scope);
+
+  void MigrateUnresolvedPrivateNames(AstNodeFactory* ast_node_factory);
+  bool HasPrivateNames();
+  bool HasUnresolvedPrivateNames();
+  VariableMap* private_name_map();
+  UnresolvedList* unresolved_private_names();
+
+ private:
+  typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
+      UnresolvedList;
+
+  struct RareData : public ZoneObject {
+    explicit RareData(Zone* zone) : private_name_map(zone) {}
+    UnresolvedList unresolved_private_names;
+    VariableMap private_name_map;
+  };
+
+  V8_INLINE RareData* EnsureRareData() {
+    if (rare_data_ == nullptr) {
+      rare_data_ = new (zone_) RareData(zone_);
+    }
+    return rare_data_;
+  }
+
+  RareData* rare_data_ = nullptr;
 };
 
 }  // namespace internal

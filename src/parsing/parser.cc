@@ -2496,7 +2496,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
       function_scope->RecordSuperPropertyUsage();
     }
     SkipFunctionLiterals(num_inner_functions);
-    function_scope->ResetAfterPreparsing(ast_value_factory_, false);
+    function_scope->ResetAfterPreparsing(factory(), false);
     return true;
   }
 
@@ -2524,7 +2524,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     // the state before preparsing. The caller may then fully parse the function
     // to identify the actual error.
     bookmark.Apply();
-    function_scope->ResetAfterPreparsing(ast_value_factory(), true);
+    function_scope->ResetAfterPreparsing(factory(), true);
     pending_error_handler()->clear_unidentifiable_error();
     return false;
   } else if (pending_error_handler()->has_pending_error()) {
@@ -2768,7 +2768,29 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
   return proxy->var();
 }
 
-void Parser::DeclareClassField(ClassLiteralProperty* property,
+Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
+                                            const AstRawString* name) {
+  DCHECK_NOT_NULL(name);
+  int begin = position();
+  int end = end_position();
+  VariableProxy* proxy =
+      factory()->NewVariableProxy(name, NORMAL_VARIABLE, begin);
+  Declaration* declaration = factory()->NewVariableDeclaration(begin);
+  bool was_added = false;
+  scope->DeclarePrivateNameVariable(declaration, name, &was_added);
+  if (!was_added) {
+    Scanner::Location loc(begin, end != kNoSourcePosition ? end : begin + 1);
+    ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                    declaration->var()->raw_name());
+  }
+  Variable* var = declaration->var();
+  proxy->BindTo(var);
+  proxy->var()->ForceContextAllocation();
+  return proxy->var();
+}
+
+bool Parser::DeclareClassField(ClassScope* scope,
+                               ClassLiteralProperty* property,
                                const AstRawString* property_name,
                                bool is_static, bool is_computed_name,
                                bool is_private, ClassInfo* class_info) {
@@ -2790,18 +2812,25 @@ void Parser::DeclareClassField(ClassLiteralProperty* property,
     property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
   } else if (is_private) {
-    Variable* private_name_var = CreateSyntheticContextVariable(property_name);
-    private_name_var->set_initializer_position(property->value()->position());
+    Variable* private_name_var =
+        CreatePrivateNameVariable(scope, property_name);
+    int pos = property->value()->position();
+    if (pos == kNoSourcePosition) {
+      pos = property->key()->position();
+    }
+    private_name_var->set_initializer_position(pos);
     property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());
   }
+  return true;
 }
 
 // This method declares a property of the given class.  It updates the
 // following fields of class_info, as appropriate:
 //   - constructor
 //   - properties
-void Parser::DeclareClassProperty(const AstRawString* class_name,
+void Parser::DeclareClassProperty(ClassScope* scope,
+                                  const AstRawString* class_name,
                                   ClassLiteralProperty* property,
                                   bool is_constructor, ClassInfo* class_info) {
   if (is_constructor) {
@@ -2843,7 +2872,7 @@ FunctionLiteral* Parser::CreateInitializerFunction(
 //   - properties
 //   - has_name_static_property
 //   - has_static_computed_names
-Expression* Parser::RewriteClassLiteral(Scope* block_scope,
+Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
                                         const AstRawString* name,
                                         ClassInfo* class_info, int pos,
                                         int end_pos) {
