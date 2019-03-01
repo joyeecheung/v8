@@ -141,15 +141,17 @@ ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
 }
 
 ClassScope::ClassScope(Zone* zone, Scope* outer_scope)
-    : Scope(zone, outer_scope, BLOCK_SCOPE), synthetic_variables_(4, zone) {
+    : Scope(zone, outer_scope, BLOCK_SCOPE) {
   set_language_mode(LanguageMode::kStrict);
   is_class_scope_ = true;
+  synthetic_variables_.Clear();
 }
 
 ClassScope::ClassScope(Zone* zone, Handle<ScopeInfo> scope_info)
-    : Scope(zone, BLOCK_SCOPE, scope_info), synthetic_variables_(0, zone) {
+    : Scope(zone, BLOCK_SCOPE, scope_info) {
   set_language_mode(LanguageMode::kStrict);
   is_class_scope_ = true;
+  synthetic_variables_.Clear();
 }
 
 Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
@@ -2335,9 +2337,50 @@ int Scope::ContextLocalCount() const {
          (is_function_var_in_context ? 1 : 0);
 }
 
-void ClassScope::AddSyntheticContextVariable(Variable* var) {
+Variable* ClassScope::DeclareSyntheticContextVariableName(
+    const AstRawString* name) {
+  DCHECK(!already_resolved_);
+  DCHECK(GetDeclarationScope()->is_being_lazily_parsed());
+  DCHECK(scope_info_.is_null());
+  bool was_added;
+  Variable* var = variables_.Declare(
+      zone(), this, name, VariableMode::kConst, NORMAL_VARIABLE,
+      Variable::DefaultInitializationFlag(VariableMode::kConst), kNotAssigned,
+      &was_added);
+  if (!was_added) {
+    return nullptr;
+  }
+  var->set_maybe_assigned();
+  var->set_is_used();
+  return var;
+}
+
+Variable* ClassScope::DeclareSyntheticContextVariable(
+    Declaration* declaration, const AstRawString* name) {
+  DCHECK(!already_resolved_);
+  DCHECK(!GetDeclarationScope()->is_being_lazily_parsed());
+  DCHECK(!GetDeclarationScope()->was_lazily_parsed());
+
+  DCHECK_NOT_NULL(name);
+
+  Variable* var = LookupLocal(name);
+  bool was_added = var == nullptr;
+  if (V8_LIKELY(was_added)) {
+    // Declare the name.
+    var = variables_.Declare(
+        zone(), this, name, VariableMode::kConst, NORMAL_VARIABLE,
+        Variable::DefaultInitializationFlag(VariableMode::kConst), kNotAssigned,
+        &was_added);
+    DCHECK(was_added);
+  } else {
+    var->set_maybe_assigned();
+  }
+
   DCHECK_NOT_NULL(var);
-  synthetic_variables_.Add(var, zone());
+  decls_.Add(declaration);
+  declaration->set_var(var);
+  synthetic_variables_.Add(var);
+  return var;
 }
 
 void ClassScope::AllocateSyntheticContextVariables() {

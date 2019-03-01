@@ -2762,11 +2762,20 @@ void Parser::DeclareClassVariable(const AstRawString* name,
 // index in the AST, instead of storing the variable.
 Variable* Parser::DeclareSyntheticContextVariable(ClassScope* scope,
                                                   const AstRawString* name) {
+  DCHECK_NOT_NULL(name);
   VariableProxy* proxy =
-      DeclareBoundVariable(name, VariableMode::kConst, kNoSourcePosition);
-  Variable* var = proxy->var();
-  if (var != nullptr) {
-    scope->AddSyntheticContextVariable(var);
+      factory()->NewVariableProxy(name, NORMAL_VARIABLE, position());
+  // TODO(joyee) get the proper declaration position from caller
+  Declaration* declaration =
+      factory()->NewVariableDeclaration(kNoSourcePosition);
+  Variable* var = scope->DeclareSyntheticContextVariable(declaration, name);
+  if (var == nullptr) {
+    Scanner::Location loc(end_position(), end_position() + 1);
+    // TODO(joyee): report kInvalidPrivateFieldDeclaration for private names
+    ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                    declaration->var()->raw_name());
+  } else {
+    proxy->BindTo(var);
   }
   return var;
 }

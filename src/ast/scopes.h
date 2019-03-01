@@ -1168,13 +1168,23 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   ClassScope(Zone* zone, Scope* outer_scope);
   // Deserialization.
   ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
-  void AddSyntheticContextVariable(Variable* var);
+  Variable* DeclareSyntheticContextVariableName(const AstRawString* name);
+  Variable* DeclareSyntheticContextVariable(Declaration* declaration,
+                                            const AstRawString* name);
   void AllocateSyntheticContextVariables();
+  int num_synthetic() const {
+    int result = 0;
+    for (const Variable* var : synthetic_variables_) {
+      USE(var);
+      result++;
+    }
+    return result;
+  }
 
  private:
   // List of synthetic that should be directly allocated in
   // the context.
-  ZonePtrList<Variable> synthetic_variables_;
+  base::ThreadedList<Variable> synthetic_variables_;
 };
 
 }  // namespace internal

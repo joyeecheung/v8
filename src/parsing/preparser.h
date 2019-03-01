@@ -1126,9 +1126,7 @@ class PreParser : public ParserBase<PreParser> {
 
   void DeclareSyntheticContextVariableName(ClassScope* scope,
                                            const AstRawString* name) {
-    bool was_added;
-    Variable* var = scope->DeclareVariableName(name, VariableMode::kConst,
-                                               &was_added, NORMAL_VARIABLE);
+    Variable* var = scope->DeclareSyntheticContextVariableName(name);
     if (var == nullptr) {
       ReportUnidentifiableError();
     }

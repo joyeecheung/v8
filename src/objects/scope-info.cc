@@ -80,6 +80,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         break;
     }
   }
+  const int synthetic_count = scope->is_class_scope()
+          ? scope->AsClassScope()->num_synthetic()
+          : 0;
   // Determine use and location of the "this" binding if it is present.
   VariableAllocationInfo receiver_info;
   if (scope->is_declaration_scope() &&
@@ -101,7 +104,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   DCHECK(module_vars_count == 0 || scope->is_module_scope());
 
   // Make sure we allocate the correct amount.
-  DCHECK_EQ(scope->ContextLocalCount(), context_local_count);
+  DCHECK_EQ(scope->ContextLocalCount(), context_local_count + synthetic_count);
 
   const bool has_new_target =
       scope->is_declaration_scope() &&
@@ -141,8 +144,9 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       scope->is_declaration_scope()
           ? scope->AsDeclarationScope()->num_parameters()
           : 0;
+
   const bool has_outer_scope_info = !outer_scope.is_null();
-  const int length = kVariablePartIndex + 2 * context_local_count +
+  const int length = kVariablePartIndex + 2 * (context_local_count + synthetic_count) +
                      (has_receiver ? 1 : 0) +
                      (has_function_name ? kFunctionNameEntries : 0) +
                      (has_inferred_function_name ? 1 : 0) +
