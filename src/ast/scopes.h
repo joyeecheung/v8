@@ -1164,10 +1164,48 @@ class ModuleScope final : public DeclarationScope {
 };
 
 class V8_EXPORT_PRIVATE ClassScope : public Scope {
+
+  // TODO(joyee): use BitField
+  enum PrivateNameType {
+    kField = 1,
+    kMethod = 2,
+    kGetter = 4,
+    kSetter = 8
+  };
+
+  class PrivateName : public ZoneObject {
+   public:
+    explicit PrivateName(Variable* variable, PrivateNameType type);
+    bool IsAccessor() const;
+    bool AcceptsAccessor(PrivateNameType type) const;
+    void AddAccessor(Variable* variable, PrivateNameType type);
+    const AstRawString* name() const;
+   private:
+    Variable* primary_;  // Either points to a method, or a field, or the getter
+    Variable* secondary_;  // Points to the setter, if it exists
+    PrivateNameType type_;
+  };
+
+  // A hash map to support fast variable declaration and lookup.
+  class PrivateNameMap : public ZoneHashMap {
+  public:
+    explicit PrivateNameMap(Zone* zone);
+    PrivateName* Declare(Zone* zone,
+                         ClassScope* scope,
+                         PrivateNameType type,
+                         const AstRawString* name,
+                         bool* was_added);
+    PrivateName* Lookup(const AstRawString* name);
+    void Remove(PrivateName* var);
+    void Add(Zone* zone, PrivateName* var);
+  };
+
  public:
   ClassScope(Zone* zone, Scope* outer_scope);
   // Deserialization.
   ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
+ private:
+  
 };
 
 }  // namespace internal

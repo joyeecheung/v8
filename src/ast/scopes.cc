@@ -2332,5 +2332,135 @@ int Scope::ContextLocalCount() const {
          (is_function_var_in_context ? 1 : 0);
 }
 
+ClassScope::PrivateName::PrivateName(Variable* variable, ClassScope::PrivateNameType type) :
+  type_(type) {
+  switch (type) {
+    case ClassScope::PrivateNameType::kField:
+    case ClassScope::PrivateNameType::kMethod:
+    case ClassScope::PrivateNameType::kGetter:
+      primary_ = variable;
+      break;
+    case ClassScope::PrivateNameType::kSetter:
+      secondary_ = variable;
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+bool ClassScope::PrivateName::IsAccessor() const {
+  switch (type_) {
+    case ClassScope::PrivateNameType::kField:
+    case ClassScope::PrivateNameType::kMethod:
+      return false;
+    default:
+      return true;
+  }
+}
+
+bool ClassScope::PrivateName::AcceptsAccessor(ClassScope::PrivateNameType type) const {
+  DCHECK(type == ClassScope::PrivateNameType::kGetter ||
+         type == ClassScope::PrivateNameType::kSetter);
+  switch (type_) {
+    case ClassScope::PrivateNameType::kGetter:
+      return type == ClassScope::PrivateNameType::kSetter;
+    case ClassScope::PrivateNameType::kSetter:
+      return type == ClassScope::PrivateNameType::kGetter;
+    default:
+      return false;
+  }
+}
+
+void ClassScope::PrivateName::AddAccessor(Variable* variable, ClassScope::PrivateNameType type) {
+  switch (type_) {
+    case ClassScope::PrivateNameType::kGetter:
+      DCHECK_EQ(type, ClassScope::PrivateNameType::kSetter);
+      DCHECK_NULL(secondary_);
+      secondary_ = variable;
+      // type_ = type_ | type;
+      break;
+    case ClassScope::PrivateNameType::kSetter:
+      DCHECK_EQ(type, ClassScope::PrivateNameType::kGetter);
+      DCHECK_NULL(primary_);
+      primary_ = variable;
+      // type_ = type_ | type;
+    default:
+      UNREACHABLE();
+  }
+}
+
+const AstRawString* ClassScope::PrivateName::name() const {
+  if (primary_ != nullptr) {
+    return primary_->raw_name();
+  } else {
+    DCHECK_NOT_NULL(secondary_);
+    return secondary_->raw_name();
+  }
+}
+
+ClassScope::PrivateNameMap::PrivateNameMap(Zone* zone)
+    : ZoneHashMap(0, ZoneAllocationPolicy(zone)) {}
+
+ClassScope::PrivateName*
+ClassScope::PrivateNameMap::Declare(Zone* zone,
+                         ClassScope* scope,
+                         ClassScope::PrivateNameType type,
+                         const AstRawString* name,
+                         bool* was_added) {
+  Entry* p =
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
+                                  ZoneAllocationPolicy(zone));
+  *was_added = p->value == nullptr;
+  if (*was_added) {
+    DCHECK_EQ(name, p->key);
+    Variable* variable = new (zone) Variable(
+        scope, name, VariableMode::kConst, NORMAL_VARIABLE,
+        Variable::DefaultInitializationFlag(VariableMode::kConst),
+        MaybeAssignedFlag::kMaybeAssigned);
+    ClassScope::PrivateName* private_name = new (zone) ClassScope::PrivateName(variable, type);
+    p->value = private_name;
+    return private_name;
+  }
+
+  ClassScope::PrivateName* private_name = reinterpret_cast<ClassScope::PrivateName*>(p->value);
+  bool isAccessor = (type == ClassScope::PrivateNameType::kGetter || type == ClassScope::PrivateNameType::kSetter);
+  if (isAccessor && private_name->IsAccessor() && private_name->AcceptsAccessor(type)) {
+    Variable* variable = new (zone) Variable(
+        scope, name, VariableMode::kConst, NORMAL_VARIABLE,
+        Variable::DefaultInitializationFlag(VariableMode::kConst),
+        MaybeAssignedFlag::kMaybeAssigned);
+    private_name->AddAccessor(variable, type);
+    *was_added = true;
+    return private_name;
+  }
+
+  return private_name;
+}
+
+void ClassScope::PrivateNameMap::Remove(ClassScope::PrivateName* private_name) {
+  const AstRawString* name = private_name->name();
+  ZoneHashMap::Remove(const_cast<AstRawString*>(name), name->Hash());
+}
+
+void ClassScope::PrivateNameMap::Add(Zone* zone, ClassScope::PrivateName* private_name) {
+  const AstRawString* name = private_name->name();
+  Entry* p =
+      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
+                                  ZoneAllocationPolicy(zone));
+  DCHECK_NULL(p->value);
+  DCHECK_EQ(name, p->key);
+  p->value = private_name;
+}
+
+ClassScope::PrivateName* ClassScope::PrivateNameMap::Lookup(const AstRawString* name) {
+  Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->Hash());
+  if (p != nullptr) {
+    DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);
+    DCHECK_NOT_NULL(p->value);
+    return reinterpret_cast<ClassScope::PrivateName*>(p->value);
+  }
+  return nullptr;
+}
+
 }  // namespace internal
 }  // namespace v8
