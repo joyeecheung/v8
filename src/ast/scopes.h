@@ -1165,9 +1165,48 @@ class ModuleScope final : public DeclarationScope {
 
 class V8_EXPORT_PRIVATE ClassScope : public Scope {
  public:
+  enum class PrivateNameType {
+    kField = 1 << 0,
+    kMethod = 1 << 1,
+    kGetter = 1 << 2,
+    kSetter = 1 << 3
+  };
+
+  class PrivateName : public ZoneObject {
+   public:
+    explicit PrivateName(Variable* variable, PrivateNameType type);
+    bool IsAccessor() const;
+    bool AcceptsAccessor(PrivateNameType type) const;
+    void AddAccessor(Variable* variable, PrivateNameType type);
+    const AstRawString* name() const;
+
+   private:
+    Variable* primary_;  // Either points to a method, or a field, or the getter
+    Variable* secondary_;  // Points to the setter, if it exists
+    int used_;  // PrivateNameType bit field
+  };
+
+  // A hash map to support private name declartion and lookup
+  class PrivateNameMap : public ZoneHashMap {
+   public:
+    explicit PrivateNameMap(Zone* zone);
+    PrivateName* Declare(Zone* zone, ClassScope* scope, PrivateNameType type,
+                         const AstRawString* name, bool* was_added);
+    PrivateName* Lookup(const AstRawString* name);
+    void Remove(PrivateName* var);
+    void Add(Zone* zone, PrivateName* var);
+  };
+
   ClassScope(Zone* zone, Scope* outer_scope);
   // Deserialization.
   ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
+
+  typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
+    UnresolvedList;
+ private:
+  EnsureRareData();
+  UnresolvedList unresolved_private_names_;
+  PrivateNameMap* private_name_map_;
 };
 
 }  // namespace internal
