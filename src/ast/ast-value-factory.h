@@ -64,6 +64,8 @@ class AstRawString final : public ZoneObject {
     return literal_bytes_.start();
   }
 
+  bool IsPrivateName() const { return length() > 0 && FirstCharacter() == '#'; }
+
   // For storing AstRawStrings in a hash map.
   uint32_t hash_field() const { return hash_field_; }
   uint32_t Hash() const { return hash_field_ >> Name::kHashShift; }

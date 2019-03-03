@@ -650,6 +650,8 @@ Scope* Scope::FinalizeBlockScope() {
     return this;
   }
 
+  DCHECK(!is_class_scope());
+
   // Remove this scope from outer scope.
   outer_scope()->RemoveInnerScope(this);
 
@@ -763,6 +765,17 @@ void Scope::ReplaceOuterScope(Scope* outer) {
   outer_scope_ = outer;
 }
 
+Variable* Scope::LookupLocal(const AstRawString* name) {
+  DCHECK(scope_info_.is_null());
+  if (V8_LIKELY(!name->IsPrivateName())) {
+    return variables_.Lookup(name);
+  } else if (is_class_scope()) {
+    return AsClassScope()->LookupPrivateName(name);
+  } else {
+    return nullptr;
+  }
+}
+
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK_NULL(cache->variables_.Lookup(name));
@@ -857,6 +870,26 @@ void DeclarationScope::RecordParameter(bool is_rest) {
   DCHECK(!has_rest_);
   has_rest_ = is_rest;
   if (!is_rest) ++num_parameters_;
+}
+
+Variable* Scope::Declare(Zone* zone, const AstRawString* name,
+                         VariableMode mode, VariableKind kind,
+                         InitializationFlag initialization_flag,
+                         MaybeAssignedFlag maybe_assigned_flag,
+                         bool* was_added) {
+  Variable* result;
+  if (V8_LIKELY(!(name->IsPrivateName()))) {
+    result =
+        variables_.Declare(zone, this, name, mode, kind, initialization_flag,
+                           maybe_assigned_flag, was_added);
+  } else {
+    DCHECK(is_class_scope());  // TODO(joyee): throw an error?
+    result = AsClassScope()->DeclarePrivateName(zone, name, mode, kind,
+                                                initialization_flag,
+                                                maybe_assigned_flag, was_added);
+  }
+  if (*was_added) locals_.Add(result);
+  return result;
 }
 
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
@@ -2330,6 +2363,33 @@ int Scope::ContextLocalCount() const {
       function != nullptr && function->IsContextSlot();
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
          (is_function_var_in_context ? 1 : 0);
+}
+
+Variable* ClassScope::DeclarePrivateName(Zone* zone, const AstRawString* name,
+                                         VariableMode mode, VariableKind kind,
+                                         InitializationFlag initialization_flag,
+                                         MaybeAssignedFlag maybe_assigned_flag,
+                                         bool* was_added) {
+  return EnsureRareData()->private_name_map.Declare(
+      zone, this, name, mode, kind, initialization_flag, maybe_assigned_flag,
+      was_added);
+}
+
+Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
+                                         bool* was_added) {
+  Variable* result = DeclarePrivateName(
+      zone(), name, VariableMode::kConst, NORMAL_VARIABLE,
+      Variable::DefaultInitializationFlag(VariableMode::kConst),
+      MaybeAssignedFlag::kMaybeAssigned, was_added);
+  return result;
+}
+
+Variable* ClassScope::LookupPrivateName(const AstRawString* name) {
+  DCHECK(scope_info_.is_null());
+  if (rare_data_ == nullptr) {
+    return nullptr;
+  }
+  return rare_data_->private_name_map.Lookup(name);
 }
 
 }  // namespace internal

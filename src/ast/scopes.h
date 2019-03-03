@@ -182,10 +182,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Lookup a variable in this scope. Returns the variable or nullptr if not
   // found.
-  Variable* LookupLocal(const AstRawString* name) {
-    DCHECK(scope_info_.is_null());
-    return variables_.Lookup(name);
-  }
+  Variable* LookupLocal(const AstRawString* name);
 
   Variable* LookupInScopeInfo(const AstRawString* name, Scope* cache);
 
@@ -524,6 +521,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   Variable* LookupInScopeOrScopeInfo(const AstRawString* name) {
+    DCHECK(!name->IsPrivateName());
     Variable* var = variables_.Lookup(name);
     if (var != nullptr || scope_info_.is_null()) return var;
     return LookupInScopeInfo(name, this);
@@ -547,13 +545,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
  private:
   Variable* Declare(Zone* zone, const AstRawString* name, VariableMode mode,
                     VariableKind kind, InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag, bool* was_added) {
-    Variable* result =
-        variables_.Declare(zone, this, name, mode, kind, initialization_flag,
-                           maybe_assigned_flag, was_added);
-    if (*was_added) locals_.Add(result);
-    return result;
-  }
+                    MaybeAssignedFlag maybe_assigned_flag, bool* was_added);
 
   // This method should only be invoked on scopes created during parsing (i.e.,
   // not deserialized from a context). Also, since NeedsContext() is only
@@ -1168,6 +1160,33 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   ClassScope(Zone* zone, Scope* outer_scope);
   // Deserialization.
   ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
+
+  Variable* DeclarePrivateName(Zone* zone, const AstRawString* name,
+                               VariableMode mode, VariableKind kind,
+                               InitializationFlag initialization_flag,
+                               MaybeAssignedFlag maybe_assigned_flag,
+                               bool* was_added);
+  Variable* DeclarePrivateName(const AstRawString* name, bool* was_added);
+  Variable* LookupPrivateName(const AstRawString* name);
+
+ private:
+  typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
+      UnresolvedList;
+
+  struct RareData : public ZoneObject {
+    explicit RareData(Zone* zone) : private_name_map(zone) {}
+    UnresolvedList unresolved_private_names;
+    VariableMap private_name_map;
+  };
+
+  V8_INLINE RareData* EnsureRareData() {
+    if (rare_data_ == nullptr) {
+      rare_data_ = new (zone_) RareData(zone_);
+    }
+    return rare_data_;
+  }
+
+  RareData* rare_data_ = nullptr;
 };
 
 }  // namespace internal
