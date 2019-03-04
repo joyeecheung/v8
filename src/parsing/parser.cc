@@ -2843,7 +2843,7 @@ FunctionLiteral* Parser::CreateInitializerFunction(
 //   - properties
 //   - has_name_static_property
 //   - has_static_computed_names
-Expression* Parser::RewriteClassLiteral(Scope* block_scope,
+Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
                                         const AstRawString* name,
                                         ClassInfo* class_info, int pos,
                                         int end_pos) {

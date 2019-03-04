@@ -365,7 +365,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                          const AstRawString* property_name, bool is_static,
                          bool is_computed_name, bool is_private,
                          ClassInfo* class_info);
-  Expression* RewriteClassLiteral(Scope* block_scope, const AstRawString* name,
+  Expression* RewriteClassLiteral(ClassScope* block_scope,
+                                  const AstRawString* name,
                                   ClassInfo* class_info, int pos, int end_pos);
   Statement* DeclareNative(const AstRawString* name, int pos);
 
