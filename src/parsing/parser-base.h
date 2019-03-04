@@ -4236,8 +4236,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
   }
 
-  Scope* block_scope = NewClassScope(scope());
-  BlockState block_state(&scope_, block_scope);
+  ClassScope* class_scope = NewClassScope(scope());
+  BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 
   ClassInfo class_info(this);
@@ -4293,8 +4293,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   Expect(Token::RBRACE);
   int end_pos = end_position();
-  block_scope->set_end_position(end_pos);
-  return impl()->RewriteClassLiteral(block_scope, name, &class_info,
+  class_scope->set_end_position(end_pos);
+
+  return impl()->RewriteClassLiteral(class_scope, name, &class_info,
                                      class_token_pos, end_pos);
 }
 

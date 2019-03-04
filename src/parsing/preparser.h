@@ -1249,7 +1249,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression
-  RewriteClassLiteral(Scope* scope, const PreParserIdentifier& name,
+  RewriteClassLiteral(ClassScope* scope, const PreParserIdentifier& name,
                       ClassInfo* class_info, int pos, int end_pos) {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
