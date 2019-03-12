@@ -47,9 +47,10 @@ class ExpressionScope {
   VariableProxy* NewPrivateNameVariable(const AstRawString* name,
                                         int pos = kNoSourcePosition) {
     VariableProxy* result = parser_->NewRawVariable(name, pos);
-    ClassScope* class_scope = this->parser()->scope()->GetClassScope();
-    DCHECK_NOT_NULL(class_scope);
-    class_scope->AddUnresolvedPrivateName(result);
+    if (CanBeExpression()) {
+      AsExpressionParsingScope()->TrackPrivateNameVariable(result);
+    }
+    // Declarations are done in DeclareClassField.
     return result;
   }
 
@@ -484,6 +485,15 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
   void TrackVariable(VariableProxy* variable) {
     if (!this->CanBeDeclaration()) {
       this->parser()->scope()->AddUnresolved(variable);
+    }
+    variable_list_.Add(variable);
+  }
+
+  void TrackPrivateNameVariable(VariableProxy* variable) {
+    if (!this->CanBeDeclaration()) {
+      ClassScope* class_scope = this->parser()->scope()->GetClassScope();
+      DCHECK_NOT_NULL(class_scope);
+      class_scope->AddUnresolvedPrivateName(variable);
     }
     variable_list_.Add(variable);
   }
