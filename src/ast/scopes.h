@@ -182,7 +182,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Lookup a variable in this scope. Returns the variable or nullptr if not
   // found.
-  Variable* LookupLocal(const AstRawString* name);
+  Variable* LookupLocal(const AstRawString* name) {
+    DCHECK(scope_info_.is_null());
+    return variables_.Lookup(name);
+  }
 
   Variable* LookupInScopeInfo(const AstRawString* name, Scope* cache);
 
@@ -456,6 +459,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // sloppy eval call. One if this->calls_sloppy_eval().
   int ContextChainLengthUntilOutermostSloppyEval() const;
 
+  // Find the closest class scope in the current scope and outer scopes. If no
+  // class scope is found, nullptr will be returned.
+  ClassScope* GetClassScope();
+
   // Find the first function, script, eval or (declaration) block scope. This is
   // the scope where var declarations will be hoisted to in the implementation.
   DeclarationScope* GetDeclarationScope();
@@ -545,7 +552,13 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
  private:
   Variable* Declare(Zone* zone, const AstRawString* name, VariableMode mode,
                     VariableKind kind, InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag, bool* was_added);
+                    MaybeAssignedFlag maybe_assigned_flag, bool* was_added) {
+    Variable* result =
+        variables_.Declare(zone, this, name, mode, kind, initialization_flag,
+                           maybe_assigned_flag, was_added);
+    if (*was_added) locals_.Add(result);
+    return result;
+  }
 
   // This method should only be invoked on scopes created during parsing (i.e.,
   // not deserialized from a context). Also, since NeedsContext() is only
@@ -1167,7 +1180,30 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
                                MaybeAssignedFlag maybe_assigned_flag,
                                bool* was_added);
   Variable* DeclarePrivateName(const AstRawString* name, bool* was_added);
+  Variable* DeclarePrivateNameVariable(Declaration* declaration,
+                                       const AstRawString* name,
+                                       bool* was_added);
   Variable* LookupPrivateName(const AstRawString* name);
+  void AddUnresolvedPrivateName(VariableProxy* proxy);
+  Variable* LookupPrivateNameInScopeInfo(const AstRawString* name,
+                                         ClassScope* cache);
+  bool ResolvePrivateName(ParseInfo* info, VariableProxy* proxy);
+  bool ResolvePrivateNames(ParseInfo* info);
+
+  static const VariableMode private_name_mode = VariableMode::kConst;
+  static const VariableKind private_name_kind = NORMAL_VARIABLE;
+  static const InitializationFlag private_name_init =
+      InitializationFlag::kNeedsInitialization;
+  static const MaybeAssignedFlag private_name_flag =
+      MaybeAssignedFlag::kMaybeAssigned;
+  static const VariableLocation private_name_location =
+      VariableLocation::CONTEXT;
+
+  void MigrateUnresolvedPrivateNames(AstNodeFactory* ast_node_factory);
+  bool HasPrivateNames();
+  bool HasUnresolvedPrivateNames();
+  VariableMap* private_name_map();
+  UnresolvedList* unresolved_private_names();
 
  private:
   typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>

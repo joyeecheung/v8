@@ -344,6 +344,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                              VariableKind kind, int beg_pos, int end_pos,
                              ZonePtrList<const AstRawString>* names);
   Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name);
+  Variable* CreatePrivateNameVariable(ClassScope* scope,
+                                      const AstRawString* name);
   FunctionLiteral* CreateInitializerFunction(
       const char* name, DeclarationScope* scope,
       ZonePtrList<ClassLiteral::Property>* fields);
@@ -358,10 +360,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                           int class_token_pos, int end_pos);
   void DeclareClassVariable(const AstRawString* name, ClassInfo* class_info,
                             int class_token_pos);
-  void DeclareClassProperty(const AstRawString* class_name,
+  void DeclareClassProperty(ClassScope* scope, const AstRawString* class_name,
                             ClassLiteralProperty* property, bool is_constructor,
                             ClassInfo* class_info);
-  void DeclareClassField(ClassLiteralProperty* property,
+  void DeclareClassField(ClassScope* scope, ClassLiteralProperty* property,
                          const AstRawString* property_name, bool is_static,
                          bool is_computed_name, bool is_private,
                          ClassInfo* class_info);
@@ -801,6 +803,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* ImportMetaExpression(int pos);
 
   Expression* ExpressionFromLiteral(Token::Value token, int pos);
+
+  V8_INLINE VariableProxy* ExpressionFromPrivateName(const AstRawString* name,
+                                                     int start_position) {
+    return expression_scope()->NewPrivateNameVariable(name, start_position);
+  }
 
   V8_INLINE VariableProxy* ExpressionFromIdentifier(
       const AstRawString* name, int start_position,
