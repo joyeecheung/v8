@@ -44,6 +44,16 @@ class ExpressionScope {
   typedef typename Types::Impl ParserT;
   typedef typename Types::Expression ExpressionT;
 
+  VariableProxy* NewPrivateNameVariable(const AstRawString* name,
+                                        int pos = kNoSourcePosition) {
+    // return NewVariable(name, pos);
+    VariableProxy* result = parser_->NewRawVariable(name, pos);
+    ClassScope* class_scope = this->parser()->scope()->GetClassScope();
+    DCHECK_NOT_NULL(class_scope);
+    class_scope->AddUnresolvedPrivateName(result);
+    return result;
+  }
+
   VariableProxy* NewVariable(const AstRawString* name,
                              int pos = kNoSourcePosition) {
     VariableProxy* result = parser_->NewRawVariable(name, pos);

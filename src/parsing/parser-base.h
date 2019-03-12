@@ -1584,7 +1584,7 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     }
 
     name = impl()->GetIdentifier();
-    key = impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
+    key = impl()->ExpressionFromPrivateName(name, pos);
   } else {
     ReportUnexpectedToken(next);
     return impl()->FailureExpression();
@@ -4267,11 +4267,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         class_info.computed_field_count++;
       }
 
-      impl()->DeclareClassField(property, prop_info.name, prop_info.is_static,
-                                prop_info.is_computed_name,
+      impl()->DeclareClassField(class_scope, property, prop_info.name,
+                                prop_info.is_static, prop_info.is_computed_name,
                                 prop_info.is_private, &class_info);
     } else {
-      impl()->DeclareClassProperty(name, property, is_constructor, &class_info);
+      impl()->DeclareClassProperty(class_scope, name, property, is_constructor,
+                                   &class_info);
     }
     impl()->InferFunctionName();
   }

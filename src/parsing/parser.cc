@@ -2768,7 +2768,29 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
   return proxy->var();
 }
 
-void Parser::DeclareClassField(ClassLiteralProperty* property,
+Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
+                                            const AstRawString* name) {
+  DCHECK_NOT_NULL(name);
+  int begin = position();
+  int end = end_position();
+  VariableKind kind = ClassScope::private_name_kind;
+  VariableProxy* proxy = factory()->NewVariableProxy(name, kind, begin);
+  Declaration* declaration = factory()->NewVariableDeclaration(begin);
+  bool was_added = false;
+  scope->DeclarePrivateNameVariable(declaration, name, &was_added);
+  if (!was_added) {
+    Scanner::Location loc(begin, end != kNoSourcePosition ? end : begin + 1);
+    ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                    declaration->var()->raw_name());
+  }
+  Variable* var = declaration->var();
+  proxy->BindTo(var);
+  proxy->var()->ForceContextAllocation();
+  return proxy->var();
+}
+
+void Parser::DeclareClassField(ClassScope* scope,
+                               ClassLiteralProperty* property,
                                const AstRawString* property_name,
                                bool is_static, bool is_computed_name,
                                bool is_private, ClassInfo* class_info) {
@@ -2790,8 +2812,13 @@ void Parser::DeclareClassField(ClassLiteralProperty* property,
     property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
   } else if (is_private) {
-    Variable* private_name_var = CreateSyntheticContextVariable(property_name);
-    private_name_var->set_initializer_position(property->value()->position());
+    Variable* private_name_var =
+        CreatePrivateNameVariable(scope, property_name);
+    int pos = property->value()->position();
+    if (pos == kNoSourcePosition) {
+      pos = property->key()->position();
+    }
+    private_name_var->set_initializer_position(pos);
     property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());
   }
@@ -2801,7 +2828,8 @@ void Parser::DeclareClassField(ClassLiteralProperty* property,
 // following fields of class_info, as appropriate:
 //   - constructor
 //   - properties
-void Parser::DeclareClassProperty(const AstRawString* class_name,
+void Parser::DeclareClassProperty(ClassScope* scope,
+                                  const AstRawString* class_name,
                                   ClassLiteralProperty* property,
                                   bool is_constructor, ClassInfo* class_info) {
   if (is_constructor) {
