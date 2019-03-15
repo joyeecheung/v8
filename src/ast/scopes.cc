@@ -517,7 +517,6 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
           : RuntimeCallCounterId::kCompileScopeAnalysis);
   DCHECK_NOT_NULL(info->literal());
   DeclarationScope* scope = info->literal()->scope();
-
   base::Optional<AllowHandleDereference> allow_deref;
   if (!info->maybe_outer_scope_info().is_null()) {
     // Allow dereferences to the scope info if there is one.
@@ -1157,10 +1156,9 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
 
   ClassScope* closest_class_scope = GetClassScope();
   if (closest_class_scope != nullptr &&
-      closest_class_scope->has_unresolved_private_names()) {
-    if (!closest_class_scope->ResolvePrivateNames(info)) {
-      return false;
-    }
+      !closest_class_scope->ResolvePrivateNames(info)) {
+    DCHECK(info->pending_error_handler()->has_pending_error());
+    return false;
   }
 
   if (!ResolveVariablesRecursively(info)) {
@@ -1383,7 +1381,6 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
                  new_unresolved_list](Scope* scope) {
     DCHECK_IMPLIES(scope->is_declaration_scope(),
                    !scope->AsDeclarationScope()->was_lazily_parsed());
-
     for (VariableProxy* proxy = scope->unresolved_list_.first();
          proxy != nullptr; proxy = proxy->next_unresolved()) {
       DCHECK(!proxy->is_resolved());
@@ -1418,6 +1415,13 @@ Handle<StringSet> DeclarationScope::CollectNonLocals(
 void DeclarationScope::ResetAfterPreparsing(AstNodeFactory* ast_node_factory,
                                             bool aborted) {
   DCHECK(is_function_scope());
+
+  if (aborted) {
+    ClassScope* closest_class_scope = GetClassScope();
+    if (closest_class_scope != nullptr) {
+      closest_class_scope->ResetUnresolvedLists();
+    }
+  }
 
   // Reset all non-trivial members.
   params_.Clear();
@@ -1511,8 +1515,7 @@ void DeclarationScope::AnalyzePartially(Parser* parser,
 #endif
 
   ClassScope* closest_class_scope = GetClassScope();
-  if (closest_class_scope != nullptr &&
-      closest_class_scope->has_unresolved_private_names()) {
+  if (closest_class_scope != nullptr) {
     closest_class_scope->MigrateUnresolvedPrivateNames(ast_node_factory);
   }
   ResetAfterPreparsing(ast_node_factory, false);
@@ -2362,8 +2365,11 @@ void ClassScope::AddUnresolvedPrivateName(VariableProxy* proxy,
   // During a reparse, already_resolved_ may be true here
   DCHECK(!proxy->is_resolved());
   DCHECK(proxy->IsPrivateName());
-  // TODO(joyee): handle is_temporary
-  EnsureRareData()->unresolved_private_names.Add(proxy);
+  if (is_temporary) {
+    EnsureRareData()->temporary_unresolved_private_names.Add(proxy);
+  } else {
+    EnsureRareData()->unresolved_private_names.Add(proxy);
+  }
 }
 
 Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
@@ -2397,7 +2403,6 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
 
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
-
   for (Scope* scope = this; !scope->is_script_scope();
        scope = scope->outer_scope_) {
     if (!scope->is_class_scope()) continue;  // Only search in class scopes
@@ -2413,34 +2418,25 @@ Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   return nullptr;
 }
 
-bool ClassScope::has_unresolved_private_names() {
+void ClassScope::ResetUnresolvedLists() {
   if (rare_data_ == nullptr) {
-    return false;
+    return;
   }
-  return !rare_data_->unresolved_private_names.is_empty();
-}
-
-VariableMap* ClassScope::private_name_map() {
-  if (rare_data_ == nullptr) {
-    return nullptr;
-  }
-  return &(rare_data_->private_name_map);
-}
-
-UnresolvedList* ClassScope::unresolved_private_names() {
-  if (rare_data_ == nullptr) {
-    return nullptr;
-  }
-  return &(rare_data_->unresolved_private_names);
+  rare_data_->unresolved_private_names.Clear();
+  rare_data_->temporary_unresolved_private_names.Clear();
 }
 
 bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
-  if (!has_unresolved_private_names()) {
+  if (rare_data_ == nullptr) {
     return true;
   }
-  UnresolvedList* list = unresolved_private_names();
+  DCHECK(rare_data_->temporary_unresolved_private_names.is_empty());
+  if (rare_data_->unresolved_private_names.is_empty()) {
+    return true;
+  }
 
-  for (VariableProxy* proxy : *list) {
+  UnresolvedList& list = rare_data_->unresolved_private_names;
+  for (VariableProxy* proxy : list) {
     Variable* var = LookupPrivateName(proxy);
     if (var == nullptr) {
       info->pending_error_handler()->ReportMessageAt(
@@ -2456,76 +2452,142 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
 
   // By now all unresolved private names should be resolved so
   // clear the list.
-  list->Clear();
+  list.Clear();
   return true;
 }
 
-VariableProxy* ClassScope::ResolvePrivateNamesPartially(
-    bool start_from_outer_scopes) {
-  if (!has_unresolved_private_names()) {
+VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
+  if (rare_data_ == nullptr) {
     return nullptr;
   }
+
   ClassScope* outer_class_scope =
       outer_scope_ == nullptr ? nullptr : outer_scope_->GetClassScope();
 
-  UnresolvedList* list = unresolved_private_names();
-  if (start_from_outer_scopes && outer_class_scope == nullptr) {
-    return list->first();
+  UnresolvedList& temp = rare_data_->temporary_unresolved_private_names;
+  UnresolvedList& unresolved = rare_data_->unresolved_private_names;
+
+  bool has_private_names = rare_data_->private_name_map.capacity() > 0;
+
+  if (!has_private_names && outer_class_scope == nullptr) {
+    if (!temp.is_empty()) {
+      return temp.first();
+    } else if (!unresolved.is_empty()) {
+      return unresolved.first();
+    }
   }
 
+  VariableProxy* unresolvable;
+  // This is possible if the whole class is preparsed inside of a function.
+  unresolvable =
+      ResolveTemporaryPrivateNamesPartially(&temp, outer_class_scope);
+  if (unresolvable != nullptr) {
+    return unresolvable;
+  }
+  // This is possible if the whole class is preparsed inside of a function.
+  unresolvable = ResolvePrivateNamesPartially(&unresolved, outer_class_scope);
+  if (unresolvable != nullptr) {
+    return unresolvable;
+  }
+  return nullptr;
+}
+
+VariableProxy* ClassScope::ResolveTemporaryPrivateNamesPartially(
+    UnresolvedList* list, ClassScope* outer_class_scope) {
   for (VariableProxy* proxy = list->first(); proxy != nullptr;) {
     DCHECK(proxy->IsPrivateName());
     VariableProxy* next = proxy->next_unresolved();
-    // If the variable cannot be resolved immediately using existing
-    // known private names, push it to the outer class scope.
-    Variable* var = nullptr;
-    if (!start_from_outer_scopes) {
-      var = LookupPrivateName(proxy);
-    }
+    list->Remove(proxy);
+    Variable* var = LookupPrivateName(proxy);
     if (var == nullptr) {
-      DCHECK(list->Remove(proxy));
       // There's no outer class scope so we are certain that the
       // variable cannot be resolved later.
       if (outer_class_scope == nullptr) {
         return proxy;
       }
 
-      outer_class_scope->AddUnresolvedPrivateName(proxy, false);
-    } else {
-      var->set_is_used();
-      proxy->BindTo(var);
+      // Push temporary names to the outer class scope, they will be moved
+      // into the correct zone later in DeclarationScope::AnalyzePartially.
+      outer_class_scope->AddUnresolvedPrivateName(proxy, true);
     }
+    // If we know that a temporary private name can be resolved with
+    // at least the currently known private names, we can just discard it
+    // since we are only looking for errors.
+
     proxy = next;
   }
+  DCHECK(list->is_empty());
+  return nullptr;
+}
 
-  // By now all private names that cannot be resolved should be
-  // pushed to the outer scope, so clear the list.
-  list->Clear();
+VariableProxy* ClassScope::ResolvePrivateNamesPartially(
+    UnresolvedList* list, ClassScope* outer_class_scope) {
+  bool has_private_names = rare_data_->private_name_map.capacity() > 0;
+
+  // Push unresolved names that we are not yet sure about resolvability
+  // to the outer class scope, if there is one.
+  for (VariableProxy* proxy = list->first(); proxy != nullptr;) {
+    DCHECK(proxy->IsPrivateName());
+    VariableProxy* next = proxy->next_unresolved();
+    list->Remove(proxy);
+    Variable* var = nullptr;
+
+    // If we can find private name in the current class scope,
+    // we can bind them immediately because it's going to shadow
+    // any outer private names.
+    if (has_private_names) {
+      var = LookupLocalPrivateName(proxy->raw_name());
+      if (var != nullptr) {
+        var->set_is_used();
+        proxy->BindTo(var);
+      }
+    }
+
+    // If the current scope does not have declared private names,
+    // start from the outer class scope.
+    if (var == nullptr && outer_class_scope != nullptr) {
+      var = outer_class_scope->LookupPrivateName(proxy);
+    }
+
+    if (var == nullptr) {
+      // There's no outer class scope so we are certain that the
+      // variable cannot be resolved later.
+      if (outer_class_scope == nullptr) {
+        return proxy;
+      }
+
+      // Push it to outer class scope
+      outer_class_scope->AddUnresolvedPrivateName(proxy, false);
+    }
+
+    proxy = next;
+  }
+  DCHECK(list->is_empty());
   return nullptr;
 }
 
 void ClassScope::MigrateUnresolvedPrivateNames(
     AstNodeFactory* ast_node_factory) {
-  if (!has_unresolved_private_names()) {
+  if (rare_data_ == nullptr ||
+      rare_data_->temporary_unresolved_private_names.is_empty()) {
     return;
   }
 
-  // This will try to resolve the private names that can be immediately
-  // resolved and only migrate the ones that cannot.
-  UnresolvedList new_unresolved_list;
-  UnresolvedList* list = unresolved_private_names();
-  for (VariableProxy* proxy = list->first(); proxy != nullptr;) {
-    DCHECK(proxy->IsPrivateName());
+  // Only migrate the private names that we do not know if they are
+  // resolvable yet and ignore the ones that can be resolved for certain.
+  UnresolvedList& list = rare_data_->temporary_unresolved_private_names;
+  UnresolvedList migrated_names;
+  for (VariableProxy* proxy = list.first(); proxy != nullptr;) {
     DCHECK(!proxy->is_resolved());
     VariableProxy* next = proxy->next_unresolved();
+    // This may be different from the actual variable that this proxy would
+    // be bound if the outer class is incomplete, but it's fine.
+    // We are just looking for errors, and at this point we know that the name
+    // can be resolved one way or another.
     Variable* var = LookupPrivateName(proxy);
     if (var == nullptr) {
       VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
-      new_unresolved_list.Add(copy);
-    } else {
-      // TODO(joyee): why can't this be removed?
-      var->set_is_used();
-      proxy->BindTo(var);
+      migrated_names.Add(copy);
     }
     proxy = next;
   }
@@ -2533,8 +2595,8 @@ void ClassScope::MigrateUnresolvedPrivateNames(
   // Since this is only called during preparsing to find errors,
   // it's fine to discard the resolvable private names in the zone
   // that's about to be reset.
-  list->Clear();
-  *list = std::move(new_unresolved_list);
+  list.Clear();
+  rare_data_->unresolved_private_names.Append(std::move(migrated_names));
 }
 
 }  // namespace internal

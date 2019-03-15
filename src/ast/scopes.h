@@ -1170,9 +1170,15 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   ClassScope(Zone* zone, Scope* outer_scope);
   // Deserialization.
   ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
+
   // Declare a private name in the private name map and add it to the
   // local variables of this scope.
   Variable* DeclarePrivateName(const AstRawString* name, bool* was_added);
+
+  // In the preparser, private names should be added to a temporary list
+  // and would be moved to the correct zone after the function where
+  // these variable proxies are created is parsed. In the full parser,
+  // the private names should just be added to the final list.
   void AddUnresolvedPrivateName(VariableProxy* proxy, bool is_temporary);
 
   // Try resolving all unresolved private names found in the current scope
@@ -1182,16 +1188,16 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // If there are any private names that cannot be resolved, returns false.
   V8_WARN_UNUSED_RESULT bool ResolvePrivateNames(ParseInfo* info);
 
-  // Called after the entire class literal is parsed. Tries to resolve
-  // all unresolved private names in this class scope with all existing
-  // known private names (declared in this scope or outer class scopes).
-  // If start_from_outer_scopes is false, only try in the outer class scopes.
-  // If there are any private names that cannot be resolved right now,
-  // push them to the outer class scope if there is one.
-  // If there are private names that cannot be resolved for certain
-  // (for example, when there is no outer class scope), return the first
-  // unresolvable private name. Otherwise returns nullptr.
-  VariableProxy* ResolvePrivateNamesPartially(bool start_from_outer_scopes);
+  // Called after the entire class literal is parsed.
+  // Tries to find any private names that cannot be resolved for certain
+  // (for example, when there is no outer class scope) and return them.
+  // Otherwise returns nullptr.
+  // Private names that can be resolved using the private
+  // names local to current class scope will be resolved immediately
+  // if they are in the correct zone.
+  // Private names (temporary or not) that we are not yet sure if they
+  // can be resolved will be pushed to outer class scopes.
+  VariableProxy* ResolvePrivateNamesPartially();
 
   // When a method is preparsed, DeclarationScope::ResetAfterPreparsing will
   // be called to reset the zone of its scope. This migrates any
@@ -1200,9 +1206,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // is called after the entire class literal is parsed.
   void MigrateUnresolvedPrivateNames(AstNodeFactory* ast_node_factory);
 
-  bool has_unresolved_private_names();
-  VariableMap* private_name_map();
-  UnresolvedList* unresolved_private_names();
+  void ResetUnresolvedLists();
 
  private:
   friend class Scope;
@@ -1210,20 +1214,27 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // if it cannot be found there, try scope info if there is any.
   // Returns nullptr if it cannot be found.
   Variable* LookupPrivateName(VariableProxy* proxy);
-  // Lookup a private name from the private name map of the current scope.
+  // Lookup a private name from the local private name map of the current
+  // scope.
   Variable* LookupLocalPrivateName(const AstRawString* name);
   // Lookup a private name from the scope info of the current scope.
   Variable* LookupPrivateNameInScopeInfo(const AstRawString* name);
+  VariableProxy* ResolvePrivateNamesPartially(UnresolvedList* list,
+                                              ClassScope* outer_class_scope);
+  VariableProxy* ResolveTemporaryPrivateNamesPartially(
+      UnresolvedList* list, ClassScope* outer_class_scope);
 
   typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
       UnresolvedList;
 
   struct RareData : public ZoneObject {
     explicit RareData(Zone* zone) : private_name_map(zone) {}
-    // Created in a different zone during preparsing, and may need to be
-    // migrated to a different zone after preparsing
+    // With nodes created in a different zone during preparsing,
+    // need to be migrated to a different zone after preparsing.
     UnresolvedList temporary_unresolved_private_names;
+    // With nodes guaranteed to be in a valid zone.
     UnresolvedList unresolved_private_names;
+    // Where the private names are declared.
     VariableMap private_name_map;
   };
 
