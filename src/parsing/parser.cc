@@ -2496,7 +2496,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
       function_scope->RecordSuperPropertyUsage();
     }
     SkipFunctionLiterals(num_inner_functions);
-    function_scope->ResetAfterPreparsing(ast_value_factory_, false);
+    function_scope->ResetAfterPreparsing(factory(), false);
     return true;
   }
 
@@ -2524,7 +2524,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     // the state before preparsing. The caller may then fully parse the function
     // to identify the actual error.
     bookmark.Apply();
-    function_scope->ResetAfterPreparsing(ast_value_factory(), true);
+    function_scope->ResetAfterPreparsing(factory(), true);
     pending_error_handler()->clear_unidentifiable_error();
     return false;
   } else if (pending_error_handler()->has_pending_error()) {
@@ -2789,7 +2789,7 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   return proxy->var();
 }
 
-void Parser::DeclareClassField(ClassScope* scope,
+bool Parser::DeclareClassField(ClassScope* scope,
                                ClassLiteralProperty* property,
                                const AstRawString* property_name,
                                bool is_static, bool is_computed_name,
@@ -2822,6 +2822,7 @@ void Parser::DeclareClassField(ClassScope* scope,
     property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());
   }
+  return true;
 }
 
 // This method declares a property of the given class.  It updates the

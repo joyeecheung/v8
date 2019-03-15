@@ -1005,7 +1005,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   V8_INLINE void AllocateParameterLocals();
   V8_INLINE void AllocateReceiver();
 
-  void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
+  void ResetAfterPreparsing(AstNodeFactory* ast_value_factory, bool aborted);
 
   bool is_skipped_function() const { return is_skipped_function_; }
   void set_is_skipped_function(bool is_skipped_function) {
@@ -1187,8 +1187,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   void AddUnresolvedPrivateName(VariableProxy* proxy);
   Variable* LookupPrivateNameInScopeInfo(const AstRawString* name,
                                          ClassScope* cache);
-  bool ResolvePrivateName(ParseInfo* info, VariableProxy* proxy);
+  bool ResolvePrivateName(VariableProxy* proxy);
   bool ResolvePrivateNames(ParseInfo* info);
+  VariableProxy* ResolvePrivateNamesPartially(bool try_in_current_scope);
 
   static const VariableMode private_name_mode = VariableMode::kConst;
   static const VariableKind private_name_kind = NORMAL_VARIABLE;

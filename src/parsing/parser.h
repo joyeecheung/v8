@@ -363,7 +363,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeclareClassProperty(ClassScope* scope, const AstRawString* class_name,
                             ClassLiteralProperty* property, bool is_constructor,
                             ClassInfo* class_info);
-  void DeclareClassField(ClassScope* scope, ClassLiteralProperty* property,
+  bool DeclareClassField(ClassScope* scope, ClassLiteralProperty* property,
                          const AstRawString* property_name, bool is_static,
                          bool is_computed_name, bool is_private,
                          ClassInfo* class_info);

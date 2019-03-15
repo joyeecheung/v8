@@ -1241,7 +1241,7 @@ class PreParser : public ParserBase<PreParser> {
                                       bool is_constructor,
                                       ClassInfo* class_info) {}
 
-  V8_INLINE void DeclareClassField(ClassScope* scope,
+  V8_INLINE bool DeclareClassField(ClassScope* scope,
                                    const PreParserExpression& property,
                                    const PreParserIdentifier& property_name,
                                    bool is_static, bool is_computed_name,
@@ -1253,10 +1253,18 @@ class PreParser : public ParserBase<PreParser> {
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           VariableMode::kConst, scope, &was_added);
+      return was_added;
     } else if (is_private) {
       bool was_added;
       DeclarePrivateVariableName(property_name.string_, scope, &was_added);
+      if (!was_added) {
+        Scanner::Location loc(property.position(), property.position() + 1);
+        ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                        property_name.string_);
+      }
+      return was_added;
     }
+    return true;
   }
 
   V8_INLINE PreParserExpression
