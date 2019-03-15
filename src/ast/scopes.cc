@@ -2382,38 +2382,23 @@ Variable* ClassScope::DeclarePrivateNameVariable(Declaration* declaration,
   DCHECK(!already_resolved_);
   DCHECK_NOT_NULL(name);
 
-  Variable* var = LookupPrivateName(name);
-  // Declare the variable in the declaration scope.
-  *was_added = var == nullptr;
-  if (V8_LIKELY(*was_added)) {
-    // Declare the name.
-    var = DeclarePrivateName(name, was_added);
-    DCHECK(*was_added);
-  }
-  DCHECK_NOT_NULL(var);
+  Variable* var = DeclarePrivateName(name, was_added);
+  DCHECK_IMPLIES(*was_added, var != nullptr);
 
   decls_.Add(declaration);
   declaration->set_var(var);
   return var;
 }
 
-Variable* ClassScope::DeclarePrivateName(Zone* zone, const AstRawString* name,
-                                         VariableMode mode, VariableKind kind,
-                                         InitializationFlag initialization_flag,
-                                         MaybeAssignedFlag maybe_assigned_flag,
-                                         bool* was_added) {
-  Variable* result = EnsureRareData()->private_name_map.Declare(
-      zone, this, name, mode, kind, initialization_flag, maybe_assigned_flag,
-      was_added);
-  locals_.Add(result);
-  return result;
-}
-
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
                                          bool* was_added) {
-  Variable* result =
-      DeclarePrivateName(zone(), name, private_name_mode, private_name_kind,
-                         private_name_init, private_name_flag, was_added);
+  Variable* result = EnsureRareData()->private_name_map.Declare(
+      zone(), this, name, VariableMode::kConst, NORMAL_VARIABLE,
+      InitializationFlag::kNeedsInitialization,
+      MaybeAssignedFlag::kMaybeAssigned, was_added);
+  if (*was_added) {
+    locals_.Add(result);
+  }
   return result;
 }
 
@@ -2453,11 +2438,9 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name,
   }
 
   bool was_added;
-  Variable* var =
-      cache->DeclarePrivateName(zone(), name, mode, NORMAL_VARIABLE, init_flag,
-                                maybe_assigned_flag, &was_added);
+  Variable* var = cache->DeclarePrivateName(name, &was_added);
   DCHECK(was_added);
-  var->AllocateTo(private_name_location, index);
+  var->AllocateTo(VariableLocation::CONTEXT, index);
   return var;
 }
 

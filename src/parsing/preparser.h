@@ -1108,7 +1108,6 @@ class PreParser : public ParserBase<PreParser> {
     Variable* var = scope->DeclarePrivateName(name, was_added);
     if (var == nullptr) {
       ReportUnidentifiableError();
-      var = scope->LookupPrivateName(name);
     }
     return var;
   }

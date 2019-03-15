@@ -528,7 +528,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   Variable* LookupInScopeOrScopeInfo(const AstRawString* name) {
-    DCHECK(!name->IsPrivateName());
     Variable* var = variables_.Lookup(name);
     if (var != nullptr || scope_info_.is_null()) return var;
     return LookupInScopeInfo(name, this);
@@ -1173,12 +1172,6 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   ClassScope(Zone* zone, Scope* outer_scope);
   // Deserialization.
   ClassScope(Zone* zone, Handle<ScopeInfo> scope_info);
-
-  Variable* DeclarePrivateName(Zone* zone, const AstRawString* name,
-                               VariableMode mode, VariableKind kind,
-                               InitializationFlag initialization_flag,
-                               MaybeAssignedFlag maybe_assigned_flag,
-                               bool* was_added);
   Variable* DeclarePrivateName(const AstRawString* name, bool* was_added);
   Variable* DeclarePrivateNameVariable(Declaration* declaration,
                                        const AstRawString* name,
@@ -1190,15 +1183,6 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   bool ResolvePrivateName(VariableProxy* proxy);
   bool ResolvePrivateNames(ParseInfo* info);
   VariableProxy* ResolvePrivateNamesPartially(bool try_in_current_scope);
-
-  static const VariableMode private_name_mode = VariableMode::kConst;
-  static const VariableKind private_name_kind = NORMAL_VARIABLE;
-  static const InitializationFlag private_name_init =
-      InitializationFlag::kNeedsInitialization;
-  static const MaybeAssignedFlag private_name_flag =
-      MaybeAssignedFlag::kMaybeAssigned;
-  static const VariableLocation private_name_location =
-      VariableLocation::CONTEXT;
 
   void MigrateUnresolvedPrivateNames(AstNodeFactory* ast_node_factory);
   bool HasPrivateNames();

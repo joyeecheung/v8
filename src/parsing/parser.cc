@@ -2773,8 +2773,8 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   DCHECK_NOT_NULL(name);
   int begin = position();
   int end = end_position();
-  VariableKind kind = ClassScope::private_name_kind;
-  VariableProxy* proxy = factory()->NewVariableProxy(name, kind, begin);
+  VariableProxy* proxy =
+      factory()->NewVariableProxy(name, NORMAL_VARIABLE, begin);
   Declaration* declaration = factory()->NewVariableDeclaration(begin);
   bool was_added = false;
   scope->DeclarePrivateNameVariable(declaration, name, &was_added);
