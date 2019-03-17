@@ -2433,7 +2433,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name,
 
   int index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
                                           &init_flag, &maybe_assigned_flag);
-  if (index == 0) {
+  if (index < 0) {
     return nullptr;
   }
 
