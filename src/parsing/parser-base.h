@@ -711,6 +711,15 @@ class ParserBase {
         name, NORMAL_VARIABLE, pos);
   }
 
+  VariableProxy* NewPrivateNameVariable(const AstRawString* name, int pos) {
+    VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
+        name, NORMAL_VARIABLE, pos);
+    ClassScope* class_scope = scope()->GetClassScope();
+    DCHECK_NOT_NULL(class_scope);
+    class_scope->AddUnresolvedPrivateName(proxy);
+    return proxy;
+  }
+
   VariableProxy* NewUnresolved(const AstRawString* name) {
     return scope()->NewUnresolved(factory()->ast_node_factory(), name,
                                   scanner()->location().beg_pos);
