@@ -2529,7 +2529,6 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially(
   for (VariableProxy* proxy = list->first(); proxy != nullptr;) {
     DCHECK(proxy->IsPrivateName());
     VariableProxy* next = proxy->next_unresolved();
-    // TODO(joyee): Error for top level functions?
     if (!try_in_current_scope || !ResolvePrivateName(proxy)) {
       DCHECK(list->Remove(proxy));
       if (outer_class_scope == nullptr) {
@@ -2550,18 +2549,21 @@ void ClassScope::MigrateUnresolvedPrivateNames(
     return;
   }
 
+  UnresolvedList new_unresolved_list;
   UnresolvedList* list = unresolved_private_names();
   for (VariableProxy* proxy = list->first(); proxy != nullptr;) {
     DCHECK(proxy->IsPrivateName());
     DCHECK(!proxy->is_resolved());
     VariableProxy* next = proxy->next_unresolved();
     if (!ResolvePrivateName(proxy)) {
-      DCHECK(list->Remove(proxy));
+      VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
+      new_unresolved_list.Add(copy);
     }
     proxy = next;
   }
 
   list->Clear();
+  *list = std::move(new_unresolved_list);
 }
 
 }  // namespace internal
