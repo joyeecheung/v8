@@ -711,11 +711,10 @@ class ParserBase {
         name, NORMAL_VARIABLE, pos);
   }
 
-  VariableProxy* NewPrivateNameVariable(const AstRawString* name, int pos) {
+  VariableProxy* NewPrivateNameVariable(ClassScope* class_scope,
+                                        const AstRawString* name, int pos) {
     VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
         name, NORMAL_VARIABLE, pos);
-    ClassScope* class_scope = scope()->GetClassScope();
-    DCHECK_NOT_NULL(class_scope);
     class_scope->AddUnresolvedPrivateName(proxy);
     return proxy;
   }
@@ -1588,14 +1587,14 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     //
     // Bug(v8:7468): This hack will go away once we refactor private
     // name resolution to happen independently from scope resolution.
-    if (scope()->scope_type() == FUNCTION_SCOPE &&
-        scope()->outer_scope() != nullptr &&
-        scope()->outer_scope()->scope_type() == SCRIPT_SCOPE) {
+    ClassScope* class_scope = scope()->GetClassScope();
+    if (class_scope == nullptr) {
       ReportMessage(MessageTemplate::kInvalidPrivateFieldResolution);
+      return impl()->FailureExpression();
     }
 
     name = impl()->GetIdentifier();
-    key = impl()->ExpressionFromPrivateName(name, pos);
+    key = impl()->ExpressionFromPrivateName(class_scope, name, pos);
   } else {
     ReportUnexpectedToken(next);
     return impl()->FailureExpression();

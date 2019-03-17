@@ -2403,10 +2403,11 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
 }
 
 Variable* ClassScope::LookupPrivateName(const AstRawString* name) {
-  if (rare_data_ == nullptr) {
+  VariableMap* map = private_name_map();
+  if (map == nullptr) {
     return nullptr;
   }
-  return rare_data_->private_name_map.Lookup(name);
+  return map->Lookup(name);
 }
 
 void ClassScope::AddUnresolvedPrivateName(VariableProxy* proxy) {
@@ -2423,14 +2424,9 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name,
   DisallowHeapAllocation no_gc;
 
   String name_handle = *name->string();
-  // The Scope is backed up by ScopeInfo. This means it cannot operate in a
-  // heap-independent mode, and all strings must be internalized immediately. So
-  // it's ok to get the Handle<String> here.
-
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
-
   int index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
                                           &init_flag, &maybe_assigned_flag);
   if (index < 0) {
@@ -2498,11 +2494,12 @@ UnresolvedList* ClassScope::unresolved_private_names() {
 }
 
 bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
-  if (rare_data_ == nullptr) {
+  if (!HasUnresolvedPrivateNames()) {
     return true;
   }
+  UnresolvedList* list = unresolved_private_names();
 
-  for (VariableProxy* proxy : rare_data_->unresolved_private_names) {
+  for (VariableProxy* proxy : *list) {
     if (!ResolvePrivateName(proxy)) {
       info->pending_error_handler()->ReportMessageAt(
           proxy->position(), proxy->position() + 1,
@@ -2512,7 +2509,7 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
     }
   }
 
-  rare_data_->unresolved_private_names.Clear();
+  list->Clear();
   return true;
 }
 
@@ -2524,17 +2521,17 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially(
   ClassScope* outer_class_scope =
       outer_scope_ == nullptr ? nullptr : outer_scope_->GetClassScope();
 
+  UnresolvedList* list = unresolved_private_names();
   if (!try_in_current_scope && outer_class_scope == nullptr) {
-    return rare_data_->unresolved_private_names.first();
+    return list->first();
   }
 
-  for (VariableProxy* proxy = rare_data_->unresolved_private_names.first();
-       proxy != nullptr;) {
+  for (VariableProxy* proxy = list->first(); proxy != nullptr;) {
     DCHECK(proxy->IsPrivateName());
     VariableProxy* next = proxy->next_unresolved();
     if (!try_in_current_scope || !ResolvePrivateName(proxy)) {
-      if (outer_class_scope == nullptr ||
-          !rare_data_->unresolved_private_names.Remove(proxy)) {
+      DCHECK(list->Remove(proxy));
+      if (outer_class_scope == nullptr) {
         return proxy;
       }
       outer_class_scope->AddUnresolvedPrivateName(proxy);
@@ -2542,7 +2539,7 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially(
     proxy = next;
   }
 
-  rare_data_->unresolved_private_names.Clear();
+  list->Clear();
   return nullptr;
 }
 
@@ -2551,24 +2548,22 @@ void ClassScope::MigrateUnresolvedPrivateNames(
   if (!HasUnresolvedPrivateNames()) {
     return;
   }
+
   UnresolvedList new_unresolved_list;
-  for (VariableProxy* proxy = rare_data_->unresolved_private_names.first();
-       proxy != nullptr;) {
+  UnresolvedList* list = unresolved_private_names();
+  for (VariableProxy* proxy = list->first(); proxy != nullptr;) {
     DCHECK(proxy->IsPrivateName());
     DCHECK(!proxy->is_resolved());
-    // TODO(joyee): Error for top level functions?
-    // TODO(joyee): skip variables that can be resolved
     VariableProxy* next = proxy->next_unresolved();
     if (!ResolvePrivateName(proxy)) {
-      DCHECK(rare_data_->unresolved_private_names.Remove(proxy));
       VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
       new_unresolved_list.Add(copy);
     }
     proxy = next;
   }
 
-  rare_data_->unresolved_private_names.Clear();
-  rare_data_->unresolved_private_names = std::move(new_unresolved_list);
+  list->Clear();
+  *list = std::move(new_unresolved_list);
 }
 
 }  // namespace internal

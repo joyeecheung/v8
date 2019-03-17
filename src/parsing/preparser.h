@@ -1105,11 +1105,7 @@ class PreParser : public ParserBase<PreParser> {
 
   Variable* DeclarePrivateVariableName(const AstRawString* name,
                                        ClassScope* scope, bool* was_added) {
-    Variable* var = scope->DeclarePrivateName(name, was_added);
-    if (var == nullptr) {
-      ReportUnidentifiableError();
-    }
-    return var;
+    return scope->DeclarePrivateName(name, was_added);
   }
 
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
@@ -1595,9 +1591,10 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::StringLiteral();
   }
 
-  PreParserExpression ExpressionFromPrivateName(const PreParserIdentifier& name,
+  PreParserExpression ExpressionFromPrivateName(ClassScope* class_scope,
+                                                const PreParserIdentifier& name,
                                                 int start_position) {
-    NewPrivateNameVariable(name.string_, start_position);
+    NewPrivateNameVariable(class_scope, name.string_, start_position);
     return PreParserExpression::FromIdentifier(name);
   }
 
