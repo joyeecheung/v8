@@ -1350,7 +1350,6 @@ void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
     // outer scopes.
     Scope* lookup = WasLazilyParsed(scope) ? scope->outer_scope() : scope;
 
-    // TODO(joyee): process unresolved private names?
     for (VariableProxy* proxy : scope->unresolved_list_) {
       DCHECK(!proxy->is_resolved());
       Variable* var =
@@ -1390,8 +1389,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
         // Don't copy unresolved references to the script scope, unless it's a
         // reference to a private name or method. In that case keep it so we
         // can fail later.
-        if (!max_outer_scope->outer_scope()->is_script_scope() ||
-            proxy->IsPrivateName()) {
+        if (!max_outer_scope->outer_scope()->is_script_scope()) {
           VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
           new_unresolved_list->Add(copy);
         }
@@ -1417,8 +1415,6 @@ void DeclarationScope::ResetAfterPreparsing(AstNodeFactory* ast_node_factory,
                                             bool aborted) {
   DCHECK(is_function_scope());
 
-  // TODO(joyee): we may need to migrate all class scopes in the chain,
-  // in case some of the unresolved names got pushed to outer class scopes?
   ClassScope* closest_class_scope = GetClassScope();
   if (closest_class_scope != nullptr) {
     closest_class_scope->MigrateUnresolvedPrivateNames(ast_node_factory);
@@ -1842,7 +1838,6 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
   if (mode == kParsedScope && !scope->is_script_scope()) {
     return nullptr;
   }
-  if (V8_UNLIKELY(proxy->IsPrivateName())) return nullptr;
 
   // No binding has been found. Declare a variable on the global object.
   return scope->AsDeclarationScope()->DeclareDynamicGlobal(
@@ -1933,14 +1928,7 @@ bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(info->script_scope()->is_script_scope());
   DCHECK(!proxy->is_resolved());
   Variable* var = Lookup<kParsedScope>(proxy, this, nullptr);
-  if (var == nullptr) {
-    DCHECK(proxy->IsPrivateName());
-    info->pending_error_handler()->ReportMessageAt(
-        proxy->position(), proxy->position() + 1,
-        MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
-        kSyntaxError);
-    return false;
-  }
+  DCHECK_NOT_NULL(var);
   ResolveTo(info, proxy, var);
   return true;
 }
@@ -2032,7 +2020,7 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
   proxy->BindTo(var);
 }
 
-bool Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
+void Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                      Scope* end) {
   // Resolve the variable in all parsed scopes to force context allocation.
   for (; scope != end; scope = scope->outer_scope_) {
@@ -2043,24 +2031,8 @@ bool Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
         var->ForceContextAllocation();
         if (proxy->is_assigned()) var->set_maybe_assigned();
       }
-      return true;
     }
   }
-
-  if (!proxy->IsPrivateName()) return true;
-
-  // If we're resolving a private name, throw an exception of we didn't manage
-  // to resolve. In case of eval, also look in all outer scope-info backed
-  // scopes except for the script scope. Don't throw an exception if a reference
-  // was found.
-  Scope* start = scope;
-  for (; !scope->is_script_scope(); scope = scope->outer_scope_) {
-    if (scope->LookupInScopeInfo(proxy->raw_name(), start) != nullptr) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
@@ -2083,14 +2055,7 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
     if (!end->is_script_scope()) end = end->outer_scope();
 
     for (VariableProxy* proxy : unresolved_list_) {
-      if (!ResolvePreparsedVariable(proxy, outer_scope(), end)) {
-        info->pending_error_handler()->ReportMessageAt(
-            proxy->position(), proxy->position() + 1,
-            MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
-            kSyntaxError);
-        DCHECK(proxy->IsPrivateName());
-        return false;
-      }
+      ResolvePreparsedVariable(proxy, outer_scope(), end);
     }
   } else {
     // Resolve unresolved variables for this scope.
@@ -2441,9 +2406,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name,
 }
 
 bool ClassScope::ResolvePrivateName(VariableProxy* proxy) {
-  if (proxy->is_resolved()) {
-    return true;  // TODO(joyee): this should be a DCHECK
-  }
+  DCHECK(!proxy->is_resolved());
 
   ClassScope* start = this;
   // Resolve the variable in all parsed scopes to force context allocation.
