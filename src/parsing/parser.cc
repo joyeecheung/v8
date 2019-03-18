@@ -2775,15 +2775,12 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   int end = end_position();
   VariableProxy* proxy =
       factory()->NewVariableProxy(name, NORMAL_VARIABLE, begin);
-  Declaration* declaration = factory()->NewVariableDeclaration(begin);
   bool was_added = false;
-  scope->DeclarePrivateNameVariable(declaration, name, &was_added);
+  Variable* var = scope->DeclarePrivateName(name, &was_added);
   if (!was_added) {
     Scanner::Location loc(begin, end != kNoSourcePosition ? end : begin + 1);
-    ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
-                    declaration->var()->raw_name());
+    ReportMessageAt(loc, MessageTemplate::kVarRedeclaration, var->raw_name());
   }
-  Variable* var = declaration->var();
   proxy->BindTo(var);
   proxy->var()->ForceContextAllocation();
   return proxy->var();
