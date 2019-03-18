@@ -1591,9 +1591,10 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::StringLiteral();
   }
 
-  PreParserExpression ExpressionFromPrivateName(const PreParserIdentifier& name,
+  PreParserExpression ExpressionFromPrivateName(ClassScope* class_scope,
+                                                const PreParserIdentifier& name,
                                                 int start_position) {
-    NewPrivateNameVariable(name.string_, start_position);
+    NewPrivateNameVariable(class_scope, name.string_, start_position);
     return PreParserExpression::FromIdentifier(name);
   }
 
