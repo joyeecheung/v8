@@ -2030,6 +2030,7 @@ void Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
       if (!var->is_dynamic()) {
         var->ForceContextAllocation();
         if (proxy->is_assigned()) var->set_maybe_assigned();
+        return;
       }
     }
   }
