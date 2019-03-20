@@ -2343,20 +2343,6 @@ int Scope::ContextLocalCount() const {
          (is_function_var_in_context ? 1 : 0);
 }
 
-Variable* ClassScope::DeclarePrivateNameVariable(Declaration* declaration,
-                                                 const AstRawString* name,
-                                                 bool* was_added) {
-  DCHECK(!already_resolved_);
-  DCHECK_NOT_NULL(name);
-
-  Variable* var = DeclarePrivateName(name, was_added);
-  DCHECK_IMPLIES(*was_added, var != nullptr);
-
-  decls_.Add(declaration);
-  declaration->set_var(var);
-  return var;
-}
-
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
                                          bool* was_added) {
   Variable* result = EnsureRareData()->private_name_map.Declare(
