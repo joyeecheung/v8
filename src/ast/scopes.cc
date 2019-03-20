@@ -1159,6 +1159,12 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   // to ensure that UpdateNeedsHoleCheck() can detect import variables.
   if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
 
+  ClassScope* closest_class_scope = GetClassScope();
+  if (closest_class_scope != nullptr &&
+      closest_class_scope->HasUnresolvedPrivateNames()) {
+    if (!closest_class_scope->ResolvePrivateNames(info)) return false;
+  }
+
   if (!ResolveVariablesRecursively(info)) {
     DCHECK(info->pending_error_handler()->has_pending_error());
     return false;
@@ -2041,13 +2047,6 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   // Lazy parsed declaration scopes are already partially analyzed. If there are
   // unresolved references remaining, they just need to be resolved in outer
   // scopes.
-
-  // TODO(joyee): do this less often
-  ClassScope* closest_class_scope = GetClassScope();
-  if (closest_class_scope != nullptr &&
-      closest_class_scope->HasUnresolvedPrivateNames()) {
-    if (!closest_class_scope->ResolvePrivateNames(info)) return false;
-  }
 
   if (WasLazilyParsed(this)) {
     DCHECK_EQ(variables_.occupancy(), 0);
