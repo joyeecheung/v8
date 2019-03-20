@@ -1178,10 +1178,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
                                        bool* was_added);
   Variable* LookupPrivateName(const AstRawString* name);
   void AddUnresolvedPrivateName(VariableProxy* proxy);
-  Variable* LookupPrivateNameInScopeInfo(const AstRawString* name,
-                                         ClassScope* cache);
+  Variable* LookupPrivateNameInScopeInfo(const AstRawString* name);
   bool ResolvePrivateName(VariableProxy* proxy);
-  bool ResolvePrivateNames(ParseInfo* info);
+  bool ResolvePrivateNamesRecursively(ParseInfo* info);
   VariableProxy* ResolvePrivateNamesPartially(bool try_in_current_scope);
 
   void MigrateUnresolvedPrivateNames(AstNodeFactory* ast_node_factory);
