@@ -349,10 +349,12 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_module_scope() const { return scope_type_ == MODULE_SCOPE; }
   bool is_script_scope() const { return scope_type_ == SCRIPT_SCOPE; }
   bool is_catch_scope() const { return scope_type_ == CATCH_SCOPE; }
-  bool is_block_scope() const { return scope_type_ == BLOCK_SCOPE; }
+  bool is_block_scope() const {
+    return scope_type_ == BLOCK_SCOPE || scope_type_ == CLASS_SCOPE;
+  }
   bool is_with_scope() const { return scope_type_ == WITH_SCOPE; }
   bool is_declaration_scope() const { return is_declaration_scope_; }
-  bool is_class_scope() const { return is_class_scope_; }
+  bool is_class_scope() const { return scope_type_ == CLASS_SCOPE; }
 
   bool inner_scope_calls_eval() const { return inner_scope_calls_eval_; }
   bool IsAsmModule() const;
@@ -716,9 +718,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // True if it holds 'var' declarations.
   bool is_declaration_scope_ : 1;
-
-  // True if it's a class's block scope
-  bool is_class_scope_ : 1;
 
   bool must_use_preparsed_scope_data_ : 1;
 };

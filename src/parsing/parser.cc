@@ -2874,7 +2874,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
                                         ClassInfo* class_info, int pos,
                                         int end_pos) {
   DCHECK_NOT_NULL(block_scope);
-  DCHECK_EQ(block_scope->scope_type(), BLOCK_SCOPE);
+  DCHECK_EQ(block_scope->scope_type(), CLASS_SCOPE);
   DCHECK_EQ(block_scope->language_mode(), LanguageMode::kStrict);
 
   bool has_extends = class_info->extends != nullptr;
