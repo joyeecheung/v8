@@ -1157,8 +1157,8 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
 
   ClassScope* closest_class_scope = GetClassScope();
   if (closest_class_scope != nullptr &&
-      closest_class_scope->HasUnresolvedPrivateNames()) {
-    if (!closest_class_scope->ResolvePrivateNamesRecursively(info)) {
+      closest_class_scope->has_unresolved_private_names()) {
+    if (!closest_class_scope->ResolvePrivateNames(info)) {
       return false;
     }
   }
@@ -1720,9 +1720,9 @@ void Scope::Print(int n) {
 
   if (is_class_scope()) {
     ClassScope* class_scope = AsClassScope();
-    if (class_scope->HasPrivateNames()) {
-      PrintMap(n1, "// private name vars:\n", class_scope->private_name_map(),
-               true, function);
+    if (class_scope->rare_data_ != nullptr) {
+      PrintMap(n1, "// private name vars:\n",
+               &(class_scope->rare_data_->private_name_map), true, function);
     }
   }
 
@@ -1927,13 +1927,12 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
   return var;
 }
 
-bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
+void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(info->script_scope()->is_script_scope());
   DCHECK(!proxy->is_resolved());
   Variable* var = Lookup<kParsedScope>(proxy, this, nullptr);
   DCHECK_NOT_NULL(var);
   ResolveTo(info, proxy, var);
-  return true;
 }
 
 namespace {
@@ -2057,7 +2056,7 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   } else {
     // Resolve unresolved variables for this scope.
     for (VariableProxy* proxy : unresolved_list_) {
-      if (!ResolveVariable(info, proxy)) return false;
+      ResolveVariable(info, proxy);
     }
 
     // Resolve unresolved variables for inner scopes.
@@ -2347,14 +2346,15 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
   if (*was_added) {
     locals_.Add(result);
   }
+  result->ForceContextAllocation();
   return result;
 }
 
-Variable* ClassScope::LookupPrivateName(const AstRawString* name) {
-  if (!HasPrivateNames()) {
+Variable* ClassScope::LookupLocalPrivateName(const AstRawString* name) {
+  if (rare_data_ == nullptr) {
     return nullptr;
   }
-  return private_name_map()->Lookup(name);
+  return rare_data_->private_name_map.Lookup(name);
 }
 
 void ClassScope::AddUnresolvedPrivateName(VariableProxy* proxy) {
@@ -2366,7 +2366,7 @@ void ClassScope::AddUnresolvedPrivateName(VariableProxy* proxy) {
 
 Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DCHECK(!scope_info_.is_null());
-  DCHECK_NULL(LookupPrivateName(name));
+  DCHECK_NULL(LookupLocalPrivateName(name));
   DisallowHeapAllocation no_gc;
 
   String name_handle = *name->string();
@@ -2380,10 +2380,12 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
     return nullptr;
   }
 
+  DCHECK_EQ(mode, VariableMode::kConst);
+  DCHECK_EQ(init_flag, InitializationFlag::kNeedsInitialization);
+  DCHECK_EQ(maybe_assigned_flag, MaybeAssignedFlag::kMaybeAssigned);
+
   // Add the found private name to the map to speed up subsequent
   // lookups for the same name.
-  // We dsicard the mode and flags found in the scope info because those
-  // are constants for private names.
   bool was_added;
   Variable* var = DeclarePrivateName(name, &was_added);
   DCHECK(was_added);
@@ -2399,14 +2401,13 @@ bool ClassScope::ResolvePrivateName(VariableProxy* proxy) {
     if (!scope->is_class_scope()) continue;  // Only search in class scopes
     ClassScope* class_scope = scope->AsClassScope();
     // Try finding it in private name maps first.
-    Variable* var = class_scope->LookupPrivateName(proxy->raw_name());
+    Variable* var = class_scope->LookupLocalPrivateName(proxy->raw_name());
     // If the variable cannot be found in the map, try scope info.
     if (var == nullptr && !class_scope->scope_info_.is_null()) {
       var = class_scope->LookupPrivateNameInScopeInfo(proxy->raw_name());
     }
     if (var != nullptr) {
       var->set_is_used();
-      var->ForceContextAllocation();
       proxy->BindTo(var);
       return true;
     }
@@ -2414,14 +2415,7 @@ bool ClassScope::ResolvePrivateName(VariableProxy* proxy) {
   return false;
 }
 
-bool ClassScope::HasPrivateNames() {
-  if (rare_data_ == nullptr) {
-    return false;
-  }
-  return rare_data_->private_name_map.occupancy() > 0;
-}
-
-bool ClassScope::HasUnresolvedPrivateNames() {
+bool ClassScope::has_unresolved_private_names() {
   if (rare_data_ == nullptr) {
     return false;
   }
@@ -2442,8 +2436,8 @@ UnresolvedList* ClassScope::unresolved_private_names() {
   return &(rare_data_->unresolved_private_names);
 }
 
-bool ClassScope::ResolvePrivateNamesRecursively(ParseInfo* info) {
-  if (!HasUnresolvedPrivateNames()) {
+bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
+  if (!has_unresolved_private_names()) {
     return true;
   }
   UnresolvedList* list = unresolved_private_names();
@@ -2465,15 +2459,15 @@ bool ClassScope::ResolvePrivateNamesRecursively(ParseInfo* info) {
 }
 
 VariableProxy* ClassScope::ResolvePrivateNamesPartially(
-    bool try_in_current_scope) {
-  if (!HasUnresolvedPrivateNames()) {
+    bool start_from_outer_scopes) {
+  if (!has_unresolved_private_names()) {
     return nullptr;
   }
   ClassScope* outer_class_scope =
       outer_scope_ == nullptr ? nullptr : outer_scope_->GetClassScope();
 
   UnresolvedList* list = unresolved_private_names();
-  if (!try_in_current_scope && outer_class_scope == nullptr) {
+  if (start_from_outer_scopes && outer_class_scope == nullptr) {
     return list->first();
   }
 
@@ -2482,7 +2476,7 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially(
     VariableProxy* next = proxy->next_unresolved();
     // If the variable cannot be resolved immediately using existing
     // known private names, push it to the outer class scope.
-    if (!try_in_current_scope || !ResolvePrivateName(proxy)) {
+    if (start_from_outer_scopes || !ResolvePrivateName(proxy)) {
       DCHECK(list->Remove(proxy));
       // There's no outer class scope so we are certain that the
       // variable cannot be resolved later.
@@ -2502,7 +2496,7 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially(
 
 void ClassScope::MigrateUnresolvedPrivateNames(
     AstNodeFactory* ast_node_factory) {
-  if (!HasUnresolvedPrivateNames()) {
+  if (!has_unresolved_private_names()) {
     return;
   }
 

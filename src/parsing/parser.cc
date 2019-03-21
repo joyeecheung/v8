@@ -2773,16 +2773,13 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   DCHECK_NOT_NULL(name);
   int begin = position();
   int end = end_position();
-  VariableProxy* proxy =
-      factory()->NewVariableProxy(name, NORMAL_VARIABLE, begin);
   bool was_added = false;
   Variable* var = scope->DeclarePrivateName(name, &was_added);
   if (!was_added) {
-    Scanner::Location loc(begin, end != kNoSourcePosition ? end : begin + 1);
+    Scanner::Location loc(begin, end);
     ReportMessageAt(loc, MessageTemplate::kVarRedeclaration, var->raw_name());
   }
-  proxy->BindTo(var);
-  proxy->var()->ForceContextAllocation();
+  VariableProxy* proxy = factory()->NewVariableProxy(var, begin);
   return proxy->var();
 }
 

@@ -225,10 +225,9 @@ class ScopeInfo : public FixedArray {
       : public BitField<LanguageMode, CallsSloppyEvalField::kNext, 1> {};
   class DeclarationScopeField
       : public BitField<bool, LanguageModeField::kNext, 1> {};
-  class ClassScopeField
-      : public BitField<bool, DeclarationScopeField::kNext, 1> {};
   class ReceiverVariableField
-      : public BitField<VariableAllocationInfo, ClassScopeField::kNext, 2> {};
+      : public BitField<VariableAllocationInfo, DeclarationScopeField::kNext,
+                        2> {};
   class HasNewTargetField
       : public BitField<bool, ReceiverVariableField::kNext, 1> {};
   class FunctionVariableField

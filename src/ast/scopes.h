@@ -601,8 +601,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   static void ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
                                        Scope* end);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
-  V8_WARN_UNUSED_RESULT bool ResolveVariable(ParseInfo* info,
-                                             VariableProxy* proxy);
+  void ResolveVariable(ParseInfo* info, VariableProxy* proxy);
   V8_WARN_UNUSED_RESULT bool ResolveVariablesRecursively(ParseInfo* info);
 
   // Finds free variables of this scope. This mutates the unresolved variables
@@ -1177,11 +1176,11 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   void AddUnresolvedPrivateName(VariableProxy* proxy);
 
   // Try resolving all unresolved private names found in the current scope
-  // recursively. Called from DeclarationScope::AllocateVariables()
+  // Called from DeclarationScope::AllocateVariables()
   // when reparsing a method to generate code or when eval() is called
   // to access private names.
   // If there are any private names that cannot be resolved, returns false.
-  bool ResolvePrivateNamesRecursively(ParseInfo* info);
+  V8_WARN_UNUSED_RESULT bool ResolvePrivateNames(ParseInfo* info);
 
   // Called after the entire class literal is parsed. Tries to resolve
   // all unresolved private names in this class scope with all existing
@@ -1197,22 +1196,22 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // When a method is preparsed, DeclarationScope::ResetAfterPreparsing will
   // be called to reset the zone of its scope. This migrates any
   // unresolved private names accessed inside the method to the correct
-  // zone so that they are still avlid when ResolvePrivateNamesPartially
+  // zone so that they are still valid when ResolvePrivateNamesPartially
   // is called after the entire class literal is parsed.
   void MigrateUnresolvedPrivateNames(AstNodeFactory* ast_node_factory);
 
-  bool HasUnresolvedPrivateNames();
-  bool HasPrivateNames();
+  bool has_unresolved_private_names();
   VariableMap* private_name_map();
   UnresolvedList* unresolved_private_names();
 
  private:
+  friend class Scope;
   // Find the private name declared in the private name map first,
   // if it cannot be found there, try scope info if there is any.
   // Returns false if it cannot be found.
   bool ResolvePrivateName(VariableProxy* proxy);
   // Lookup a private name from the private name map of the current scope.
-  Variable* LookupPrivateName(const AstRawString* name);
+  Variable* LookupLocalPrivateName(const AstRawString* name);
   // Lookup a private name from the scope info of the current scope.
   Variable* LookupPrivateNameInScopeInfo(const AstRawString* name);
 

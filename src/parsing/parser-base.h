@@ -2172,9 +2172,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     class_info->has_name_static_property = true;
   }
 
-  if (!class_info->has_private_members && prop_info->is_private) {
-    class_info->has_private_members = true;
-  }
+  class_info->has_private_members |= prop_info->is_private;
 
   switch (prop_info->kind) {
     case ParsePropertyKind::kAssign:
@@ -4296,11 +4294,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         class_info.computed_field_count++;
       }
 
-      if (!impl()->DeclareClassField(
-              class_scope, property, prop_info.name, prop_info.is_static,
-              prop_info.is_computed_name, prop_info.is_private, &class_info)) {
-        return impl()->FailureExpression();
-      }
+      impl()->DeclareClassField(class_scope, property, prop_info.name,
+                                prop_info.is_static, prop_info.is_computed_name,
+                                prop_info.is_private, &class_info);
     } else {
       impl()->DeclareClassProperty(class_scope, name, property, is_constructor,
                                    &class_info);
@@ -4312,8 +4308,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   int end_pos = end_position();
   class_scope->set_end_position(end_pos);
 
-  VariableProxy* unresolved_proxy =
-      class_scope->ResolvePrivateNamesPartially(class_info.has_private_members);
+  VariableProxy* unresolved_proxy = class_scope->ResolvePrivateNamesPartially(
+      !class_info.has_private_members);
   if (unresolved_proxy != nullptr) {
     impl()->ReportMessageAt(Scanner::Location(unresolved_proxy->position(),
                                               unresolved_proxy->position() + 1),
