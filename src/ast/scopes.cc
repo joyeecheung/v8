@@ -1419,11 +1419,6 @@ void DeclarationScope::ResetAfterPreparsing(AstNodeFactory* ast_node_factory,
                                             bool aborted) {
   DCHECK(is_function_scope());
 
-  ClassScope* closest_class_scope = GetClassScope();
-  if (closest_class_scope != nullptr) {
-    closest_class_scope->MigrateUnresolvedPrivateNames(ast_node_factory);
-  }
-
   // Reset all non-trivial members.
   params_.Clear();
   decls_.Clear();
@@ -1515,6 +1510,11 @@ void DeclarationScope::AnalyzePartially(Parser* parser,
   }
 #endif
 
+  ClassScope* closest_class_scope = GetClassScope();
+  if (closest_class_scope != nullptr &&
+      closest_class_scope->has_unresolved_private_names()) {
+    closest_class_scope->MigrateUnresolvedPrivateNames(ast_node_factory);
+  }
   ResetAfterPreparsing(ast_node_factory, false);
 
   unresolved_list_ = std::move(new_unresolved_list);
@@ -2357,10 +2357,12 @@ Variable* ClassScope::LookupLocalPrivateName(const AstRawString* name) {
   return rare_data_->private_name_map.Lookup(name);
 }
 
-void ClassScope::AddUnresolvedPrivateName(VariableProxy* proxy) {
+void ClassScope::AddUnresolvedPrivateName(VariableProxy* proxy,
+                                          bool is_temporary) {
   // During a reparse, already_resolved_ may be true here
   DCHECK(!proxy->is_resolved());
   DCHECK(proxy->IsPrivateName());
+  // TODO(joyee): handle is_temporary
   EnsureRareData()->unresolved_private_names.Add(proxy);
 }
 
@@ -2393,7 +2395,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   return var;
 }
 
-bool ClassScope::ResolvePrivateName(VariableProxy* proxy) {
+Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
 
   for (Scope* scope = this; !scope->is_script_scope();
@@ -2406,13 +2408,9 @@ bool ClassScope::ResolvePrivateName(VariableProxy* proxy) {
     if (var == nullptr && !class_scope->scope_info_.is_null()) {
       var = class_scope->LookupPrivateNameInScopeInfo(proxy->raw_name());
     }
-    if (var != nullptr) {
-      var->set_is_used();
-      proxy->BindTo(var);
-      return true;
-    }
+    return var;
   }
-  return false;
+  return nullptr;
 }
 
 bool ClassScope::has_unresolved_private_names() {
@@ -2443,12 +2441,16 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
   UnresolvedList* list = unresolved_private_names();
 
   for (VariableProxy* proxy : *list) {
-    if (!ResolvePrivateName(proxy)) {
+    Variable* var = LookupPrivateName(proxy);
+    if (var == nullptr) {
       info->pending_error_handler()->ReportMessageAt(
           proxy->position(), proxy->position() + 1,
           MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
           kSyntaxError);
       return false;
+    } else {
+      var->set_is_used();
+      proxy->BindTo(var);
     }
   }
 
@@ -2476,14 +2478,22 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially(
     VariableProxy* next = proxy->next_unresolved();
     // If the variable cannot be resolved immediately using existing
     // known private names, push it to the outer class scope.
-    if (start_from_outer_scopes || !ResolvePrivateName(proxy)) {
+    Variable* var = nullptr;
+    if (!start_from_outer_scopes) {
+      var = LookupPrivateName(proxy);
+    }
+    if (var == nullptr) {
       DCHECK(list->Remove(proxy));
       // There's no outer class scope so we are certain that the
       // variable cannot be resolved later.
       if (outer_class_scope == nullptr) {
         return proxy;
       }
-      outer_class_scope->AddUnresolvedPrivateName(proxy);
+
+      outer_class_scope->AddUnresolvedPrivateName(proxy, false);
+    } else {
+      var->set_is_used();
+      proxy->BindTo(var);
     }
     proxy = next;
   }
@@ -2508,9 +2518,14 @@ void ClassScope::MigrateUnresolvedPrivateNames(
     DCHECK(proxy->IsPrivateName());
     DCHECK(!proxy->is_resolved());
     VariableProxy* next = proxy->next_unresolved();
-    if (!ResolvePrivateName(proxy)) {
+    Variable* var = LookupPrivateName(proxy);
+    if (var == nullptr) {
       VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
       new_unresolved_list.Add(copy);
+    } else {
+      // TODO(joyee): why can't this be removed?
+      var->set_is_used();
+      proxy->BindTo(var);
     }
     proxy = next;
   }

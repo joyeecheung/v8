@@ -1173,7 +1173,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // Declare a private name in the private name map and add it to the
   // local variables of this scope.
   Variable* DeclarePrivateName(const AstRawString* name, bool* was_added);
-  void AddUnresolvedPrivateName(VariableProxy* proxy);
+  void AddUnresolvedPrivateName(VariableProxy* proxy, bool is_temporary);
 
   // Try resolving all unresolved private names found in the current scope
   // Called from DeclarationScope::AllocateVariables()
@@ -1185,13 +1185,13 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // Called after the entire class literal is parsed. Tries to resolve
   // all unresolved private names in this class scope with all existing
   // known private names (declared in this scope or outer class scopes).
-  // If try_in_current_scope is false, only try in the outer class scopes.
+  // If start_from_outer_scopes is false, only try in the outer class scopes.
   // If there are any private names that cannot be resolved right now,
   // push them to the outer class scope if there is one.
   // If there are private names that cannot be resolved for certain
   // (for example, when there is no outer class scope), return the first
   // unresolvable private name. Otherwise returns nullptr.
-  VariableProxy* ResolvePrivateNamesPartially(bool try_in_current_scope);
+  VariableProxy* ResolvePrivateNamesPartially(bool start_from_outer_scopes);
 
   // When a method is preparsed, DeclarationScope::ResetAfterPreparsing will
   // be called to reset the zone of its scope. This migrates any
@@ -1208,8 +1208,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   friend class Scope;
   // Find the private name declared in the private name map first,
   // if it cannot be found there, try scope info if there is any.
-  // Returns false if it cannot be found.
-  bool ResolvePrivateName(VariableProxy* proxy);
+  // Returns nullptr if it cannot be found.
+  Variable* LookupPrivateName(VariableProxy* proxy);
   // Lookup a private name from the private name map of the current scope.
   Variable* LookupLocalPrivateName(const AstRawString* name);
   // Lookup a private name from the scope info of the current scope.
@@ -1220,6 +1220,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
 
   struct RareData : public ZoneObject {
     explicit RareData(Zone* zone) : private_name_map(zone) {}
+    // Created in a different zone during preparsing, and may need to be
+    // migrated to a different zone after preparsing
+    UnresolvedList temporary_unresolved_private_names;
     UnresolvedList unresolved_private_names;
     VariableMap private_name_map;
   };

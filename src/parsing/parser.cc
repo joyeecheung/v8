@@ -2524,6 +2524,11 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     // the state before preparsing. The caller may then fully parse the function
     // to identify the actual error.
     bookmark.Apply();
+    ClassScope* closest_class_scope = function_scope->GetClassScope();
+    if (closest_class_scope != nullptr &&
+        closest_class_scope->has_unresolved_private_names()) {
+      closest_class_scope->unresolved_private_names()->Clear();
+    }
     function_scope->ResetAfterPreparsing(factory(), true);
     pending_error_handler()->clear_unidentifiable_error();
     return false;

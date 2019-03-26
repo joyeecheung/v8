@@ -807,7 +807,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE VariableProxy* ExpressionFromPrivateName(ClassScope* class_scope,
                                                      const AstRawString* name,
                                                      int start_position) {
-    return NewPrivateNameVariable(class_scope, name, start_position);
+    VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
+        name, NORMAL_VARIABLE, start_position);
+    class_scope->AddUnresolvedPrivateName(proxy, false);
+    return proxy;
   }
 
   V8_INLINE VariableProxy* ExpressionFromIdentifier(
