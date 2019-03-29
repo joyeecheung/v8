@@ -1236,7 +1236,7 @@ class PreParser : public ParserBase<PreParser> {
                                       bool is_constructor,
                                       ClassInfo* class_info) {}
 
-  V8_INLINE bool DeclareClassField(ClassScope* scope,
+  V8_INLINE void DeclareClassField(ClassScope* scope,
                                    const PreParserExpression& property,
                                    const PreParserIdentifier& property_name,
                                    bool is_static, bool is_computed_name,
@@ -1248,7 +1248,6 @@ class PreParser : public ParserBase<PreParser> {
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           VariableMode::kConst, scope, &was_added);
-      return was_added;
     } else if (is_private) {
       bool was_added;
       DeclarePrivateVariableName(property_name.string_, scope, &was_added);
@@ -1257,9 +1256,7 @@ class PreParser : public ParserBase<PreParser> {
         ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
                         property_name.string_);
       }
-      return was_added;
     }
-    return true;
   }
 
   V8_INLINE PreParserExpression
@@ -1596,7 +1593,7 @@ class PreParser : public ParserBase<PreParser> {
                                                 int start_position) {
     VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
         name.string_, NORMAL_VARIABLE, start_position);
-    class_scope->AddUnresolvedPrivateName(proxy, true);
+    class_scope->AddUnresolvedPrivateName(proxy);
     return PreParserExpression::FromIdentifier(name);
   }
 

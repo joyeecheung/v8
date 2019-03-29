@@ -363,7 +363,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeclareClassProperty(ClassScope* scope, const AstRawString* class_name,
                             ClassLiteralProperty* property, bool is_constructor,
                             ClassInfo* class_info);
-  bool DeclareClassField(ClassScope* scope, ClassLiteralProperty* property,
+  void DeclareClassField(ClassScope* scope, ClassLiteralProperty* property,
                          const AstRawString* property_name, bool is_static,
                          bool is_computed_name, bool is_private,
                          ClassInfo* class_info);
@@ -809,7 +809,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                                      int start_position) {
     VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
         name, NORMAL_VARIABLE, start_position);
-    class_scope->AddUnresolvedPrivateName(proxy, false);
+    class_scope->AddUnresolvedPrivateName(proxy);
     return proxy;
   }
 

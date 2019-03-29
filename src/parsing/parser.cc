@@ -2473,6 +2473,13 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
   DCHECK_IMPLIES(IsArrowFunction(kind),
                  scanner()->current_token() == Token::ARROW);
 
+  UnresolvedList::Iterator unresolved_private_tail;
+  ClassScope* closest_class_scope = function_scope->GetClassScope();
+  if (closest_class_scope != nullptr) {
+    unresolved_private_tail =
+        closest_class_scope->GetUnresolvedPrivateNameTail();
+  }
+
   // FIXME(marja): There are 2 ways to skip functions now. Unify them.
   if (consumed_preparse_data_) {
     int end_position;
@@ -2496,7 +2503,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
       function_scope->RecordSuperPropertyUsage();
     }
     SkipFunctionLiterals(num_inner_functions);
-    function_scope->ResetAfterPreparsing(factory(), false);
+    function_scope->ResetAfterPreparsing(ast_value_factory_, false);
     return true;
   }
 
@@ -2524,7 +2531,11 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     // the state before preparsing. The caller may then fully parse the function
     // to identify the actual error.
     bookmark.Apply();
-    function_scope->ResetAfterPreparsing(factory(), true);
+    if (closest_class_scope != nullptr) {
+      closest_class_scope->ResetUnresolvedPrivateNameTail(
+          unresolved_private_tail);
+    }
+    function_scope->ResetAfterPreparsing(ast_value_factory_, true);
     pending_error_handler()->clear_unidentifiable_error();
     return false;
   } else if (pending_error_handler()->has_pending_error()) {
@@ -2541,6 +2552,10 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
         function_scope->end_position() - function_scope->start_position();
     *num_parameters = logger->num_parameters();
     SkipFunctionLiterals(logger->num_inner_functions());
+    if (closest_class_scope != nullptr) {
+      closest_class_scope->MigrateUnresolvedPrivateNameTail(
+          factory(), unresolved_private_tail);
+    }
     function_scope->AnalyzePartially(this, factory());
   }
 
@@ -2783,7 +2798,7 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   return proxy->var();
 }
 
-bool Parser::DeclareClassField(ClassScope* scope,
+void Parser::DeclareClassField(ClassScope* scope,
                                ClassLiteralProperty* property,
                                const AstRawString* property_name,
                                bool is_static, bool is_computed_name,
@@ -2816,7 +2831,6 @@ bool Parser::DeclareClassField(ClassScope* scope,
     property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());
   }
-  return true;
 }
 
 // This method declares a property of the given class.  It updates the
