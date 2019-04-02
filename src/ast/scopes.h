@@ -30,6 +30,9 @@ class Statement;
 class StringSet;
 class VariableProxy;
 
+typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
+    UnresolvedList;
+
 // A hash map to support fast variable declaration and lookup.
 class VariableMap: public ZoneHashMap {
  public:
@@ -78,9 +81,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     scope_name_ = scope_name;
   }
 #endif
-
-  typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
-      UnresolvedList;
 
   DeclarationScope* AsDeclarationScope();
   const DeclarationScope* AsDeclarationScope() const;
@@ -1192,17 +1192,17 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // Tries to find any private names that cannot be resolved for certain
   // (for example, when there is no outer class scope) and return them.
   // Otherwise returns nullptr.
-  // Private names that can be resolved using the private
-  // names local to current class scope will be resolved immediately
-  // if they are in the correct zone.
+  // Private names that can be resolved using the private names local to
+  // current class scope will be resolved immediately if they are in the
+  // correct zone.
   // Private names (temporary or not) that we are not yet sure if they
   // can be resolved will be pushed to outer class scopes.
   VariableProxy* ResolvePrivateNamesPartially();
 
-  // When a method is preparsed, DeclarationScope::ResetAfterPreparsing will
+  // When a method is preparsed, DeclarationScope::ResetAfterPreparsing() will
   // be called to reset the zone of its scope. This migrates any
   // unresolved private names accessed inside the method to the correct
-  // zone so that they are still valid when ResolvePrivateNamesPartially
+  // zone so that they are still valid when ResolvePrivateNamesPartially()
   // is called after the entire class literal is parsed.
   void MigrateUnresolvedPrivateNames(AstNodeFactory* ast_node_factory);
 

@@ -23,11 +23,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
-    UnresolvedList;
-}  // anonymous namespace
-
 // ----------------------------------------------------------------------------
 // Implementation of LocalsMap
 //
@@ -517,6 +512,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
           : RuntimeCallCounterId::kCompileScopeAnalysis);
   DCHECK_NOT_NULL(info->literal());
   DeclarationScope* scope = info->literal()->scope();
+
   base::Optional<AllowHandleDereference> allow_deref;
   if (!info->maybe_outer_scope_info().is_null()) {
     // Allow dereferences to the scope info if there is one.
@@ -1381,6 +1377,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
                  new_unresolved_list](Scope* scope) {
     DCHECK_IMPLIES(scope->is_declaration_scope(),
                    !scope->AsDeclarationScope()->was_lazily_parsed());
+
     for (VariableProxy* proxy = scope->unresolved_list_.first();
          proxy != nullptr; proxy = proxy->next_unresolved()) {
       DCHECK(!proxy->is_resolved());
@@ -2046,7 +2043,6 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   // Lazy parsed declaration scopes are already partially analyzed. If there are
   // unresolved references remaining, they just need to be resolved in outer
   // scopes.
-
   if (WasLazilyParsed(this)) {
     DCHECK_EQ(variables_.occupancy(), 0);
     Scope* end = info->scope();
@@ -2439,8 +2435,9 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
   for (VariableProxy* proxy : list) {
     Variable* var = LookupPrivateName(proxy);
     if (var == nullptr) {
+      Scanner::Location loc = proxy->location();
       info->pending_error_handler()->ReportMessageAt(
-          proxy->position(), proxy->position() + 1,
+          loc.beg_pos, loc.end_pos,
           MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
           kSyntaxError);
       return false;
@@ -2477,19 +2474,13 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
     }
   }
 
-  VariableProxy* unresolvable;
-  // This is possible if the whole class is preparsed inside of a function.
-  unresolvable =
+  VariableProxy* unresolvable =
       ResolveTemporaryPrivateNamesPartially(&temp, outer_class_scope);
-  if (unresolvable != nullptr) {
-    return unresolvable;
-  }
   // This is possible if the whole class is preparsed inside of a function.
-  unresolvable = ResolvePrivateNamesPartially(&unresolved, outer_class_scope);
   if (unresolvable != nullptr) {
     return unresolvable;
   }
-  return nullptr;
+  return ResolvePrivateNamesPartially(&unresolved, outer_class_scope);
 }
 
 VariableProxy* ClassScope::ResolveTemporaryPrivateNamesPartially(
