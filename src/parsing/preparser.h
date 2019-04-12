@@ -1221,6 +1221,16 @@ class PreParser : public ParserBase<PreParser> {
                         &was_added);
     return PreParserStatement::Default();
   }
+
+  V8_INLINE void DeclareClassBrandVariable(ClassScope* scope,
+                                           ClassInfo* class_info,
+                                           int class_token_pos) {
+    bool was_added;
+    DeclareVariableName(ast_value_factory()->dot_brand_string(),
+                        VariableMode::kConst, scope, &was_added);
+    DCHECK(was_added);
+  }
+
   V8_INLINE void DeclareClassVariable(const PreParserIdentifier& name,
                                       ClassInfo* class_info,
                                       int class_token_pos) {

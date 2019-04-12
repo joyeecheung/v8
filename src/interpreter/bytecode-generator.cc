@@ -2037,6 +2037,20 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
                             HoleCheckMode::kElided);
   }
 
+  if (expr->brand_variable() != nullptr) {
+    Register brand = register_allocator()->NewRegister();
+    const AstRawString* class_name =
+        expr->class_variable() != nullptr
+            ? expr->class_variable()->raw_name()
+            : ast_string_constants()->empty_string();
+    builder()
+        ->LoadLiteral(class_name)
+        .StoreAccumulatorInRegister(brand)
+        .CallRuntime(Runtime::kCreatePrivateNameSymbol, brand);
+    BuildVariableAssignment(expr->brand_variable(), Token::INIT,
+                            HoleCheckMode::kElided);
+  }
+
   if (expr->instance_members_initializer_function() != nullptr) {
     Register initializer =
         VisitForRegisterValue(expr->instance_members_initializer_function());
@@ -2115,6 +2129,12 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
   RegisterList args = register_allocator()->NewRegisterList(3);
   Register constructor = args[0], key = args[1], value = args[2];
   builder()->MoveRegister(builder()->Receiver(), constructor);
+
+  if (stmt->brand_var() != nullptr) {
+    BuildVariableLoad(stmt->brand_var(), HoleCheckMode::kElided);
+    builder()->StoreAccumulatorInRegister(key).CallRuntime(
+        Runtime::kAddPrivateBrand, args);
+  }
 
   for (int i = 0; i < stmt->fields()->length(); i++) {
     ClassLiteral::Property* property = stmt->fields()->at(i);

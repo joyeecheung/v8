@@ -304,7 +304,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       const AstRawString* name);
   FunctionLiteral* CreateInitializerFunction(
       const char* name, DeclarationScope* scope,
-      ZonePtrList<ClassLiteral::Property>* fields);
+      ZonePtrList<ClassLiteral::Property>* fields, Variable* brand);
 
   bool IdentifierEquals(const AstRawString* identifier,
                         const AstRawString* other) {
@@ -316,21 +316,30 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                           int class_token_pos, int end_pos);
   void DeclareClassVariable(const AstRawString* name, ClassInfo* class_info,
                             int class_token_pos);
-  void DeclarePrivateClassMember(ClassScope* class_scope,
+  void DeclareClassBrandVariable(ClassScope* scope, ClassInfo* class_info,
+                                 int class_token_pos);
+  void DeclarePrivateClassMember(ClassScope* scope,
                                  const AstRawString* property_name,
                                  ClassLiteralProperty* property,
                                  ClassLiteralProperty::Kind kind,
                                  bool is_static, ClassInfo* class_info);
-  void DeclarePublicClassMethod(ClassScope* class_scope,
+  void DeclarePublicClassMethod(ClassScope* scope,
                                 const AstRawString* property_name,
                                 ClassLiteralProperty* property,
                                 bool is_constructor, bool is_static,
                                 ClassInfo* class_info);
-  void DeclarePublicClassField(ClassScope* class_scope,
+  void DeclarePublicClassField(ClassScope* scope,
                                const AstRawString* property_name,
                                ClassLiteralProperty* property, bool is_static,
                                bool is_computed_name, ClassInfo* class_info);
-  Expression* RewriteClassLiteral(ClassScope* class_scope,
+  void DeclareClassProperty(ClassScope* scope, const AstRawString* class_name,
+                            ClassLiteralProperty* property, bool is_constructor,
+                            ClassInfo* class_info);
+  void DeclareClassField(ClassScope* scope, ClassLiteralProperty* property,
+                         const AstRawString* property_name, bool is_static,
+                         bool is_computed_name, bool is_private,
+                         ClassInfo* class_info);
+  Expression* RewriteClassLiteral(ClassScope* block_scope,
                                   const AstRawString* name,
                                   ClassInfo* class_info, int pos, int end_pos);
   Statement* DeclareNative(const AstRawString* name, int pos);

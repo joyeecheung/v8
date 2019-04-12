@@ -529,6 +529,7 @@ class ParserBase {
    public:
     explicit ClassInfo(ParserBase* parser)
         : variable(nullptr),
+          brand(nullptr),
           extends(parser->impl()->NullExpression()),
           properties(parser->impl()->NewClassPropertyList(4)),
           static_fields(parser->impl()->NewClassPropertyList(4)),
@@ -539,11 +540,13 @@ class ParserBase {
           has_static_computed_names(false),
           has_static_class_fields(false),
           has_instance_members(false),
+          has_brand(false),
           is_anonymous(false),
           static_fields_scope(nullptr),
           instance_members_scope(nullptr),
           computed_field_count(0) {}
     Variable* variable;
+    Variable* brand;
     ExpressionT extends;
     ClassPropertyListT properties;
     ClassPropertyListT static_fields;
@@ -555,6 +558,7 @@ class ParserBase {
     bool has_static_computed_names;
     bool has_static_class_fields;
     bool has_instance_members;
+    bool has_brand;
     bool is_anonymous;
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_members_scope;
@@ -4308,6 +4312,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     bool is_field = property_kind == ClassLiteralProperty::FIELD;
     if (V8_UNLIKELY(prop_info.is_private)) {
       DCHECK(!is_constructor);
+      class_info.has_brand |= !is_field;
       impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
                                         property_kind, prop_info.is_static,
                                         &class_info);
@@ -4339,6 +4344,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
                             MessageTemplate::kInvalidPrivateFieldResolution,
                             unresolvable->raw_name(), kSyntaxError);
     return impl()->FailureExpression();
+  }
+
+  if (class_info.has_brand) {
+    impl()->DeclareClassBrandVariable(class_scope, &class_info,
+                                      class_token_pos);
   }
 
   return impl()->RewriteClassLiteral(class_scope, name, &class_info,
