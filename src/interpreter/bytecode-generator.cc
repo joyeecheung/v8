@@ -2011,6 +2011,14 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         continue;
       }
 
+      if (property->is_private()) {
+        DCHECK_NE(property->kind(), ClassLiteral::Property::FIELD);
+        VisitForAccumulatorValue(property->value());
+        BuildVariableAssignment(property->private_name_var(), Token::INIT,
+                                HoleCheckMode::kElided);
+        continue;
+      }
+
       Register value = register_allocator()->GrowRegisterList(&args);
       VisitForRegisterValue(property->value(), value);
     }
@@ -2112,7 +2120,6 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
     ClassLiteral::Property* property = stmt->fields()->at(i);
 
     if (property->is_computed_name()) {
-      DCHECK_EQ(property->kind(), ClassLiteral::Property::FIELD);
       DCHECK(!property->is_private());
       Variable* var = property->computed_name_var();
       DCHECK_NOT_NULL(var);
@@ -2120,8 +2127,11 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
       // variable at class definition time.
       BuildVariableLoad(var, HoleCheckMode::kElided);
       builder()->StoreAccumulatorInRegister(key);
-    } else if (property->kind() == ClassLiteral::Property::FIELD &&
-               property->is_private()) {
+    } else if (property->is_private()) {
+      if (property->kind() != ClassLiteral::Property::Kind::FIELD) {
+        // Private methods are looked up from the context slots directly.
+        continue;
+      }
       Variable* private_name_var = property->private_name_var();
       DCHECK_NOT_NULL(private_name_var);
       BuildVariableLoad(private_name_var, HoleCheckMode::kElided);

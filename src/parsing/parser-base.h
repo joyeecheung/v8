@@ -1043,6 +1043,11 @@ class ParserBase {
   void CheckClassMethodName(IdentifierT name, ParsePropertyKind type,
                             ParseFunctionFlags flags, bool is_static,
                             bool* has_seen_constructor);
+  DeclarationScope* BeginMemberInitializerScope(ClassInfo* class_info,
+                                                int beg_pos, bool is_static);
+  void FinishMemberInitializerScope(DeclarationScope* initializer_scope,
+                                    ClassInfo* class_info, int beg_pos,
+                                    bool is_static);
   ExpressionT ParseMemberInitializer(ClassInfo* class_info, int beg_pos,
                                      bool is_static);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
@@ -2232,6 +2237,14 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
           name_token_position, FunctionLiteral::kAccessorOrMethod,
           language_mode(), nullptr);
 
+      DCHECK_NE(end_position(), kNoSourcePosition);
+      if (prop_info->is_private) {
+        DeclarationScope* initializer_scope = BeginMemberInitializerScope(
+            class_info, property_beg_pos, prop_info->is_static);
+        FinishMemberInitializerScope(initializer_scope, class_info,
+                                     end_position(), prop_info->is_static);
+      }
+
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
           name_expression, value, ClassLiteralProperty::METHOD,
           prop_info->is_static, prop_info->is_computed_name,
@@ -2287,7 +2300,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
+DeclarationScope* ParserBase<Impl>::BeginMemberInitializerScope(
     ClassInfo* class_info, int beg_pos, bool is_static) {
   DeclarationScope* initializer_scope =
       is_static ? class_info->static_fields_scope
@@ -2301,6 +2314,29 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
     initializer_scope->SetLanguageMode(LanguageMode::kStrict);
   }
 
+  return initializer_scope;
+}
+
+template <typename Impl>
+void ParserBase<Impl>::FinishMemberInitializerScope(
+    DeclarationScope* initializer_scope, ClassInfo* class_info, int end_pos,
+    bool is_static) {
+  initializer_scope->set_end_position(end_pos);
+  if (is_static) {
+    class_info->static_fields_scope = initializer_scope;
+    class_info->has_static_class_fields = true;
+  } else {
+    class_info->instance_members_scope = initializer_scope;
+    class_info->has_instance_members = true;
+  }
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
+    ClassInfo* class_info, int beg_pos, bool is_static) {
+  DeclarationScope* initializer_scope =
+      BeginMemberInitializerScope(class_info, beg_pos, is_static);
+
   ExpressionT initializer;
   if (Check(Token::ASSIGN)) {
     FunctionState initializer_state(&function_state_, &scope_,
@@ -2312,15 +2348,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
     initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
 
-  initializer_scope->set_end_position(end_position());
-  if (is_static) {
-    class_info->static_fields_scope = initializer_scope;
-    class_info->has_static_class_fields = true;
-  } else {
-    class_info->instance_members_scope = initializer_scope;
-    class_info->has_instance_members = true;
-  }
-
+  FinishMemberInitializerScope(initializer_scope, class_info, end_position(),
+                               is_static);
   return initializer;
 }
 
@@ -4276,19 +4305,25 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
       class_info.has_static_computed_names = true;
     }
     is_constructor &= class_info.has_seen_constructor;
-
-    if (V8_UNLIKELY(property_kind == ClassLiteralProperty::FIELD)) {
-      if (prop_info.is_computed_name) {
-        DCHECK(!prop_info.is_private);
-        class_info.computed_field_count++;
-      }
-
-      impl()->DeclareClassField(class_scope, property, prop_info.name,
-                                prop_info.is_static, prop_info.is_computed_name,
-                                prop_info.is_private, &class_info);
+    bool is_field = property_kind == ClassLiteralProperty::FIELD;
+    if (V8_UNLIKELY(prop_info.is_private)) {
+      DCHECK(!is_constructor);
+      impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
+                                        property_kind, prop_info.is_static,
+                                        &class_info);
     } else {
-      impl()->DeclareClassProperty(class_scope, name, property, is_constructor,
-                                   &class_info);
+      if (V8_UNLIKELY(is_field)) {
+        if (prop_info.is_computed_name) {
+          class_info.computed_field_count++;
+        }
+        impl()->DeclarePublicClassField(
+            class_scope, prop_info.name, property, prop_info.is_static,
+            prop_info.is_computed_name, &class_info);
+      } else {
+        impl()->DeclarePublicClassMethod(
+            class_scope, is_constructor ? name : prop_info.name, property,
+            is_constructor, prop_info.is_static, &class_info);
+      }
     }
     impl()->InferFunctionName();
   }

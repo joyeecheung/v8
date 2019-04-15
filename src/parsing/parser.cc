@@ -2803,12 +2803,12 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   return proxy->var();
 }
 
-void Parser::DeclareClassField(ClassScope* scope,
-                               ClassLiteralProperty* property,
-                               const AstRawString* property_name,
-                               bool is_static, bool is_computed_name,
-                               bool is_private, ClassInfo* class_info) {
-  DCHECK(allow_harmony_public_fields() || allow_harmony_private_fields());
+void Parser::DeclarePublicClassField(ClassScope* scope,
+                                     const AstRawString* property_name,
+                                     ClassLiteralProperty* property,
+                                     bool is_static, bool is_computed_name,
+                                     ClassInfo* class_info) {
+  DCHECK(allow_harmony_public_fields());
 
   if (is_static) {
     class_info->static_fields->Add(property, zone());
@@ -2816,7 +2816,6 @@ void Parser::DeclareClassField(ClassScope* scope,
     class_info->instance_fields->Add(property, zone());
   }
 
-  DCHECK_IMPLIES(is_computed_name, !is_private);
   if (is_computed_name) {
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
@@ -2825,34 +2824,55 @@ void Parser::DeclareClassField(ClassScope* scope,
             ast_value_factory(), class_info->computed_field_count));
     property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
-  } else if (is_private) {
-    Variable* private_name_var =
-        CreatePrivateNameVariable(scope, property_name);
-    int pos = property->value()->position();
-    if (pos == kNoSourcePosition) {
-      pos = property->key()->position();
-    }
-    private_name_var->set_initializer_position(pos);
-    property->set_private_name_var(private_name_var);
-    class_info->properties->Add(property, zone());
   }
+}
+
+void Parser::DeclarePrivateClassMember(ClassScope* scope,
+                                       const AstRawString* property_name,
+                                       ClassLiteralProperty* property,
+                                       ClassLiteralProperty::Kind kind,
+                                       bool is_static, ClassInfo* class_info) {
+  DCHECK(allow_harmony_private_fields());
+
+  // Accessors are not yet supported, make them noops
+  if (kind != ClassLiteralProperty::Kind::FIELD &&
+      kind != ClassLiteralProperty::Kind::METHOD) {
+    return;
+  }
+  if (is_static) {
+    class_info->static_fields->Add(property, zone());
+  } else {
+    class_info->instance_fields->Add(property, zone());
+  }
+
+  // TODO(joyee): support private accessors.
+  Variable* private_name_var = CreatePrivateNameVariable(scope, property_name);
+  int pos = property->value()->position();
+  if (pos == kNoSourcePosition) {
+    pos = property->key()->position();
+  }
+  private_name_var->set_initializer_position(pos);
+  property->set_private_name_var(private_name_var);
+  class_info->properties->Add(property, zone());
 }
 
 // This method declares a property of the given class.  It updates the
 // following fields of class_info, as appropriate:
 //   - constructor
 //   - properties
-void Parser::DeclareClassProperty(ClassScope* scope,
-                                  const AstRawString* class_name,
-                                  ClassLiteralProperty* property,
-                                  bool is_constructor, ClassInfo* class_info) {
+void Parser::DeclarePublicClassMethod(ClassScope* scope,
+                                      const AstRawString* property_name,
+                                      ClassLiteralProperty* property,
+                                      bool is_constructor, bool is_static,
+                                      ClassInfo* class_info) {
   if (is_constructor) {
     DCHECK(!class_info->constructor);
     class_info->constructor = property->value()->AsFunctionLiteral();
     DCHECK_NOT_NULL(class_info->constructor);
     class_info->constructor->set_raw_name(
-        class_name != nullptr ? ast_value_factory()->NewConsString(class_name)
-                              : nullptr);
+        property_name != nullptr
+            ? ast_value_factory()->NewConsString(property_name)
+            : nullptr);
     return;
   }
 

@@ -1230,32 +1230,40 @@ class PreParser : public ParserBase<PreParser> {
                           &was_added);
     }
   }
-  V8_INLINE void DeclareClassProperty(ClassScope* scope,
-                                      const PreParserIdentifier& class_name,
-                                      const PreParserExpression& property,
-                                      bool is_constructor,
-                                      ClassInfo* class_info) {}
-
-  V8_INLINE void DeclareClassField(ClassScope* scope,
-                                   const PreParserExpression& property,
-                                   const PreParserIdentifier& property_name,
-                                   bool is_static, bool is_computed_name,
-                                   bool is_private, ClassInfo* class_info) {
-    DCHECK_IMPLIES(is_computed_name, !is_private);
+  V8_INLINE void DeclarePublicClassMethod(ClassScope* scope,
+                                          const PreParserIdentifier& class_name,
+                                          const PreParserExpression& property,
+                                          bool is_constructor, bool is_static,
+                                          ClassInfo* class_info) {}
+  V8_INLINE void DeclarePublicClassField(
+      ClassScope* scope, const PreParserIdentifier& property_name,
+      const PreParserExpression& property, bool is_static,
+      bool is_computed_name, ClassInfo* class_info) {
     if (is_computed_name) {
       bool was_added;
       DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           VariableMode::kConst, scope, &was_added);
-    } else if (is_private) {
-      bool was_added;
-      DeclarePrivateVariableName(property_name.string_, scope, &was_added);
-      if (!was_added) {
-        Scanner::Location loc(property.position(), property.position() + 1);
-        ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
-                        property_name.string_);
-      }
+    }
+  }
+
+  V8_INLINE void DeclarePrivateClassMember(
+      ClassScope* scope, const PreParserIdentifier& property_name,
+      const PreParserExpression& property, ClassLiteralProperty::Kind kind,
+      bool is_static, ClassInfo* class_info) {
+    if (kind != ClassLiteralProperty::Kind::FIELD &&
+        kind != ClassLiteralProperty::Kind::METHOD) {
+      return;
+    }
+    // TODO(joyee): throw errors for private accessors while they are not yet
+    // supported?
+    bool was_added;
+    DeclarePrivateVariableName(property_name.string_, scope, &was_added);
+    if (!was_added) {
+      Scanner::Location loc(property.position(), property.position() + 1);
+      ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
+                      property_name.string_);
     }
   }
 

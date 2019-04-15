@@ -2434,12 +2434,10 @@ class ClassLiteralProperty final : public LiteralProperty {
   }
 
   void set_private_name_var(Variable* var) {
-    DCHECK_EQ(FIELD, kind());
     DCHECK(is_private());
     private_or_computed_name_var_ = var;
   }
   Variable* private_name_var() const {
-    DCHECK_EQ(FIELD, kind());
     DCHECK(is_private());
     return private_or_computed_name_var_;
   }
