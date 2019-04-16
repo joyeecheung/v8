@@ -2942,7 +2942,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
-      block_scope, class_info->variable, block_scope->brand(), class_info->extends,
+      block_scope, class_info->variable, class_info->extends,
       class_info->constructor, class_info->properties,
       static_fields_initializer, instance_members_initializer_function, pos,
       end_pos, class_info->has_name_static_property,

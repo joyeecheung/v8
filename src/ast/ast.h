@@ -2478,8 +2478,7 @@ class ClassLiteral final : public Expression {
  public:
   typedef ClassLiteralProperty Property;
 
-  Scope* scope() const { return scope_; }
-  Variable* brand_variable() const { return brand_variable_; }
+  ClassScope* scope() const { return scope_; }
   Variable* class_variable() const { return class_variable_; }
   Expression* extends() const { return extends_; }
   FunctionLiteral* constructor() const { return constructor_; }
@@ -2511,9 +2510,8 @@ class ClassLiteral final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  ClassLiteral(Scope* scope, Variable* class_variable, Variable* brand_variable,
-               Expression* extends, FunctionLiteral* constructor,
-               ZonePtrList<Property>* properties,
+  ClassLiteral(ClassScope* scope, Variable* class_variable, Expression* extends,
+               FunctionLiteral* constructor, ZonePtrList<Property>* properties,
                FunctionLiteral* static_fields_initializer,
                FunctionLiteral* instance_members_initializer_function,
                int start_position, int end_position,
@@ -2523,7 +2521,6 @@ class ClassLiteral final : public Expression {
         end_position_(end_position),
         scope_(scope),
         class_variable_(class_variable),
-        brand_variable_(brand_variable),
         extends_(extends),
         constructor_(constructor),
         properties_(properties),
@@ -2536,9 +2533,8 @@ class ClassLiteral final : public Expression {
   }
 
   int end_position_;
-  Scope* scope_;
+  ClassScope* scope_;
   Variable* class_variable_;
-  Variable* brand_variable_;
   Expression* extends_;
   FunctionLiteral* constructor_;
   ZonePtrList<Property>* properties_;
@@ -3232,7 +3228,7 @@ class AstNodeFactory final {
   }
 
   ClassLiteral* NewClassLiteral(
-      Scope* scope, Variable* variable, Variable* brand, Expression* extends,
+      ClassScope* scope, Variable* variable, Expression* extends,
       FunctionLiteral* constructor,
       ZonePtrList<ClassLiteral::Property>* properties,
       FunctionLiteral* static_fields_initializer,
@@ -3240,7 +3236,7 @@ class AstNodeFactory final {
       int start_position, int end_position, bool has_name_static_property,
       bool has_static_computed_names, bool is_anonymous) {
     return new (zone_) ClassLiteral(
-        scope, variable, brand, extends, constructor, properties,
+        scope, variable, extends, constructor, properties,
         static_fields_initializer, instance_members_initializer_function,
         start_position, end_position, has_name_static_property,
         has_static_computed_names, is_anonymous);

@@ -2037,7 +2037,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
                             HoleCheckMode::kElided);
   }
 
-  if (expr->brand_variable() != nullptr) {
+  if (expr->scope()->brand() != nullptr) {
     Register brand = register_allocator()->NewRegister();
     const AstRawString* class_name =
         expr->class_variable() != nullptr
@@ -2047,7 +2047,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         ->LoadLiteral(class_name)
         .StoreAccumulatorInRegister(brand)
         .CallRuntime(Runtime::kCreatePrivateNameSymbol, brand);
-    BuildVariableAssignment(expr->brand_variable(), Token::INIT,
+    BuildVariableAssignment(expr->scope()->brand(), Token::INIT,
                             HoleCheckMode::kElided);
   }
 

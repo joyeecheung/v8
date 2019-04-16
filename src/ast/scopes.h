@@ -1205,8 +1205,11 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // and the current tail.
   void MigrateUnresolvedPrivateNameTail(AstNodeFactory* ast_node_factory,
                                         UnresolvedList::Iterator tail);
-  Variable* DeclareBrand(AstValueFactory* ast_value_factory, int class_token_pos, bool* was_added);
-  Variable* brand() { return rare_data_ == nullptr ? nullptr : rare_data_->brand; }
+  Variable* DeclareBrand(AstValueFactory* ast_value_factory,
+                         int class_token_pos, bool* was_added);
+  Variable* brand() {
+    return rare_data_ == nullptr ? nullptr : rare_data_->brand;
+  }
 
  private:
   friend class Scope;
