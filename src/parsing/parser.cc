@@ -2881,9 +2881,12 @@ void Parser::DeclarePublicClassMethod(ClassScope* scope,
 
 FunctionLiteral* Parser::CreateInitializerFunction(
     const char* name, DeclarationScope* scope,
-    ZonePtrList<ClassLiteral::Property>* fields, Variable* brand) {
+    ZonePtrList<ClassLiteral::Property>* fields) {
   DCHECK_EQ(scope->function_kind(),
             FunctionKind::kClassMembersInitializerFunction);
+  Scope* outer = scope->outer_scope();
+  DCHECK(outer->is_class_scope());
+  Variable* brand = static_cast<ClassScope*>(outer)->brand();
   // function() { .. class fields initializer .. }
   ScopedPtrList<Statement> statements(pointer_buffer());
   InitializeClassMembersStatement* stmt =
@@ -2930,14 +2933,14 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   if (class_info->has_static_class_fields) {
     static_fields_initializer = CreateInitializerFunction(
         "<static_fields_initializer>", class_info->static_fields_scope,
-        class_info->static_fields, block_scope->brand());
+        class_info->static_fields);
   }
 
   FunctionLiteral* instance_members_initializer_function = nullptr;
   if (class_info->has_instance_members) {
     instance_members_initializer_function = CreateInitializerFunction(
         "<instance_members_initializer>", class_info->instance_members_scope,
-        class_info->instance_fields, block_scope->brand());
+        class_info->instance_fields);
     class_info->constructor->set_requires_instance_members_initializer(true);
   }
 

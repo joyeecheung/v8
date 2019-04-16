@@ -304,7 +304,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       const AstRawString* name);
   FunctionLiteral* CreateInitializerFunction(
       const char* name, DeclarationScope* scope,
-      ZonePtrList<ClassLiteral::Property>* fields, Variable* brand);
+      ZonePtrList<ClassLiteral::Property>* fields);
 
   bool IdentifierEquals(const AstRawString* identifier,
                         const AstRawString* other) {
