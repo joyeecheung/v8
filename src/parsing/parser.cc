@@ -2834,7 +2834,8 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
                                        bool is_static, ClassInfo* class_info) {
   DCHECK(allow_harmony_private_fields());
 
-  // Accessors are not yet supported, make them noops
+  // We do not support private accessors yet (which allow declaring the same
+  // private name twice). Make them noops.
   if (kind != ClassLiteralProperty::Kind::FIELD &&
       kind != ClassLiteralProperty::Kind::METHOD) {
     return;
@@ -2845,7 +2846,6 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
     class_info->instance_fields->Add(property, zone());
   }
 
-  // TODO(joyee): support private accessors.
   Variable* private_name_var = CreatePrivateNameVariable(scope, property_name);
   int pos = property->value()->position();
   if (pos == kNoSourcePosition) {

@@ -1252,12 +1252,12 @@ class PreParser : public ParserBase<PreParser> {
       ClassScope* scope, const PreParserIdentifier& property_name,
       const PreParserExpression& property, ClassLiteralProperty::Kind kind,
       bool is_static, ClassInfo* class_info) {
+    // We do not support private accessors yet (which allow declaring the same
+    // private name twice). Make them noops.
     if (kind != ClassLiteralProperty::Kind::FIELD &&
         kind != ClassLiteralProperty::Kind::METHOD) {
       return;
     }
-    // TODO(joyee): throw errors for private accessors while they are not yet
-    // supported?
     bool was_added;
     DeclarePrivateVariableName(property_name.string_, scope, &was_added);
     if (!was_added) {
