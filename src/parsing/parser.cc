@@ -2778,13 +2778,6 @@ void Parser::DeclareClassVariable(const AstRawString* name,
   }
 }
 
-void Parser::DeclareClassBrandVariable(ClassScope* scope, ClassInfo* class_info,
-                                       int class_token_pos) {
-  class_info->brand =
-      CreateSyntheticContextVariable(ast_value_factory()->dot_brand_string());
-  class_info->brand->set_initializer_position(class_token_pos);
-}
-
 // TODO(gsathya): Ideally, this should just bypass scope analysis and
 // allocate a slot directly on the context. We should just store this
 // index in the AST, instead of storing the variable.
@@ -2937,19 +2930,19 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   if (class_info->has_static_class_fields) {
     static_fields_initializer = CreateInitializerFunction(
         "<static_fields_initializer>", class_info->static_fields_scope,
-        class_info->static_fields, nullptr);
+        class_info->static_fields, block_scope->brand());
   }
 
   FunctionLiteral* instance_members_initializer_function = nullptr;
   if (class_info->has_instance_members) {
     instance_members_initializer_function = CreateInitializerFunction(
         "<instance_members_initializer>", class_info->instance_members_scope,
-        class_info->instance_fields, class_info->brand);
+        class_info->instance_fields, block_scope->brand());
     class_info->constructor->set_requires_instance_members_initializer(true);
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
-      block_scope, class_info->variable, class_info->brand, class_info->extends,
+      block_scope, class_info->variable, block_scope->brand(), class_info->extends,
       class_info->constructor, class_info->properties,
       static_fields_initializer, instance_members_initializer_function, pos,
       end_pos, class_info->has_name_static_property,

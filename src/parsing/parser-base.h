@@ -529,7 +529,6 @@ class ParserBase {
    public:
     explicit ClassInfo(ParserBase* parser)
         : variable(nullptr),
-          brand(nullptr),
           extends(parser->impl()->NullExpression()),
           properties(parser->impl()->NewClassPropertyList(4)),
           static_fields(parser->impl()->NewClassPropertyList(4)),
@@ -546,7 +545,6 @@ class ParserBase {
           instance_members_scope(nullptr),
           computed_field_count(0) {}
     Variable* variable;
-    Variable* brand;
     ExpressionT extends;
     ClassPropertyListT properties;
     ClassPropertyListT static_fields;
@@ -4347,8 +4345,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   }
 
   if (class_info.has_brand) {
-    impl()->DeclareClassBrandVariable(class_scope, &class_info,
-                                      class_token_pos);
+    bool was_added;
+    class_scope->DeclareBrand(ast_value_factory(), class_token_pos, &was_added);
+    DCHECK(was_added);
   }
 
   return impl()->RewriteClassLiteral(class_scope, name, &class_info,

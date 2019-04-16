@@ -2522,5 +2522,20 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
   return nullptr;
 }
 
+Variable* ClassScope::DeclareBrand(AstValueFactory* ast_value_factory,
+                                   int class_token_pos, bool* was_added) {
+  DCHECK_IMPLIES(rare_data_ != nullptr, rare_data_->brand == nullptr);
+  Variable* brand = Declare(zone(), ast_value_factory->dot_brand_string(),
+                             VariableMode::kConst, NORMAL_VARIABLE,
+                             InitializationFlag::kNeedsInitialization,
+                             MaybeAssignedFlag::kMaybeAssigned, was_added);
+  DCHECK(*was_added);
+  brand->ForceContextAllocation();
+  brand->set_is_used();
+  EnsureRareData()->brand = brand;
+  brand->set_initializer_position(class_token_pos);
+  return brand;
+}
+
 }  // namespace internal
 }  // namespace v8
