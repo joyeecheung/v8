@@ -2133,7 +2133,7 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
   if (stmt->brand_var() != nullptr) {
     BuildVariableLoad(stmt->brand_var(), HoleCheckMode::kElided);
     builder()->StoreAccumulatorInRegister(key).CallRuntime(
-        Runtime::kAddPrivateBrand, args);
+        Runtime::kAddPrivateBrand, args.Truncate(2));
   }
 
   for (int i = 0; i < stmt->fields()->length(); i++) {
