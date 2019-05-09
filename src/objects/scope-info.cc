@@ -217,6 +217,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
           uint32_t info =
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
+              RequiresBrandCheckField::encode(var->requires_brand_check()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info->set(context_local_base + local_index, *var->name(), mode);
@@ -233,6 +234,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
+              RequiresBrandCheckField::encode(var->requires_brand_check()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info->set(module_var_entry + kModuleVariablePropertiesOffset,
                           Smi::FromInt(properties));
@@ -271,6 +273,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
+              RequiresBrandCheckField::encode(var->requires_brand_check()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info->set(context_local_base + local_index, *var->name(), mode);
           scope_info->set(context_local_info_base + local_index,
@@ -444,6 +447,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
         VariableModeField::encode(VariableMode::kConst) |
         InitFlagField::encode(kCreatedInitialized) |
         MaybeAssignedFlagField::encode(kNotAssigned) |
+        RequiresBrandCheckField::encode(false) |
         ParameterNumberField::encode(ParameterNumberField::kMax);
     scope_info->set(index++, Smi::FromInt(value));
   }
@@ -700,6 +704,14 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
   return MaybeAssignedFlagField::decode(value);
 }
 
+bool ScopeInfo::RequiresBrandCheck(int var) const {
+  DCHECK_LE(0, var);
+  DCHECK_LT(var, ContextLocalCount());
+  int info_index = ContextLocalInfosIndex() + var;
+  int value = Smi::ToInt(get(info_index));
+  return RequiresBrandCheckField::decode(value);
+}
+
 // static
 bool ScopeInfo::VariableIsSynthetic(String name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
@@ -739,7 +751,8 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
 int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
                                 VariableMode* mode,
                                 InitializationFlag* init_flag,
-                                MaybeAssignedFlag* maybe_assigned_flag) {
+                                MaybeAssignedFlag* maybe_assigned_flag,
+                                bool* requires_brand_check) {
   DisallowHeapAllocation no_gc;
   DCHECK(name->IsInternalizedString());
   DCHECK_NOT_NULL(mode);
@@ -756,6 +769,7 @@ int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
     *mode = scope_info->ContextLocalMode(var);
     *init_flag = scope_info->ContextLocalInitFlag(var);
     *maybe_assigned_flag = scope_info->ContextLocalMaybeAssignedFlag(var);
+    *requires_brand_check = scope_info->RequiresBrandCheck(var);
     int result = Context::MIN_CONTEXT_SLOTS + var;
 
     DCHECK_LT(result, scope_info->ContextLength());

@@ -1104,8 +1104,10 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   Variable* DeclarePrivateVariableName(const AstRawString* name,
-                                       ClassScope* scope, bool* was_added) {
-    return scope->DeclarePrivateName(name, was_added);
+                                       ClassScope* scope,
+                                       bool requires_brand_check,
+                                       bool* was_added) {
+    return scope->DeclarePrivateName(name, requires_brand_check, was_added);
   }
 
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
@@ -1258,7 +1260,10 @@ class PreParser : public ParserBase<PreParser> {
       return;
     }
     bool was_added;
-    DeclarePrivateVariableName(property_name.string_, scope, &was_added);
+
+    DeclarePrivateVariableName(property_name.string_, scope,
+                               kind != ClassLiteralProperty::Kind::FIELD,
+                               &was_added);
     if (!was_added) {
       Scanner::Location loc(property.position(), property.position() + 1);
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,

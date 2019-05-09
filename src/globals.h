@@ -1171,6 +1171,8 @@ enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
+enum class BrandCheckFlag : uint8_t { kRequiresBrandCheck, kNoBrandCheck };
+
 enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
 
 

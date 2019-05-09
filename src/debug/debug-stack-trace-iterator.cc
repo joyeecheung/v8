@@ -99,9 +99,10 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
     VariableMode mode;
     InitializationFlag flag;
     MaybeAssignedFlag maybe_assigned_flag;
+    bool requires_brand_check;
     int slot_index = ScopeInfo::ContextSlotIndex(
         context->scope_info(), ReadOnlyRoots(isolate_->heap()).this_string(),
-        &mode, &flag, &maybe_assigned_flag);
+        &mode, &flag, &maybe_assigned_flag, &requires_brand_check);
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
     Handle<Object> value = handle(context->get(slot_index), isolate_);
     if (value->IsTheHole(isolate_)) return v8::MaybeLocal<v8::Value>();

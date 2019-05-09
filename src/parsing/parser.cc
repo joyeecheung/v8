@@ -2786,12 +2786,14 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name) {
 }
 
 Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
+                                            bool requires_brand_check,
                                             const AstRawString* name) {
   DCHECK_NOT_NULL(name);
   int begin = position();
   int end = end_position();
   bool was_added = false;
-  Variable* var = scope->DeclarePrivateName(name, &was_added);
+  Variable* var =
+      scope->DeclarePrivateName(name, requires_brand_check, &was_added);
   if (!was_added) {
     Scanner::Location loc(begin, end);
     ReportMessageAt(loc, MessageTemplate::kVarRedeclaration, var->raw_name());
@@ -2843,7 +2845,8 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
     }
   }
 
-  Variable* private_name_var = CreatePrivateNameVariable(scope, property_name);
+  Variable* private_name_var = CreatePrivateNameVariable(
+      scope, kind != ClassLiteralProperty::Kind::FIELD, property_name);
   int pos = property->value()->position();
   if (pos == kNoSourcePosition) {
     pos = property->key()->position();
