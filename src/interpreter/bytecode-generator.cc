@@ -2197,6 +2197,22 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
   }
 }
 
+void BytecodeGenerator::BuildPrivateBrandCheck(Register receiver,
+                                               Property* property) {
+  Variable* private_name = property->key()->AsVariableProxy()->var();
+  DCHECK_NOT_NULL(private_name);
+  DCHECK(private_name->requires_brand_check());
+
+  ClassScope* scope = private_name->scope()->AsClassScope();
+  Variable* brand = scope->brand();
+  DCHECK_NOT_NULL(brand);
+
+  BuildVariableLoadForAccumulatorValue(brand, HoleCheckMode::kElided);
+  builder()->SetExpressionPosition(property);
+  builder()->LoadKeyedProperty(
+      receiver, feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
+}
+
 void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver) {
   RegisterList brand_args = register_allocator()->NewRegisterList(2);
   Variable* brand = info()->scope()->outer_scope()->AsClassScope()->brand();
@@ -4222,10 +4238,15 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       break;
     }
     case KEYED_PROPERTY: {
-      VisitForAccumulatorValue(property->key());
-      builder()->SetExpressionPosition(property);
-      builder()->LoadKeyedProperty(
-          obj, feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
+      if (property->requires_brand_check()) {
+        BuildPrivateBrandCheck(obj, property);
+        VisitForAccumulatorValue(property->key());
+      } else {
+        VisitForAccumulatorValue(property->key());
+        builder()->SetExpressionPosition(property);
+        builder()->LoadKeyedProperty(
+            obj, feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
+      }
       break;
     }
     case NAMED_SUPER_PROPERTY:

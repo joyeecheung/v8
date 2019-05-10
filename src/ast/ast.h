@@ -1660,6 +1660,16 @@ class Property final : public Expression {
                : (super_access ? KEYED_SUPER_PROPERTY : KEYED_PROPERTY);
   }
 
+  bool requires_brand_check() const {
+    if (!key_->IsVariableProxy()) {
+      return false;
+    }
+    VariableProxy* proxy = key_->AsVariableProxy();
+    Variable* var = proxy->var();
+    DCHECK_NOT_NULL(var);
+    return proxy->IsPrivateName() && var->requires_brand_check();
+  }
+
  private:
   friend class AstNodeFactory;
 
