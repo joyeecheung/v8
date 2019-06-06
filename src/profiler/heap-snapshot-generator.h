@@ -546,7 +546,6 @@ class HeapSnapshotJSONSerializer {
   void SerializeTraceNode(AllocationTraceNode* node);
   void SerializeTraceNodeInfos();
   void SerializeSamples();
-  void SerializeString(const unsigned char* s);
   void SerializeStrings();
   void SerializeLocation(const SourceLocation& location);
   void SerializeLocations();
