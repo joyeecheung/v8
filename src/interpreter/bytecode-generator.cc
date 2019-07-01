@@ -2005,9 +2005,11 @@ void BytecodeGenerator::BuildPrivateClassMemberNameAssignment(
                               HoleCheckMode::kElided);
       break;
     }
-    default:
-      // TODO(joyee): Private accessors are not yet supported.
-      UNREACHABLE();
+    case ClassLiteral::Property::GETTER:
+    case ClassLiteral::Property::SETTER:
+      // TODO(joyee): Create AccessorPair and store them on the
+      // context.
+      break;
   }
 }
 
@@ -3201,10 +3203,10 @@ BytecodeGenerator::AssignmentLhsData::NamedSuperProperty(
 }
 // static
 BytecodeGenerator::AssignmentLhsData
-BytecodeGenerator::AssignmentLhsData::PrivateMethod(Register object,
-                                                    const AstRawString* name) {
-  return AssignmentLhsData(PRIVATE_METHOD, nullptr, RegisterList(), object,
-                           Register(), nullptr, name);
+BytecodeGenerator::AssignmentLhsData::PrivateMethodOrAccessor(
+    AssignType type, Register object, const AstRawString* name) {
+  return AssignmentLhsData(type, nullptr, RegisterList(), object, Register(),
+                           nullptr, name);
 }
 // static
 BytecodeGenerator::AssignmentLhsData
@@ -3237,12 +3239,16 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
       Register key = VisitForRegisterValue(property->key());
       return AssignmentLhsData::KeyedProperty(object, key);
     }
-    case PRIVATE_METHOD: {
+    case PRIVATE_METHOD:
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
       DCHECK(!property->IsSuperAccess());
       AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
       Register object = VisitForRegisterValue(property->obj());
       const AstRawString* name = property->key()->AsVariableProxy()->raw_name();
-      return AssignmentLhsData::PrivateMethod(object, name);
+      return AssignmentLhsData::PrivateMethodOrAccessor(assign_type, object,
+                                                        name);
     }
     case NAMED_SUPER_PROPERTY: {
       AccumulatorPreservingScope scope(this, accumulator_preserving_mode);
@@ -3798,8 +3804,14 @@ void BytecodeGenerator::BuildAssignment(
                        lhs_data.super_property_args());
       break;
     }
-    case PRIVATE_METHOD: {
+    case PRIVATE_METHOD:
+    case PRIVATE_GETTER_ONLY: {
       BuildThrowPrivateMethodWriteError(lhs_data.name());
+      break;
+    }
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private setter
       break;
     }
   }
@@ -3847,8 +3859,14 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
                              lhs_data.super_property_args().Truncate(3));
       break;
     }
-    case PRIVATE_METHOD: {
+    case PRIVATE_METHOD:
+    case PRIVATE_GETTER_ONLY: {
       BuildThrowPrivateMethodWriteError(lhs_data.name());
+      break;
+    }
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private setter
       break;
     }
   }
@@ -4308,6 +4326,15 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
     case KEYED_SUPER_PROPERTY:
       VisitKeyedSuperPropertyLoad(property, Register::invalid_value());
       break;
+    case PRIVATE_SETTER_ONLY: {
+      // TODO(joyee): throw error
+      break;
+    }
+    case PRIVATE_GETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private getter
+      break;
+    }
     case PRIVATE_METHOD: {
       Variable* private_name = property->key()->AsVariableProxy()->var();
 
@@ -4874,9 +4901,15 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       builder()->CallRuntime(Runtime::kLoadKeyedFromSuper, load_super_args);
       break;
     }
-    case PRIVATE_METHOD: {
+    case PRIVATE_METHOD:
+    case PRIVATE_GETTER_ONLY: {
       BuildThrowPrivateMethodWriteError(
           property->key()->AsVariableProxy()->raw_name());
+      break;
+    }
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private setter
       break;
     }
   }
@@ -4945,9 +4978,15 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
           .CallRuntime(Runtime::kStoreKeyedToSuper, super_property_args);
       break;
     }
-    case PRIVATE_METHOD: {
+    case PRIVATE_METHOD:
+    case PRIVATE_GETTER_ONLY: {
       BuildThrowPrivateMethodWriteError(
           property->key()->AsVariableProxy()->raw_name());
+      break;
+    }
+    case PRIVATE_SETTER_ONLY:
+    case PRIVATE_GETTER_AND_SETTER: {
+      // TODO(joyee): implement private setter
       break;
     }
   }

@@ -84,8 +84,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                            Register object,
                                            const AstRawString* name);
     static AssignmentLhsData KeyedProperty(Register object, Register key);
-    static AssignmentLhsData PrivateMethod(Register object,
-                                           const AstRawString* name);
+    static AssignmentLhsData PrivateMethodOrAccessor(AssignType type,
+                                                     Register object,
+                                                     const AstRawString* name);
     static AssignmentLhsData NamedSuperProperty(
         RegisterList super_property_args);
     static AssignmentLhsData KeyedSuperProperty(

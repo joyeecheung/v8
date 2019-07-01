@@ -1040,7 +1040,12 @@ enum class VariableMode : uint8_t {
   // User declared variables:
   kLet,  // declared via 'let' declarations (first lexical)
 
-  kConst,  // declared via 'const' declarations (last lexical)
+  kConst,  // declared via 'const' declarations
+
+  kPrivateMethod,
+  kPrivateSetterOnly,
+  kPrivateGetterOnly,
+  kPrivateGetterAndSetter,  // (last lexical)
 
   kVar,  // declared via 'var', and 'function' declarations
 
@@ -1060,7 +1065,7 @@ enum class VariableMode : uint8_t {
                   // has been shadowed by an eval-introduced
                   // variable
 
-  kLastLexicalVariableMode = kConst,
+  kLastLexicalVariableMode = kPrivateGetterAndSetter,
 };
 
 // Printing support
@@ -1071,6 +1076,14 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "VAR";
     case VariableMode::kLet:
       return "LET";
+    case VariableMode::kPrivateGetterOnly:
+      return "PRIVATE_GETTER_ONLY";
+    case VariableMode::kPrivateSetterOnly:
+      return "PRIVATE_SETTER_ONLY";
+    case VariableMode::kPrivateMethod:
+      return "PRIVATE_METHOD";
+    case VariableMode::kPrivateGetterAndSetter:
+      return "PRIVATE_GETTER_AND_SETTER";
     case VariableMode::kConst:
       return "CONST";
     case VariableMode::kDynamic:
@@ -1102,6 +1115,21 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
   STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
                 0);  // Implies that mode >= VariableMode::kLet.
   return mode <= VariableMode::kVar;
+}
+
+inline bool IsConstVariableMode(VariableMode mode) {
+  STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
+                0);  // Implies that mode >= VariableMode::kLet.
+  switch (mode) {
+    case VariableMode::kConst:
+    case VariableMode::kPrivateMethod:
+    case VariableMode::kPrivateGetterOnly:
+    case VariableMode::kPrivateSetterOnly:
+    case VariableMode::kPrivateGetterAndSetter:
+      return true;
+    default:
+      return false;
+  }
 }
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
@@ -1167,8 +1195,6 @@ enum VariableLocation : uint8_t {
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
-
-enum RequiresBrandCheckFlag : uint8_t { kNoBrandCheck, kRequiresBrandCheck };
 
 enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
 

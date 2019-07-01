@@ -1616,7 +1616,10 @@ enum AssignType {
   KEYED_PROPERTY,        // obj[key]
   NAMED_SUPER_PROPERTY,  // super.key
   KEYED_SUPER_PROPERTY,  // super[key]
-  PRIVATE_METHOD         // obj.#key: #key is a private method
+  PRIVATE_METHOD,        // obj.#key: #key is a private method
+  PRIVATE_GETTER_ONLY,
+  PRIVATE_SETTER_ONLY,
+  PRIVATE_GETTER_AND_SETTER
 };
 
 class Property final : public Expression {
@@ -1637,8 +1640,22 @@ class Property final : public Expression {
       VariableProxy* proxy = property->key()->AsVariableProxy();
       DCHECK_NOT_NULL(proxy);
       Variable* var = proxy->var();
-      // Use KEYED_PROPERTY for private fields.
-      return var->requires_brand_check() ? PRIVATE_METHOD : KEYED_PROPERTY;
+
+      switch (var->mode()) {
+        case VariableMode::kPrivateMethod:
+          return PRIVATE_METHOD;
+        case VariableMode::kConst:
+          return KEYED_PROPERTY;  // Use KEYED_PROPERTY for private fields.
+        // TODO(joyee): do we need more assign types here?
+        case VariableMode::kPrivateGetterOnly:
+          return PRIVATE_GETTER_ONLY;
+        case VariableMode::kPrivateSetterOnly:
+          return PRIVATE_SETTER_ONLY;
+        case VariableMode::kPrivateGetterAndSetter:
+          return PRIVATE_GETTER_AND_SETTER;
+        default:
+          UNREACHABLE();
+      }
     }
     bool super_access = property->IsSuperAccess();
     return (property->key()->IsPropertyName())
