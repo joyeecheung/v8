@@ -1978,10 +1978,46 @@ bool BytecodeGenerator::ShouldOptimizeAsOneShot() const {
          info()->literal()->is_oneshot_iife();
 }
 
+struct ClassAccessors : public ZoneObject {
+  ClassAccessors() : getter(nullptr), setter(nullptr) {}
+  bool has_both() const { return getter != nullptr && setter != nullptr; }
+  ClassLiteral::Property* getter;
+  ClassLiteral::Property* setter;
+};
+
+class BytecodeGenerator::ClassAccessorTable : public ZoneHashMap {
+ public:
+  explicit ClassAccessorTable(Zone* zone)
+      : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
+
+  ClassAccessors* Add(Zone* zone, ClassLiteral::Property* property) {
+    const AstRawString* name = property->private_name_var()->raw_name();
+    Entry* p =
+        ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name),
+                                    name->Hash(), ZoneAllocationPolicy(zone));
+    ClassAccessors* accessors = reinterpret_cast<ClassAccessors*>(p->value);
+
+    if (accessors == nullptr) {
+      DCHECK_EQ(name, p->key);
+      accessors = new (zone) ClassAccessors();
+      p->value = accessors;
+    }
+
+    if (property->kind() == ClassLiteral::Property::GETTER) {
+      accessors->getter = property;
+    } else {
+      accessors->setter = property;
+    }
+
+    return accessors;
+  }
+};
+
 void BytecodeGenerator::BuildPrivateClassMemberNameAssignment(
-    ClassLiteral::Property* property) {
+    ClassLiteral::Property* property, ClassAccessorTable* map) {
   DCHECK(property->is_private());
-  switch (property->kind()) {
+  ClassLiteral::Property::Kind kind = property->kind();
+  switch (kind) {
     case ClassLiteral::Property::FIELD: {
       // Create the private name symbols for fields during class
       // evaluation and store them on the context. These will be
@@ -2007,8 +2043,37 @@ void BytecodeGenerator::BuildPrivateClassMemberNameAssignment(
     }
     case ClassLiteral::Property::GETTER:
     case ClassLiteral::Property::SETTER: {
-      // TODO(joyee): Private accessors are not yet supported.
-      // Make them noops for now.
+      ClassAccessors* accessors = nullptr;
+
+      // Collect complementary accessors into a map and delay assignment
+      // until we have all necessary components.
+      if (property->private_name_var()->mode() ==
+          VariableMode::kPrivateGetterAndSetter) {
+        accessors = map->Add(zone(), property);
+        if (!accessors->has_both()) {
+          break;
+        }
+      }
+
+      // We need to keep the order in which the code is emitted stable.
+      // The first accessor with all necessary declarations present is
+      // compiled first.
+      RegisterAllocationScope register_scope(this);
+      RegisterList accessors_reg = register_allocator()->NewRegisterList(2);
+      if (accessors != nullptr) {  // can load both
+        VisitForRegisterValue(accessors->getter->value(), accessors_reg[0]);
+        VisitForRegisterValue(accessors->setter->value(), accessors_reg[1]);
+      } else if (kind == ClassLiteral::Property::GETTER) {  // getter only
+        VisitForRegisterValue(property->value(), accessors_reg[0]);
+        builder()->LoadNull().StoreAccumulatorInRegister(accessors_reg[1]);
+      } else {  // setter only
+        builder()->LoadNull().StoreAccumulatorInRegister(accessors_reg[0]);
+        VisitForRegisterValue(property->value(), accessors_reg[1]);
+      }
+      builder()->CallRuntime(Runtime::kCreatePrivateAccessors, accessors_reg);
+      BuildVariableAssignment(property->private_name_var(), Token::INIT,
+                              HoleCheckMode::kElided);
+      break;
     }
   }
 }
@@ -2042,6 +2107,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         .LoadConstantPoolEntry(class_boilerplate_entry)
         .StoreAccumulatorInRegister(class_boilerplate);
 
+    ClassAccessorTable private_accessors(zone());
     // Create computed names and method values nodes to store into the literal.
     for (int i = 0; i < expr->properties()->length(); i++) {
       ClassLiteral::Property* property = expr->properties()->at(i);
@@ -2078,7 +2144,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
       }
 
       if (property->is_private()) {
-        BuildPrivateClassMemberNameAssignment(property);
+        BuildPrivateClassMemberNameAssignment(property, &private_accessors);
         // The private fields are initialized in the initializer function and
         // the private brand for the private methods are initialized in the
         // constructor instead.
