@@ -297,7 +297,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
-  void BuildThrowPrivateMethodWriteError(const AstRawString* name);
+  void BuildInvalidPropertyAccess(MessageTemplate tmpl, Property* property);
+  void BuildPrivateBrandCheck(Property* property, Register object);
+  void BuildPrivateGetterAccess(Register obj, Register access_pair);
+  void BuildPrivateSetterAccess(Register obj, Register access_pair,
+                                Register value);
   class ClassAccessorTable;
   void BuildPrivateClassMemberNameAssignment(ClassLiteral::Property* property,
                                              ClassAccessorTable* map);

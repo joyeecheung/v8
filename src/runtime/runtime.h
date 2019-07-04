@@ -306,6 +306,8 @@ namespace internal {
   F(JSReceiverGetPrototypeOf, 1, 1)                             \
   F(JSReceiverSetPrototypeOfDontThrow, 2, 1)                    \
   F(JSReceiverSetPrototypeOfThrow, 2, 1)                        \
+  F(LoadPrivateGetter, 1, 1)                                    \
+  F(LoadPrivateSetter, 1, 1)                                    \
   F(NewObject, 2, 1)                                            \
   F(ObjectCreate, 2, 1)                                         \
   F(ObjectEntries, 1, 1)                                        \
