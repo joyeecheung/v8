@@ -417,6 +417,8 @@ namespace internal {
   T(InvalidPrivateFieldWrite,                                                  \
     "Write of private field % to an object which did not contain the field")   \
   T(InvalidPrivateMethodWrite, "Private method '%' is not writable")           \
+  T(InvalidPrivateGetterAccess, "'%' was defined without a getter")            \
+  T(InvalidPrivateSetterAccess, "'%' was defined without a setter")            \
   T(JsonParseUnexpectedEOS, "Unexpected end of JSON input")                    \
   T(JsonParseUnexpectedToken, "Unexpected token % in JSON at position %")      \
   T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \
