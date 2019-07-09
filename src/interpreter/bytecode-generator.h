@@ -86,6 +86,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     static AssignmentLhsData KeyedProperty(Register object, Register key);
     static AssignmentLhsData PrivateMethod(Register object,
                                            const AstRawString* name);
+    static AssignmentLhsData PrivateAccessor(AssignType type, Expression* expr,
+                                             Register object, Register key,
+                                             const AstRawString* name);
     static AssignmentLhsData NamedSuperProperty(
         RegisterList super_property_args);
     static AssignmentLhsData KeyedSuperProperty(
@@ -93,7 +96,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
     AssignType assign_type() const { return assign_type_; }
     Expression* expr() const {
-      DCHECK_EQ(assign_type_, NON_PROPERTY);
+      DCHECK(assign_type_ == NON_PROPERTY ||
+             assign_type_ == PRIVATE_GETTER_ONLY ||
+             assign_type_ == PRIVATE_SETTER_ONLY ||
+             assign_type_ == PRIVATE_GETTER_AND_SETTER);
       return expr_;
     }
     Expression* object_expr() const {
@@ -102,15 +108,23 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     }
     Register object() const {
       DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == KEYED_PROPERTY ||
-             assign_type_ == PRIVATE_METHOD);
+             assign_type_ == PRIVATE_METHOD ||
+             assign_type_ == PRIVATE_SETTER_ONLY ||
+             assign_type_ == PRIVATE_GETTER_ONLY ||
+             assign_type_ == PRIVATE_GETTER_AND_SETTER);
       return object_;
     }
     Register key() const {
-      DCHECK(assign_type_ == KEYED_PROPERTY);
+      DCHECK(assign_type_ == KEYED_PROPERTY ||
+             assign_type_ == PRIVATE_SETTER_ONLY ||
+             assign_type_ == PRIVATE_GETTER_ONLY ||
+             assign_type_ == PRIVATE_GETTER_AND_SETTER);
       return key_;
     }
     const AstRawString* name() const {
-      DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == PRIVATE_METHOD);
+      DCHECK(assign_type_ == NAMED_PROPERTY || assign_type_ == PRIVATE_METHOD ||
+             assign_type_ == PRIVATE_GETTER_ONLY ||
+             assign_type_ == PRIVATE_SETTER_ONLY);
       return name_;
     }
     RegisterList super_property_args() const {

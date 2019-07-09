@@ -48,6 +48,7 @@ class ScopeTestHelper {
       if (scope_local->mode() == VariableMode::kVar ||
           scope_local->mode() == VariableMode::kLet ||
           scope_local->mode() == VariableMode::kConst) {
+        // TODO(joyee): does this need an update?
         CompareVariables(*baseline_local, *scope_local, precise_maybe_assigned);
       }
     }

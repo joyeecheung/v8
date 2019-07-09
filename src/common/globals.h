@@ -1060,6 +1060,14 @@ enum class VariableMode : uint8_t {
                   // has been shadowed by an eval-introduced
                   // variable
 
+  kPrivateMethod,
+
+  kPrivateSetterOnly,
+
+  kPrivateGetterOnly,
+
+  kPrivateGetterAndSetter,
+
   kLastLexicalVariableMode = kConst,
 };
 
@@ -1071,6 +1079,14 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "VAR";
     case VariableMode::kLet:
       return "LET";
+    case VariableMode::kPrivateGetterOnly:
+      return "PRIVATE_GETTER_ONLY";
+    case VariableMode::kPrivateSetterOnly:
+      return "PRIVATE_SETTER_ONLY";
+    case VariableMode::kPrivateMethod:
+      return "PRIVATE_METHOD";
+    case VariableMode::kPrivateGetterAndSetter:
+      return "PRIVATE_GETTER_AND_SETTER";
     case VariableMode::kConst:
       return "CONST";
     case VariableMode::kDynamic:
@@ -1102,6 +1118,25 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
   STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
                 0);  // Implies that mode >= VariableMode::kLet.
   return mode <= VariableMode::kVar;
+}
+
+inline bool IsSerializableVariableMode(VariableMode mode) {
+  STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
+                0);  // Implies that mode >= VariableMode::kLet.
+  return mode <= VariableMode::kVar || mode >= VariableMode::kPrivateMethod;
+}
+
+inline bool IsPrivateMethodVariableMode(VariableMode mode) {
+  STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
+                0);  // Implies that mode >= VariableMode::kLet.
+  return mode >= VariableMode::kPrivateMethod &&
+         mode <= VariableMode::kPrivateGetterAndSetter;
+}
+
+inline bool IsConstVariableMode(VariableMode mode) {
+  STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
+                0);  // Implies that mode >= VariableMode::kLet.
+  return mode == VariableMode::kConst || IsPrivateMethodVariableMode(mode);
 }
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
@@ -1167,8 +1202,6 @@ enum VariableLocation : uint8_t {
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
-
-enum RequiresBrandCheckFlag : uint8_t { kNoBrandCheck, kRequiresBrandCheck };
 
 enum class InterpreterPushArgsMode : unsigned {
   kArrayFunction,
