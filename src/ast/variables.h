@@ -21,8 +21,7 @@ class Variable final : public ZoneObject {
  public:
   Variable(Scope* scope, const AstRawString* name, VariableMode mode,
            VariableKind kind, InitializationFlag initialization_flag,
-           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-           RequiresBrandCheckFlag requires_brand_check = kNoBrandCheck)
+           MaybeAssignedFlag maybe_assigned_flag = kNotAssigned)
       : scope_(scope),
         name_(name),
         local_if_not_shadowed_(nullptr),
@@ -32,7 +31,6 @@ class Variable final : public ZoneObject {
         bit_field_(MaybeAssignedFlagField::encode(maybe_assigned_flag) |
                    InitializationFlagField::encode(initialization_flag) |
                    VariableModeField::encode(mode) |
-                   RequiresBrandCheckField::encode(requires_brand_check) |
                    IsUsedField::encode(false) |
                    ForceContextAllocationField::encode(false) |
                    ForceHoleInitializationField::encode(false) |
@@ -58,6 +56,9 @@ class Variable final : public ZoneObject {
   Handle<String> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return VariableModeField::decode(bit_field_); }
+  void set_mode(VariableMode mode) {
+    bit_field_ = VariableModeField::update(bit_field_, mode);
+  }
   bool has_forced_context_allocation() const {
     return ForceContextAllocationField::decode(bit_field_);
   }
@@ -85,17 +86,8 @@ class Variable final : public ZoneObject {
     set_maybe_assigned();
   }
 
-  RequiresBrandCheckFlag get_requires_brand_check_flag() const {
-    return RequiresBrandCheckField::decode(bit_field_);
-  }
-
   bool requires_brand_check() const {
-    return get_requires_brand_check_flag() == kRequiresBrandCheck;
-  }
-
-  void set_requires_brand_check() {
-    bit_field_ =
-        RequiresBrandCheckField::update(bit_field_, kRequiresBrandCheck);
+    return IsPrivateMethodOrAccessorVariableMode(mode());
   }
 
   int initializer_position() { return initializer_position_; }
@@ -125,7 +117,8 @@ class Variable final : public ZoneObject {
   // declaration time. Only returns valid results after scope analysis.
   bool binding_needs_init() const {
     DCHECK_IMPLIES(initialization_flag() == kNeedsInitialization,
-                   IsLexicalVariableMode(mode()));
+                   IsLexicalVariableMode(mode()) ||
+                       IsPrivateMethodOrAccessorVariableMode(mode()));
     DCHECK_IMPLIES(ForceHoleInitializationField::decode(bit_field_),
                    initialization_flag() == kNeedsInitialization);
 
@@ -149,7 +142,8 @@ class Variable final : public ZoneObject {
   // be required at runtime.
   void ForceHoleInitialization() {
     DCHECK_EQ(kNeedsInitialization, initialization_flag());
-    DCHECK(IsLexicalVariableMode(mode()));
+    DCHECK(IsLexicalVariableMode(mode()) ||
+           IsPrivateMethodOrAccessorVariableMode(mode()));
     bit_field_ = ForceHoleInitializationField::update(bit_field_, true);
   }
 
@@ -243,9 +237,9 @@ class Variable final : public ZoneObject {
     bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
   }
 
-  class VariableModeField : public BitField16<VariableMode, 0, 3> {};
+  class VariableModeField : public BitField16<VariableMode, 0, 4> {};
   class VariableKindField
-      : public BitField16<VariableKind, VariableModeField::kNext, 3> {};
+      : public BitField16<VariableKind, VariableModeField::kNext, 4> {};
   class LocationField
       : public BitField16<VariableLocation, VariableKindField::kNext, 3> {};
   class ForceContextAllocationField
@@ -259,9 +253,6 @@ class Variable final : public ZoneObject {
   class MaybeAssignedFlagField
       : public BitField16<MaybeAssignedFlag,
                           ForceHoleInitializationField::kNext, 1> {};
-  class RequiresBrandCheckField
-      : public BitField16<RequiresBrandCheckFlag, MaybeAssignedFlagField::kNext,
-                          1> {};
   Variable** next() { return &next_; }
   friend List;
   friend base::ThreadedListTraits<Variable>;
