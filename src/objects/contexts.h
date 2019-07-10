@@ -584,6 +584,7 @@ class Context : public HeapObject {
   inline bool IsDebugEvaluateContext() const;
   inline bool IsAwaitContext() const;
   inline bool IsBlockContext() const;
+  inline bool IsClassContext() const;
   inline bool IsModuleContext() const;
   inline bool IsEvalContext() const;
   inline bool IsScriptContext() const;

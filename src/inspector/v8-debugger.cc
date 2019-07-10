@@ -636,6 +636,9 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
       case v8::debug::ScopeIterator::ScopeTypeBlock:
         description = "Block" + nameSuffix;
         break;
+      case v8::debug::ScopeIterator::ScopeTypeClass:
+        description = "Class" + nameSuffix;
+        break;
       case v8::debug::ScopeIterator::ScopeTypeScript:
         description = "Script" + nameSuffix;
         break;

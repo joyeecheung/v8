@@ -1867,6 +1867,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case BLOCK_CONTEXT_TYPE:
       os << "<BlockContext[" << Context::cast(*this).length() << "]>";
       break;
+    case CLASS_CONTEXT_TYPE:
+      os << "<ClassContext[" << Context::cast(*this).length() << "]>";
+      break;
     case CATCH_CONTEXT_TYPE:
       os << "<CatchContext[" << Context::cast(*this).length() << "]>";
       break;

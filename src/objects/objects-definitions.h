@@ -144,6 +144,7 @@ namespace internal {
                                                          \
   V(AWAIT_CONTEXT_TYPE)                                  \
   V(BLOCK_CONTEXT_TYPE)                                  \
+  V(CLASS_CONTEXT_TYPE)                                  \
   V(CATCH_CONTEXT_TYPE)                                  \
   V(DEBUG_EVALUATE_CONTEXT_TYPE)                         \
   V(EVAL_CONTEXT_TYPE)                                   \

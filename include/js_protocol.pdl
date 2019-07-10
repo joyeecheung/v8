@@ -115,6 +115,7 @@ domain Debugger
         with
         closure
         catch
+        class
         block
         script
         eval

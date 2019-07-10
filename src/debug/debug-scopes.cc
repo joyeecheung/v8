@@ -329,10 +329,13 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
         DCHECK(context_->IsCatchContext());
         return ScopeTypeCatch;
       case BLOCK_SCOPE:
-      case CLASS_SCOPE:
         DCHECK_IMPLIES(current_scope_->NeedsContext(),
                        context_->IsBlockContext());
         return ScopeTypeBlock;
+      case CLASS_SCOPE:
+        DCHECK_IMPLIES(current_scope_->NeedsContext(),
+                       context_->IsClassContext());
+        return ScopeTypeClass;
       case EVAL_SCOPE:
         DCHECK_IMPLIES(current_scope_->NeedsContext(),
                        context_->IsEvalContext());
@@ -354,6 +357,9 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
     return ScopeTypeCatch;
   }
   if (context_->IsBlockContext()) {
+    return ScopeTypeBlock;
+  }
+  if (context_->IsClassContext()) {
     return ScopeTypeBlock;
   }
   if (context_->IsModuleContext()) {
@@ -394,6 +400,7 @@ void ScopeIterator::VisitScope(const Visitor& visitor, Mode mode) const {
     case ScopeTypeLocal:
     case ScopeTypeClosure:
     case ScopeTypeCatch:
+    case ScopeTypeClass:
     case ScopeTypeBlock:
     case ScopeTypeEval:
       return VisitLocalScope(visitor, mode);
@@ -423,6 +430,7 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
 
     case ScopeTypeEval:
     case ScopeTypeBlock:
+    case ScopeTypeClass:
     case ScopeTypeCatch:
     case ScopeTypeModule:
       if (InInnerScope()) return SetLocalVariableValue(name, value);

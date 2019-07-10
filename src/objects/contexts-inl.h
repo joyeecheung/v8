@@ -134,6 +134,10 @@ bool Context::IsBlockContext() const {
   return map().instance_type() == BLOCK_CONTEXT_TYPE;
 }
 
+bool Context::IsClassContext() const {
+  return map().instance_type() == CLASS_CONTEXT_TYPE;
+}
+
 bool Context::IsModuleContext() const {
   return map().instance_type() == MODULE_CONTEXT_TYPE;
 }

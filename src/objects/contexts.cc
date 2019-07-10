@@ -63,7 +63,7 @@ bool Context::is_declaration_context() {
   if (IsEvalContext()) {
     return scope_info().language_mode() == LanguageMode::kStrict;
   }
-  if (!IsBlockContext()) return false;
+  if (!IsBlockContext() && !IsClassContext()) return false;
   return scope_info().is_declaration_scope();
 }
 
@@ -87,7 +87,7 @@ Context Context::closure_context() {
 
 JSObject Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
-         IsEvalContext() || IsCatchContext());
+         IsEvalContext() || IsCatchContext() || IsClassContext());
   HeapObject object = extension();
   if (object.IsTheHole()) return JSObject();
   DCHECK(object.IsJSContextExtensionObject() ||
@@ -97,7 +97,7 @@ JSObject Context::extension_object() {
 
 JSReceiver Context::extension_receiver() {
   DCHECK(IsNativeContext() || IsWithContext() || IsEvalContext() ||
-         IsFunctionContext() || IsBlockContext());
+         IsFunctionContext() || IsBlockContext() || IsClassContext());
   return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
 }
 
@@ -203,7 +203,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     DCHECK_IMPLIES(context->IsEvalContext(),
                    context->extension().IsTheHole(isolate));
     if ((context->IsNativeContext() || context->IsWithContext() ||
-         context->IsFunctionContext() || context->IsBlockContext()) &&
+         context->IsFunctionContext() || context->IsBlockContext() || context->IsClassContext()) &&
         !context->extension_receiver().is_null()) {
       Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
@@ -279,7 +279,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     // 2. Check the context proper if it has slots.
     if (context->IsFunctionContext() || context->IsBlockContext() ||
         context->IsScriptContext() || context->IsEvalContext() ||
-        context->IsModuleContext() || context->IsCatchContext()) {
+        context->IsModuleContext() || context->IsCatchContext() || context->IsClassContext()) {
       DisallowHeapAllocation no_gc;
       // Use serialized scope information of functions and blocks to search
       // for the context index.

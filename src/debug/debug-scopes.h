@@ -28,6 +28,7 @@ class ScopeIterator {
     ScopeTypeClosure,
     ScopeTypeCatch,
     ScopeTypeBlock,
+    ScopeTypeClass,
     ScopeTypeScript,
     ScopeTypeEval,
     ScopeTypeModule

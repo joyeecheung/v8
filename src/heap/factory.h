@@ -433,6 +433,9 @@ class V8_EXPORT_PRIVATE Factory {
                                           Handle<StringSet> whitelist);
 
   // Create a block context.
+  Handle<Context> NewClassContext(Handle<Context> previous,
+                                  Handle<ScopeInfo> scope_info);
+  // Create a block context.
   Handle<Context> NewBlockContext(Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
 

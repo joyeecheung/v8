@@ -218,14 +218,14 @@ namespace {
 Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                          Handle<Object> value) {
   // Declarations are always made in a function, native, eval, or script
-  // context, or a declaration block scope. Since this is called from eval, the
-  // context passed is the context of the caller, which may be some nested
-  // context and not the declaration context.
+  // context, a declaration block scope or a class scope. Since this is called
+  // from eval, the context passed is the context of the caller,
+  // which may be some nested context and not the declaration context.
   Handle<Context> context(isolate->context().declaration_context(), isolate);
 
   DCHECK(context->IsFunctionContext() || context->IsNativeContext() ||
          context->IsScriptContext() || context->IsEvalContext() ||
-         (context->IsBlockContext() &&
+         ((context->IsBlockContext() || context->IsClassContext()) &&
           context->scope_info().is_declaration_scope()));
 
   bool is_function = value->IsJSFunction();
@@ -287,7 +287,7 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     // Sloppy varblock and function contexts might not have an extension object
     // yet. Sloppy eval will never have an extension object, as vars are hoisted
     // out, and lets are known statically.
-    DCHECK((context->IsBlockContext() &&
+    DCHECK(((context->IsBlockContext() || context->IsClassContext()) &&
             context->scope_info().is_declaration_scope()) ||
            context->IsFunctionContext());
     object =

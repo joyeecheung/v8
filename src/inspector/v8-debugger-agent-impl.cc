@@ -248,6 +248,8 @@ String16 scopeType(v8::debug::ScopeIterator::ScopeType type) {
       return Scope::TypeEnum::Catch;
     case v8::debug::ScopeIterator::ScopeTypeBlock:
       return Scope::TypeEnum::Block;
+    case v8::debug::ScopeIterator::ScopeTypeClass:
+      return Scope::TypeEnum::Class;
     case v8::debug::ScopeIterator::ScopeTypeScript:
       return Scope::TypeEnum::Script;
     case v8::debug::ScopeIterator::ScopeTypeEval:
