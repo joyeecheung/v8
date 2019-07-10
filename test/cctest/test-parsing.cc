@@ -5542,7 +5542,8 @@ TEST(PrivateMethodsErrors) {
     "async #['a']() { }",
     "async *#['a]() { }",
 
-    // TODO(joyee): check duplicate accessors
+    "get #a() {} get #a() {}",
+    "set #a(val) {} set #a(val) {}",
 
     "#a\n#",
     "#a() c",

@@ -266,7 +266,7 @@ bool PreparseDataBuilder::ScopeNeedsData(Scope* scope) {
   }
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {
-      if (IsDeclaredVariableMode(var->mode())) return true;
+      if (IsSerializableVariableMode(var->mode())) return true;
     }
   }
   for (Scope* inner = scope->inner_scope(); inner != nullptr;
@@ -369,7 +369,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
   }
 
   for (Variable* var : *scope->locals()) {
-    if (IsDeclaredVariableMode(var->mode())) SaveDataForVariable(var);
+    if (IsSerializableVariableMode(var->mode())) SaveDataForVariable(var);
   }
 
   SaveDataForInnerScopes(scope);
@@ -612,7 +612,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(Scope* scope) {
   }
 
   for (Variable* var : *scope->locals()) {
-    if (IsDeclaredVariableMode(var->mode())) RestoreDataForVariable(var);
+    if (IsSerializableVariableMode(var->mode())) RestoreDataForVariable(var);
   }
 
   RestoreDataForInnerScopes(scope);
