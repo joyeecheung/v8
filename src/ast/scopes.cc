@@ -2082,10 +2082,11 @@ bool Scope::MustAllocateInContext(Variable* var) {
   VariableMode mode = var->mode();
   if (mode == VariableMode::kTemporary) return false;
   if (is_catch_scope()) return true;
-  if ((is_script_scope() || is_eval_scope()) &&
-      (IsLexicalVariableMode(mode) ||
-       IsPrivateMethodOrAccessorVariableMode(mode))) {
-    return true;
+  if (is_script_scope() || is_eval_scope()) {
+    if (IsLexicalVariableMode(mode) ||
+        IsPrivateMethodOrAccessorVariableMode(mode)) {
+      return true;
+    }
   }
   return var->has_forced_context_allocation() || inner_scope_calls_eval_;
 }
@@ -2326,7 +2327,7 @@ int Scope::ContextLocalCount() const {
          (is_function_var_in_context ? 1 : 0);
 }
 
-bool IsComplementary(VariableMode a, VariableMode b) {
+bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
   switch (a) {
     case VariableMode::kPrivateGetterOnly:
       return b == VariableMode::kPrivateSetterOnly;
@@ -2345,7 +2346,7 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
       MaybeAssignedFlag::kMaybeAssigned, was_added);
   if (*was_added) {
     locals_.Add(result);
-  } else if (IsComplementary(result->mode(), mode)) {
+  } else if (IsComplementaryAccessorPair(result->mode(), mode)) {
     *was_added = true;
     result->set_mode(VariableMode::kPrivateGetterAndSetter);
   }

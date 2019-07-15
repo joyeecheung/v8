@@ -3019,6 +3019,7 @@ void BytecodeGenerator::BuildThrowIfHole(Variable* variable) {
 
 void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
                                                             Token::Value op) {
+  DCHECK(!IsPrivateMethodOrAccessorVariableMode(variable->mode()));
   if (variable->is_this() && variable->mode() == VariableMode::kConst &&
       op == Token::INIT) {
     // Perform an initialization check for 'this'. 'this' variable is the
@@ -3028,8 +3029,7 @@ void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
   } else {
     // Perform an initialization check for let/const declared variables.
     // E.g. let x = (x = 20); is not allowed.
-    DCHECK(IsLexicalVariableMode(variable->mode()) ||
-           IsPrivateMethodOrAccessorVariableMode(variable->mode()));
+    DCHECK(IsLexicalVariableMode(variable->mode()));
     BuildThrowIfHole(variable);
   }
 }
