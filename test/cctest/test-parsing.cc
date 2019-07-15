@@ -5660,6 +5660,55 @@ TEST(PrivateMembersInNonClassErrors) {
                     private_methods, arraysize(private_methods));
 }
 
+// Test that nested private members parse
+TEST(PrivateMembersNestedNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class { get #a() { ", "} });"},
+                                   {
+                                     "(class { set #a(val) {} get #a() { ",
+                                     "} });"
+                                    },
+                                   {"(class { set #a(val) {", "} });"},
+                                   {"(class { #a() { ", "} });"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "class C { #a() {} }",
+    "class C { get #a() {} }",
+    "class C { get #a() {} set #a(val) {} }",
+    "class C { set #a(val) {} }",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
+// Test that acessing undeclared private members result in early errors
+TEST(PrivateMembersEarlyErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "set #b(val) { this.#a = val; }",
+    "get #b() { return this.#a; }",
+    "foo() { return this.#a; }",
+    "foo() { this.#a = 1; }",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
 TEST(PrivateClassFieldsNoErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
