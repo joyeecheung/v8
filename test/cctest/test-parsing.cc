@@ -5709,6 +5709,73 @@ TEST(PrivateMembersEarlyErrors) {
                     private_methods, arraysize(private_methods));
 }
 
+// Test that acessing wrong kind private members do not error early.
+// Instead these should be runtime errors.
+TEST(PrivateMembersWrongAccessNoEarlyErrors) {
+  // clang-format off
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Private setter only
+    "set #b(val) {} fn() { return this.#b; }",
+    "set #b(val) {} fn() { this.#b++; }",
+    // Nested private setter only
+    R"(get #b() {}
+    fn() {
+      return new class { set #b(val) {} fn() { this.#b++; } };
+    })",
+    R"(get #b() {}
+    fn() {
+      return new class { set #b(val) {} fn() { return this.#b; } };
+    })",
+
+    // Private getter only
+    "get #b() { } fn() { this.#b = 1; }",
+    "get #b() { } fn() { this.#b++; }",
+    "get #b() { } fn(obj) { ({ y: this.#b } = obj); }",
+    // Nested private getter only
+    R"(set #b(val) {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b++; } };
+    })",
+    R"(set #b(val) {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b = 1; } };
+    })",
+    R"(set #b(val) {}
+    fn() {
+      return new class { get #b() {} fn() { ({ y: this.#b } = obj); } };
+    })",
+
+    // Writing to private methods
+    "#b() { } fn() { this.#b = 1; }",
+    "#b() { } fn() { this.#b++; }",
+    "#b() {} fn(obj) { ({ y: this.#b } = obj); }",
+    // Writing to nested private methods
+    R"(#b() {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b++; } };
+    })",
+    R"(#b() {}
+    fn() {
+      return new class { get #b() {} fn() { this.#b = 1; } };
+    })",
+    R"(#b() {}
+    fn() {
+      return new class { get #b() {} fn() { ({ y: this.#b } = obj); } };
+    })",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_methods, arraysize(private_methods));
+}
+
 TEST(PrivateClassFieldsNoErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
