@@ -1154,6 +1154,13 @@ inline bool IsConstVariableMode(VariableMode mode) {
          IsPrivateMethodOrAccessorVariableMode(mode);
 }
 
+inline bool IsPrivateVariableMode(VariableMode mode) {
+  STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
+                0);  // Implies that mode >= VariableMode::kLet.
+  return mode == VariableMode::kConst ||
+         IsPrivateMethodOrAccessorVariableMode(mode);
+}
+
 inline bool IsLexicalVariableMode(VariableMode mode) {
   STATIC_ASSERT(static_cast<uint8_t>(VariableMode::kLet) ==
                 0);  // Implies that mode >= VariableMode::kLet.
