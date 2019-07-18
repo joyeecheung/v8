@@ -1,6 +1,5 @@
-*%(basename)s:10: TypeError: Private method '#a' is not writable
+*%(basename)s:10: SyntaxError: Private method '#a' is not writable
     this.#a = 1;
-            ^
-TypeError: Private method '#a' is not writable
-    at new C (*%(basename)s:10:13)
+        ^^
+SyntaxError: Private method '#a' is not writable
     at *%(basename)s:13:1

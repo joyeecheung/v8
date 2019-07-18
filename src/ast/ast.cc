@@ -161,7 +161,8 @@ VariableProxy::VariableProxy(Variable* var, int start_position)
   DCHECK(!var->is_this());
   bit_field_ |= IsAssignedField::encode(false) |
                 IsResolvedField::encode(false) |
-                HoleCheckModeField::encode(HoleCheckMode::kElided);
+                HoleCheckModeField::encode(HoleCheckMode::kElided) |
+                PrivateAccessKindField::encode(PrivateAccessKind::kReadOnly);
   BindTo(var);
 }
 

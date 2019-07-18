@@ -2476,16 +2476,49 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
   UnresolvedList& list = rare_data_->unresolved_private_names;
   for (VariableProxy* proxy : list) {
     Variable* var = LookupPrivateName(proxy);
+    MessageTemplate tmpl = MessageTemplate::kNone;
     if (var == nullptr) {
-      Scanner::Location loc = proxy->location();
-      info->pending_error_handler()->ReportMessageAt(
-          loc.beg_pos, loc.end_pos,
-          MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name());
-      return false;
+      tmpl = MessageTemplate::kInvalidPrivateFieldResolution;
     } else {
-      var->set_is_used();
-      proxy->BindTo(var);
+      VariableMode mode = var->mode();
+      DCHECK(IsPrivateVariableMode(mode));
+      PrivateAccessKind kind = proxy->private_access_kind();
+      switch (mode) {
+        case VariableMode::kPrivateMethod: {
+          if (kind == PrivateAccessKind::kReadAndWrite ||
+              kind == PrivateAccessKind::kWriteOnly) {
+            tmpl = MessageTemplate::kInvalidPrivateMethodWrite;
+          }
+          break;
+        }
+        case VariableMode::kPrivateGetterOnly: {
+          if (kind == PrivateAccessKind::kReadAndWrite ||
+              kind == PrivateAccessKind::kWriteOnly) {
+            tmpl = MessageTemplate::kInvalidPrivateSetterAccess;
+          }
+          break;
+        }
+        case VariableMode::kPrivateSetterOnly: {
+          if (kind == PrivateAccessKind::kReadAndWrite ||
+              kind == PrivateAccessKind::kReadOnly) {
+            tmpl = MessageTemplate::kInvalidPrivateGetterAccess;
+          }
+          break;
+        }
+        default:
+          break;
+      }
     }
+
+    if (tmpl != MessageTemplate::kNone) {
+      Scanner::Location loc = proxy->location();
+      info->pending_error_handler()->ReportMessageAt(loc.beg_pos, loc.end_pos,
+                                                     tmpl, proxy->raw_name());
+      return false;
+    }
+
+    var->set_is_used();
+    proxy->BindTo(var);
   }
 
   // By now all unresolved private names should be resolved so

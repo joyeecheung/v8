@@ -1482,6 +1482,7 @@ class ThisExpression final : public Expression {
   ThisExpression() : Expression(kNoSourcePosition, kThisExpression) {}
 };
 
+enum class PrivateAccessKind { kWriteOnly, kReadOnly, kReadAndWrite };
 class VariableProxy final : public Expression {
  public:
   bool IsValidReferenceExpression() const { return !is_new_target(); }
@@ -1516,6 +1517,19 @@ class VariableProxy final : public Expression {
   bool is_resolved() const { return IsResolvedField::decode(bit_field_); }
   void set_is_resolved() {
     bit_field_ = IsResolvedField::update(bit_field_, true);
+  }
+
+  PrivateAccessKind private_access_kind() const {
+    return PrivateAccessKindField::decode(bit_field_);
+  }
+  void set_private_access_kind(PrivateAccessKind kind) {
+    bit_field_ = PrivateAccessKindField::update(bit_field_, kind);
+  }
+  void set_write_private_access() {
+    set_private_access_kind(PrivateAccessKind::kWriteOnly);
+  }
+  void set_read_and_write_private_access() {
+    set_private_access_kind(PrivateAccessKind::kReadAndWrite);
   }
 
   bool is_new_target() const { return IsNewTargetField::decode(bit_field_); }
@@ -1581,7 +1595,8 @@ class VariableProxy final : public Expression {
     bit_field_ |= IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
                   IsRemovedFromUnresolvedField::encode(false) |
-                  HoleCheckModeField::encode(HoleCheckMode::kElided);
+                  HoleCheckModeField::encode(HoleCheckMode::kElided) |
+                  PrivateAccessKindField::encode(PrivateAccessKind::kReadOnly);
   }
 
   explicit VariableProxy(const VariableProxy* copy_from);
@@ -1595,6 +1610,8 @@ class VariableProxy final : public Expression {
       : public BitField<bool, IsRemovedFromUnresolvedField::kNext, 1> {};
   class HoleCheckModeField
       : public BitField<HoleCheckMode, IsNewTargetField::kNext, 1> {};
+  class PrivateAccessKindField
+      : public BitField<PrivateAccessKind, HoleCheckModeField::kNext, 2> {};
 
   union {
     const AstRawString* raw_name_;  // if !is_resolved_
@@ -1625,6 +1642,24 @@ enum AssignType {
 class Property final : public Expression {
  public:
   bool IsValidReferenceExpression() const { return true; }
+
+  void set_write_if_private_access() {
+    if (key_->IsVariableProxy()) {
+      VariableProxy* proxy = key_->AsVariableProxy();
+      if (proxy->IsPrivateName()) {
+        proxy->set_write_private_access();
+      }
+    }
+  }
+
+  void set_read_and_write_if_private_access() {
+    if (key_->IsVariableProxy()) {
+      VariableProxy* proxy = key_->AsVariableProxy();
+      if (proxy->IsPrivateName()) {
+        proxy->set_read_and_write_private_access();
+      }
+    }
+  }
 
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
@@ -3130,6 +3165,9 @@ class AstNodeFactory final {
                                     bool is_prefix,
                                     Expression* expr,
                                     int pos) {
+    if (expr->IsProperty()) {
+      expr->AsProperty()->set_read_and_write_if_private_access();
+    }
     return new (zone_) CountOperation(op, is_prefix, expr, pos);
   }
 
@@ -3168,6 +3206,10 @@ class AstNodeFactory final {
 
     if (op != Token::INIT && target->IsVariableProxy()) {
       target->AsVariableProxy()->set_is_assigned();
+    }
+
+    if (target->IsProperty()) {
+      target->AsProperty()->set_write_if_private_access();
     }
 
     if (op == Token::ASSIGN || op == Token::INIT) {

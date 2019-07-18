@@ -414,7 +414,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     if (name->IsPrivateName() && !it.IsFound()) {
       Handle<String> name_string(String::cast(Symbol::cast(*name).name()),
                                  isolate());
-      return TypeError(MessageTemplate::kInvalidPrivateFieldRead, object,
+      return TypeError(MessageTemplate::kInvalidPrivateMemberRead, object,
                        name_string);
     }
 
@@ -1424,7 +1424,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     if (name->IsPrivateName() && !it.IsFound()) {
       Handle<String> name_string(String::cast(Symbol::cast(*name).name()),
                                  isolate());
-      return TypeError(MessageTemplate::kInvalidPrivateFieldWrite, object,
+      return TypeError(MessageTemplate::kInvalidPrivateMemberWrite, object,
                        name_string);
     }
 
