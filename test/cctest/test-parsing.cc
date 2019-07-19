@@ -5709,9 +5709,8 @@ TEST(PrivateMembersEarlyErrors) {
                     private_methods, arraysize(private_methods));
 }
 
-// Test that acessing wrong kind private members do not error early.
-// Instead these should be runtime errors.
-TEST(PrivateMembersWrongAccessNoEarlyErrors) {
+// Test that acessing wrong kind private members error early.
+TEST(PrivateMembersWrongAccessEarlyErrors) {
   // clang-format off
   const char* context_data[][2] = {{"(class {", "});"},
                                    {"(class extends Base {", "});"},
@@ -5772,7 +5771,7 @@ TEST(PrivateMembersWrongAccessNoEarlyErrors) {
   // clang-format on
 
   static const ParserFlag private_methods[] = {kAllowHarmonyPrivateMethods};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     private_methods, arraysize(private_methods));
 }
 

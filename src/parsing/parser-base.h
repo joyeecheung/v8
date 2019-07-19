@@ -4304,12 +4304,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   int end_pos = end_position();
   class_scope->set_end_position(end_pos);
 
-  VariableProxy* unresolvable = class_scope->ResolvePrivateNamesPartially();
-  if (unresolvable != nullptr) {
+  VariableProxy* unresolvable = nullptr;
+  MessageTemplate tmpl =
+      class_scope->ResolvePrivateNamesPartially(&unresolvable);
+  if (*unresolvable != nullptr) {
     impl()->ReportMessageAt(Scanner::Location(unresolvable->position(),
                                               unresolvable->position() + 1),
-                            MessageTemplate::kInvalidPrivateFieldResolution,
-                            unresolvable->raw_name());
+                            tmpl, unresolvable->raw_name());
     return impl()->FailureExpression();
   }
 

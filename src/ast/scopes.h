@@ -1187,14 +1187,16 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   V8_WARN_UNUSED_RESULT bool ResolvePrivateNames(ParseInfo* info);
 
   // Called after the entire class literal is parsed.
-  // - If we are certain a private name cannot be resolve, return that
-  //   variable proxy.
-  // - If we find the private name in the scope chain, return nullptr.
+  // - If we are certain a private name cannot be resolved, return
+  //   the message template for error reporting along with the
+  //   unresolvable variable proxy in *unresolvable.
+  // - If we find the private name in the scope chain, return
+  //   MessageTemplate::kNone.
   //   If the name is found in the current class scope, resolve it
   //   immediately.
   // - If we are not sure if the private name can be resolved or not yet,
-  //   return nullptr.
-  VariableProxy* ResolvePrivateNamesPartially();
+  //   return MessageTemplate::kNone.
+  MessageTemplate ResolvePrivateNamesPartially(VariableProxy** unresolvable);
 
   // Get the current tail of unresolved private names to be used to
   // reset the tail.

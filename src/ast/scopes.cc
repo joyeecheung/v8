@@ -2467,6 +2467,39 @@ Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   return nullptr;
 }
 
+MessageTemplate CanResolvePrivateName(VariableProxy* proxy, Variable* var) {
+  VariableMode mode = var->mode();
+  DCHECK(IsPrivateVariableMode(mode));
+  PrivateAccessKind kind = proxy->private_access_kind();
+  switch (mode) {
+    case VariableMode::kPrivateMethod: {
+      if (kind == PrivateAccessKind::kReadAndWrite ||
+          kind == PrivateAccessKind::kWriteOnly) {
+        return MessageTemplate::kInvalidPrivateMethodWrite;
+      }
+      break;
+    }
+    case VariableMode::kPrivateGetterOnly: {
+      if (kind == PrivateAccessKind::kReadAndWrite ||
+          kind == PrivateAccessKind::kWriteOnly) {
+        return MessageTemplate::kInvalidPrivateSetterAccess;
+      }
+      break;
+    }
+    case VariableMode::kPrivateSetterOnly: {
+      if (kind == PrivateAccessKind::kReadAndWrite ||
+          kind == PrivateAccessKind::kReadOnly) {
+        return MessageTemplate::kInvalidPrivateGetterAccess;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+
+  return MessageTemplate::kNone;
+}
+
 bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
   if (rare_data_ == nullptr ||
       rare_data_->unresolved_private_names.is_empty()) {
@@ -2480,34 +2513,7 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
     if (var == nullptr) {
       tmpl = MessageTemplate::kInvalidPrivateFieldResolution;
     } else {
-      VariableMode mode = var->mode();
-      DCHECK(IsPrivateVariableMode(mode));
-      PrivateAccessKind kind = proxy->private_access_kind();
-      switch (mode) {
-        case VariableMode::kPrivateMethod: {
-          if (kind == PrivateAccessKind::kReadAndWrite ||
-              kind == PrivateAccessKind::kWriteOnly) {
-            tmpl = MessageTemplate::kInvalidPrivateMethodWrite;
-          }
-          break;
-        }
-        case VariableMode::kPrivateGetterOnly: {
-          if (kind == PrivateAccessKind::kReadAndWrite ||
-              kind == PrivateAccessKind::kWriteOnly) {
-            tmpl = MessageTemplate::kInvalidPrivateSetterAccess;
-          }
-          break;
-        }
-        case VariableMode::kPrivateSetterOnly: {
-          if (kind == PrivateAccessKind::kReadAndWrite ||
-              kind == PrivateAccessKind::kReadOnly) {
-            tmpl = MessageTemplate::kInvalidPrivateGetterAccess;
-          }
-          break;
-        }
-        default:
-          break;
-      }
+      tmpl = CanResolvePrivateName(proxy, var);
     }
 
     if (tmpl != MessageTemplate::kNone) {
@@ -2527,10 +2533,12 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
   return true;
 }
 
-VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
+MessageTemplate ClassScope::ResolvePrivateNamesPartially(
+    VariableProxy** unresolvable) {
   if (rare_data_ == nullptr ||
       rare_data_->unresolved_private_names.is_empty()) {
-    return nullptr;
+    *unresolvable = nullptr;
+    return MessageTemplate::kNone;
   }
 
   ClassScope* outer_class_scope =
@@ -2543,7 +2551,8 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
   // inside cannot be resolved.
   if (!has_private_names && outer_class_scope == nullptr &&
       !unresolved.is_empty()) {
-    return unresolved.first();
+    *unresolvable = unresolved.first();
+    return MessageTemplate::kInvalidPrivateFieldResolution;
   }
 
   for (VariableProxy* proxy = unresolved.first(); proxy != nullptr;) {
@@ -2557,8 +2566,14 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
     if (has_private_names) {
       var = LookupLocalPrivateName(proxy->raw_name());
       if (var != nullptr) {
-        var->set_is_used();
-        proxy->BindTo(var);
+        MessageTemplate tmpl = CanResolvePrivateName(proxy, var);
+        if (tmpl == MessageTemplate::kNone) {
+          var->set_is_used();
+          proxy->BindTo(var);
+        } else {
+          *unresolvable = proxy;
+          return tmpl;
+        }
       }
     }
 
@@ -2568,7 +2583,8 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
       // There's no outer class scope so we are certain that the variable
       // cannot be resolved later.
       if (outer_class_scope == nullptr) {
-        return proxy;
+        *unresolvable = proxy;
+        return MessageTemplate::kInvalidPrivateFieldResolution;
       }
 
       // The private name may be found later in the outer class scope,
@@ -2580,7 +2596,8 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
   }
 
   DCHECK(unresolved.is_empty());
-  return nullptr;
+  *unresolvable = nullptr;
+  return MessageTemplate::kNone;
 }
 
 Variable* ClassScope::DeclareBrandVariable(AstValueFactory* ast_value_factory,
