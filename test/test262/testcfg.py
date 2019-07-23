@@ -57,12 +57,12 @@ FEATURE_FLAGS = {
   'Promise.allSettled': '--harmony-promise-all-settled',
   'FinalizationGroup': '--harmony-weak-refs',
   'WeakRef': '--harmony-weak-refs',
+  'class-methods-private': '--harmony-private-methods',
   'host-gc-required': '--expose-gc-as=v8GC',
   'optional-chaining': '--harmony-optional-chaining',
 }
 
-SKIPPED_FEATURES = set(['class-methods-private',
-                        'class-static-methods-private',
+SKIPPED_FEATURES = set(['class-static-methods-private',
                         'top-level-await'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
