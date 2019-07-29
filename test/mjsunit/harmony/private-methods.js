@@ -281,3 +281,22 @@
   new D;
   new E;
 }
+
+// Super access within private methods.
+{
+  class A {
+    foo() {}
+  }
+
+  class C extends A {
+    #m() {
+      return super.foo;
+    }
+
+    fn() {
+      return this.#m();
+    }
+  }
+
+  new C().fn();
+}
