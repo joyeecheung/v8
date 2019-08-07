@@ -1218,6 +1218,22 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
   return *desc.ToPropertyDescriptorObject(isolate);
 }
 
+RUNTIME_FUNCTION(Runtime_LoadPrivateSetter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(AccessorPair, pair, 0);
+  DCHECK(pair->setter().IsJSFunction());
+  return pair->setter();
+}
+
+RUNTIME_FUNCTION(Runtime_LoadPrivateGetter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(AccessorPair, pair, 0);
+  DCHECK(pair->getter().IsJSFunction());
+  return pair->getter();
+}
+
 RUNTIME_FUNCTION(Runtime_CreatePrivateAccessors) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 2);

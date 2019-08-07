@@ -2220,12 +2220,31 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     for (int i = 0; i < expr->properties()->length(); i++) {
       RegisterAllocationScope register_scope(this);
       ClassLiteral::Property* property = expr->properties()->at(i);
-      // TODO(joyee): do the same for private accessors when they are
-      // implemented.
       if (property->NeedsHomeObjectOnClassPrototype()) {
         Register func = register_allocator()->NewRegister();
         BuildVariableLoad(property->private_name_var(), HoleCheckMode::kElided);
         builder()->StoreAccumulatorInRegister(func);
+        switch (property->kind()) {
+          // Getters and setters need to be loaded from the AccessorPair.
+          case ClassLiteral::Property::GETTER: {
+            builder()
+                ->CallRuntime(Runtime::kLoadPrivateGetter, func)
+                .StoreAccumulatorInRegister(func);
+            break;
+          }
+          case ClassLiteral::Property::SETTER: {
+            builder()
+                ->CallRuntime(Runtime::kLoadPrivateSetter, func)
+                .StoreAccumulatorInRegister(func);
+            break;
+          }
+          case ClassLiteral::Property::METHOD: {
+            // Methods can be directly loaded from the variable.
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
         VisitSetHomeObject(func, prototype, property);
       }
     }

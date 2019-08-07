@@ -2840,6 +2840,22 @@ TEST(PrivateAccessors) {
       "    get #e() { return 2; }\n"
       "    set #e(val) { }\n"
       "  }\n"
+      "}\n",
+
+      "{\n"
+      "  class A { foo() {} }\n"
+      "  class C extends A {\n"
+      "    get #a() { return super.foo; }\n"
+      "  }\n"
+      "  new C();\n"
+      "}\n",
+
+      "{\n"
+      "  class A { foo(val) {} }\n"
+      "  class C extends A {\n"
+      "    set #a(val) { super.foo(val); }\n"
+      "  }\n"
+      "  new C();\n"
       "}\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
