@@ -15,7 +15,7 @@ snippet: "
     }
   }
 "
-frame size: 9
+frame size: 8
 parameter count: 1
 bytecode array length: 68
 bytecodes: [
@@ -28,20 +28,20 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
-                B(CreateClosure), U8(3), U8(1), U8(2),
-                B(Star), R(7),
-                B(CreateClosure), U8(4), U8(2), U8(2),
-                B(Star), R(8),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(7), U8(2),
-                B(StaCurrentContextSlot), U8(4),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
                 B(Star), R(4),
                 B(Mov), R(5), R(1),
-                B(LdaConstant), U8(5),
+                B(LdaConstant), U8(3),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(5), U8(1),
                 B(StaCurrentContextSlot), U8(5),
+                B(CreateClosure), U8(4), U8(1), U8(2),
+                B(Star), R(6),
+                B(CreateClosure), U8(5), U8(2), U8(2),
+                B(Star), R(7),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(6), U8(2),
+                B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(2),
                 B(Mov), R(1), R(0),
                 B(LdaUndefined),
@@ -51,9 +51,9 @@ constant pool: [
   SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["A"],
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -66,7 +66,7 @@ snippet: "
     }
   }
 "
-frame size: 9
+frame size: 8
 parameter count: 1
 bytecode array length: 65
 bytecodes: [
@@ -79,20 +79,20 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
-                B(CreateClosure), U8(3), U8(1), U8(2),
-                B(Star), R(7),
-                B(LdaNull),
-                B(Star), R(8),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(7), U8(2),
-                B(StaCurrentContextSlot), U8(4),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
                 B(Star), R(4),
                 B(Mov), R(5), R(1),
-                B(LdaConstant), U8(4),
+                B(LdaConstant), U8(3),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(5), U8(1),
                 B(StaCurrentContextSlot), U8(5),
+                B(CreateClosure), U8(4), U8(1), U8(2),
+                B(Star), R(6),
+                B(LdaNull),
+                B(Star), R(7),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(6), U8(2),
+                B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(2),
                 B(Mov), R(1), R(0),
                 B(LdaUndefined),
@@ -102,8 +102,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["B"],
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -116,7 +116,7 @@ snippet: "
     }
   }
 "
-frame size: 9
+frame size: 8
 parameter count: 1
 bytecode array length: 65
 bytecodes: [
@@ -129,20 +129,20 @@ bytecodes: [
                 B(Star), R(3),
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
-                B(LdaNull),
-                B(Star), R(7),
-                B(CreateClosure), U8(3), U8(1), U8(2),
-                B(Star), R(8),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(7), U8(2),
-                B(StaCurrentContextSlot), U8(4),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
                 B(Star), R(4),
                 B(Mov), R(5), R(1),
-                B(LdaConstant), U8(4),
+                B(LdaConstant), U8(3),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(5), U8(1),
                 B(StaCurrentContextSlot), U8(5),
+                B(LdaNull),
+                B(Star), R(6),
+                B(CreateClosure), U8(4), U8(1), U8(2),
+                B(Star), R(7),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(6), U8(2),
+                B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(2),
                 B(Mov), R(1), R(0),
                 B(LdaUndefined),
@@ -152,8 +152,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["C"],
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -172,7 +172,7 @@ snippet: "
     }
   }
 "
-frame size: 11
+frame size: 10
 parameter count: 1
 bytecode array length: 133
 bytecodes: [
@@ -185,20 +185,20 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaConstant), U8(1),
                 B(Star), R(6),
-                B(CreateClosure), U8(3), U8(1), U8(2),
-                B(Star), R(9),
-                B(CreateClosure), U8(4), U8(2), U8(2),
-                B(Star), R(10),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(9), U8(2),
-                B(StaCurrentContextSlot), U8(4),
                 B(Mov), R(5), R(7),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(6), U8(3),
                 B(Star), R(6),
                 B(Mov), R(7), R(3),
-                B(LdaConstant), U8(5),
+                B(LdaConstant), U8(3),
                 B(Star), R(7),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(7), U8(1),
                 B(StaCurrentContextSlot), U8(5),
+                B(CreateClosure), U8(4), U8(1), U8(2),
+                B(Star), R(8),
+                B(CreateClosure), U8(5), U8(2), U8(2),
+                B(Star), R(9),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(8), U8(2),
+                B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(4),
                 B(Mov), R(3), R(0),
   /*   38 E> */ B(CreateBlockContext), U8(6),
@@ -207,21 +207,21 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaConstant), U8(7),
                 B(Star), R(6),
-                B(CreateClosure), U8(9), U8(4), U8(2),
-                B(Star), R(9),
-                B(CreateClosure), U8(10), U8(5), U8(2),
-                B(Star), R(10),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(9), U8(2),
-                B(StaCurrentContextSlot), U8(4),
                 B(Mov), R(5), R(7),
                 B(Mov), R(3), R(8),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(6), U8(3),
                 B(Star), R(6),
                 B(Mov), R(7), R(2),
-                B(LdaConstant), U8(11),
+                B(LdaConstant), U8(9),
                 B(Star), R(7),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(7), U8(1),
                 B(StaCurrentContextSlot), U8(5),
+                B(CreateClosure), U8(10), U8(4), U8(2),
+                B(Star), R(8),
+                B(CreateClosure), U8(11), U8(5), U8(2),
+                B(Star), R(9),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(8), U8(2),
+                B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(4),
                 B(Mov), R(2), R(1),
                 B(LdaUndefined),
@@ -231,15 +231,15 @@ constant pool: [
   SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["D"],
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
   SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["E"],
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -254,9 +254,9 @@ snippet: "
     new C();
   }
 "
-frame size: 11
+frame size: 10
 parameter count: 1
-bytecode array length: 130
+bytecode array length: 119
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
@@ -281,27 +281,23 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaConstant), U8(5),
                 B(Star), R(6),
-                B(CreateClosure), U8(7), U8(3), U8(2),
-                B(Star), R(9),
-                B(LdaNull),
-                B(Star), R(10),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(9), U8(2),
-                B(StaCurrentContextSlot), U8(4),
                 B(Mov), R(5), R(7),
                 B(Mov), R(3), R(8),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(6), U8(3),
                 B(Star), R(6),
                 B(Mov), R(7), R(2),
-                B(LdaConstant), U8(8),
+                B(LdaConstant), U8(7),
                 B(Star), R(7),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(7), U8(1),
                 B(StaCurrentContextSlot), U8(5),
-                B(LdaCurrentContextSlot), U8(4),
-                B(Star), R(8),
-                B(CallRuntime), U16(Runtime::kLoadPrivateGetter), R(8), U8(1),
+                B(CreateClosure), U8(8), U8(3), U8(2),
                 B(Star), R(8),
                 B(Ldar), R(6),
                 B(StaNamedProperty), R(8), U8(9), U8(0),
+                B(LdaNull),
+                B(Star), R(9),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(8), U8(2),
+                B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(4),
                 B(Mov), R(2), R(1),
   /*  122 S> */ B(Ldar), R(1),
@@ -317,8 +313,8 @@ constant pool: [
   SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["C"],
+  SHARED_FUNCTION_INFO_TYPE,
   SYMBOL_TYPE,
 ]
 handlers: [
@@ -334,9 +330,9 @@ snippet: "
     new C();
   }
 "
-frame size: 11
+frame size: 10
 parameter count: 1
-bytecode array length: 130
+bytecode array length: 119
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
@@ -361,27 +357,23 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaConstant), U8(5),
                 B(Star), R(6),
-                B(LdaNull),
-                B(Star), R(9),
-                B(CreateClosure), U8(7), U8(3), U8(2),
-                B(Star), R(10),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(9), U8(2),
-                B(StaCurrentContextSlot), U8(4),
                 B(Mov), R(5), R(7),
                 B(Mov), R(3), R(8),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(6), U8(3),
                 B(Star), R(6),
                 B(Mov), R(7), R(2),
-                B(LdaConstant), U8(8),
+                B(LdaConstant), U8(7),
                 B(Star), R(7),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(7), U8(1),
                 B(StaCurrentContextSlot), U8(5),
-                B(LdaCurrentContextSlot), U8(4),
+                B(LdaNull),
                 B(Star), R(8),
-                B(CallRuntime), U16(Runtime::kLoadPrivateSetter), R(8), U8(1),
-                B(Star), R(8),
+                B(CreateClosure), U8(8), U8(3), U8(2),
+                B(Star), R(9),
                 B(Ldar), R(6),
-                B(StaNamedProperty), R(8), U8(9), U8(0),
+                B(StaNamedProperty), R(9), U8(9), U8(0),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(8), U8(2),
+                B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(4),
                 B(Mov), R(2), R(1),
   /*  126 S> */ B(Ldar), R(1),
@@ -397,9 +389,10 @@ constant pool: [
   SCOPE_INFO_TYPE,
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["C"],
+  SHARED_FUNCTION_INFO_TYPE,
   SYMBOL_TYPE,
 ]
 handlers: [
 ]
+
