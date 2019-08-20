@@ -312,14 +312,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                           LiteralProperty* property);
   template <typename PropertyT>
   void VisitLiteralAccessor(Register home_object, PropertyT* property,
-                            Register value_out) {
-    if (property == nullptr) {
-      builder()->LoadNull().StoreAccumulatorInRegister(value_out);
-    } else {
-      VisitForRegisterValue(property->value(), value_out);
-      VisitSetHomeObject(value_out, home_object, property);
-    }
-  }
+                            Register value_out);
   void VisitForInAssignment(Expression* expr);
   void VisitModuleNamespaceImports();
 

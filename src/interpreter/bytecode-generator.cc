@@ -2170,8 +2170,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     for (int i = 0; i < expr->properties()->length(); i++) {
       RegisterAllocationScope register_scope(this);
       ClassLiteral::Property* property = expr->properties()->at(i);
-      if (property->NeedsHomeObjectOnClassPrototype() &&
-          property->kind() == ClassLiteral::Property::METHOD) {
+      if (property->NeedsHomeObjectOnClassPrototype()) {
         Register func = register_allocator()->NewRegister();
         BuildVariableLoad(property->private_name_var(), HoleCheckMode::kElided);
         builder()->StoreAccumulatorInRegister(func);
@@ -5830,6 +5829,18 @@ void BytecodeGenerator::BuildNewLocalCatchContext(Scope* scope) {
   Register exception = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(exception);
   builder()->CreateCatchContext(exception, scope);
+}
+
+template <typename PropertyT>
+void BytecodeGenerator::VisitLiteralAccessor(Register home_object,
+                                             PropertyT* property,
+                                             Register value_out) {
+  if (property == nullptr) {
+    builder()->LoadNull().StoreAccumulatorInRegister(value_out);
+  } else {
+    VisitForRegisterValue(property->value(), value_out);
+    VisitSetHomeObject(value_out, home_object, property);
+  }
 }
 
 void BytecodeGenerator::VisitSetHomeObject(Register value, Register home_object,

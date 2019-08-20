@@ -2448,7 +2448,7 @@ class ClassLiteralProperty final : public LiteralProperty {
   }
 
   bool NeedsHomeObjectOnClassPrototype() const {
-    return is_private() && kind_ != FIELD &&
+    return is_private() && kind_ == METHOD &&
            FunctionLiteral::NeedsHomeObject(value_);
   }
 
