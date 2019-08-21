@@ -1176,7 +1176,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // local variables of this scope.
   Variable* DeclarePrivateName(const AstRawString* name, VariableMode mode,
                                bool* was_added);
-
+  // Declare a private name and make sure it is hole initialized.
+  Variable* DeclarePrivateName(Declaration* decl, const AstRawString* name,
+                               VariableMode mode, bool* was_added);
   void AddUnresolvedPrivateName(VariableProxy* proxy);
 
   // Try resolving all unresolved private names found in the current scope.

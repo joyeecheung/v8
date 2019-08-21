@@ -255,6 +255,17 @@
 }
 
 {
+  function makeClass(obj) {
+    return class {
+      [obj.#a] = 1;
+      #a;
+    }
+  }
+
+  assertThrows(makeClass, ReferenceError);
+}
+
+{
   function makeClass() {
     return class {
       #a;

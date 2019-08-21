@@ -1601,6 +1601,7 @@ class PreParser : public ParserBase<PreParser> {
     VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
         name.string_, NORMAL_VARIABLE, start_position);
     class_scope->AddUnresolvedPrivateName(proxy);
+    proxy->set_needs_hole_check();
     return PreParserExpression::FromIdentifier(name);
   }
 

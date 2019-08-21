@@ -784,6 +784,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
         name, NORMAL_VARIABLE, start_position);
     class_scope->AddUnresolvedPrivateName(proxy);
+    proxy->set_needs_hole_check();
     return proxy;
   }
 

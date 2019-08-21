@@ -2358,7 +2358,19 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
     result->set_mode(VariableMode::kPrivateGetterAndSetter);
   }
   result->ForceContextAllocation();
+  result->ForceHoleInitialization();
   return result;
+}
+
+Variable* ClassScope::DeclarePrivateName(Declaration* decl,
+                                         const AstRawString* name,
+                                         VariableMode mode, bool* was_added) {
+  Variable* var = DeclarePrivateName(name, mode, was_added);
+  if (*was_added) {
+    decls_.Add(decl);
+    decl->set_var(var);
+  }
+  return var;
 }
 
 Variable* ClassScope::LookupLocalPrivateName(const AstRawString* name) {

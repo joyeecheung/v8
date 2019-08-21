@@ -2780,7 +2780,9 @@ Variable* Parser::CreatePrivateNameVariable(ClassScope* scope,
   int end = end_position();
   bool was_added = false;
   DCHECK(IsConstVariableMode(mode));
-  Variable* var = scope->DeclarePrivateName(name, mode, &was_added);
+  Declaration* declaration = factory()->NewVariableDeclaration(begin);
+  Variable* var =
+      scope->DeclarePrivateName(declaration, name, mode, &was_added);
   if (!was_added) {
     Scanner::Location loc(begin, end);
     ReportMessageAt(loc, MessageTemplate::kVarRedeclaration, var->raw_name());
