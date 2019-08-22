@@ -1617,15 +1617,25 @@ class OptionalChain final : public Expression {
 // Otherwise, the assignment is to a non-property (a global, a local slot, a
 // parameter slot, or a destructuring pattern).
 enum AssignType {
-  NON_PROPERTY,              // destructuring
-  NAMED_PROPERTY,            // obj.key
-  KEYED_PROPERTY,            // obj[key]
-  NAMED_SUPER_PROPERTY,      // super.key
-  KEYED_SUPER_PROPERTY,      // super[key]
-  PRIVATE_METHOD,            // obj.#key: #key is a private method
-  PRIVATE_GETTER_ONLY,       // obj.#key: #key only has a getter defined
-  PRIVATE_SETTER_ONLY,       // obj.#key: #key only has a setter defined
-  PRIVATE_GETTER_AND_SETTER  // obj.#key: #key has both accessors defined
+  NON_PROPERTY,                  // destructuring
+  NAMED_PROPERTY,                // obj.key
+  KEYED_PROPERTY,                // obj[key]
+  NAMED_SUPER_PROPERTY,          // super.key
+  KEYED_SUPER_PROPERTY,          // super[key]
+  INSTANCE_PRIVATE_METHOD,       // obj.#key: #key is a instance private method
+  INSTANCE_PRIVATE_GETTER_ONLY,  // obj.#key: #key only has a instance getter
+                                 // defined
+  INSTANCE_PRIVATE_SETTER_ONLY,  // obj.#key: #key only has a instance setter
+                                 // defined
+  INSTANCE_PRIVATE_GETTER_AND_SETTER,  // obj.#key: #key has both instance
+                                       // accessors defined
+  STATIC_PRIVATE_METHOD,            // obj.#key: #key is a static private method
+  STATIC_PRIVATE_GETTER_ONLY,       // obj.#key: #key only has a static getter
+                                    // defined
+  STATIC_PRIVATE_SETTER_ONLY,       // obj.#key: #key only has a static setter
+                                    // defined
+  STATIC_PRIVATE_GETTER_AND_SETTER  // obj.#key: #key has both static accessors
+                                    // defined
 };
 
 class Property final : public Expression {
@@ -1652,16 +1662,24 @@ class Property final : public Expression {
       Variable* var = proxy->var();
 
       switch (var->mode()) {
-        case VariableMode::kPrivateMethod:
-          return PRIVATE_METHOD;
         case VariableMode::kConst:
           return KEYED_PROPERTY;  // Use KEYED_PROPERTY for private fields.
-        case VariableMode::kPrivateGetterOnly:
-          return PRIVATE_GETTER_ONLY;
-        case VariableMode::kPrivateSetterOnly:
-          return PRIVATE_SETTER_ONLY;
-        case VariableMode::kPrivateGetterAndSetter:
-          return PRIVATE_GETTER_AND_SETTER;
+        case VariableMode::kInstancePrivateMethod:
+          return INSTANCE_PRIVATE_METHOD;
+        case VariableMode::kInstancePrivateGetterOnly:
+          return INSTANCE_PRIVATE_GETTER_ONLY;
+        case VariableMode::kInstancePrivateSetterOnly:
+          return INSTANCE_PRIVATE_SETTER_ONLY;
+        case VariableMode::kInstancePrivateGetterAndSetter:
+          return INSTANCE_PRIVATE_GETTER_AND_SETTER;
+        case VariableMode::kStaticPrivateMethod:
+          return STATIC_PRIVATE_METHOD;
+        case VariableMode::kStaticPrivateGetterOnly:
+          return STATIC_PRIVATE_GETTER_ONLY;
+        case VariableMode::kStaticPrivateSetterOnly:
+          return STATIC_PRIVATE_SETTER_ONLY;
+        case VariableMode::kStaticPrivateGetterAndSetter:
+          return STATIC_PRIVATE_GETTER_AND_SETTER;
         default:
           UNREACHABLE();
       }

@@ -1259,7 +1259,7 @@ class PreParser : public ParserBase<PreParser> {
     bool was_added;
 
     DeclarePrivateVariableName(property_name.string_, scope,
-                               GetVariableMode(kind), &was_added);
+                               GetVariableMode(kind, is_static), &was_added);
     if (!was_added) {
       Scanner::Location loc(property.position(), property.position() + 1);
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,

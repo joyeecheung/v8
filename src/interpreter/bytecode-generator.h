@@ -96,10 +96,15 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
     AssignType assign_type() const { return assign_type_; }
     Expression* expr() const {
-      DCHECK(assign_type_ == NON_PROPERTY || assign_type_ == PRIVATE_METHOD ||
-             assign_type_ == PRIVATE_GETTER_ONLY ||
-             assign_type_ == PRIVATE_SETTER_ONLY ||
-             assign_type_ == PRIVATE_GETTER_AND_SETTER);
+      DCHECK(assign_type_ == NON_PROPERTY ||
+             assign_type_ == INSTANCE_PRIVATE_METHOD ||
+             assign_type_ == INSTANCE_PRIVATE_GETTER_ONLY ||
+             assign_type_ == INSTANCE_PRIVATE_SETTER_ONLY ||
+             assign_type_ == INSTANCE_PRIVATE_GETTER_AND_SETTER ||
+             assign_type_ == STATIC_PRIVATE_METHOD ||
+             assign_type_ == STATIC_PRIVATE_GETTER_ONLY ||
+             assign_type_ == STATIC_PRIVATE_SETTER_ONLY ||
+             assign_type_ == STATIC_PRIVATE_GETTER_AND_SETTER);
       return expr_;
     }
     Expression* object_expr() const {
@@ -141,9 +146,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
     // Different assignment types use different fields:
     //
-    // NON_PROPERTY: expr
+    // NON_PROPERTY, INSTANCE_PRIVATE_*, STATIC_PRIVATE_*: expr
     // NAMED_PROPERTY: object_expr, object, name
-    // KEYED_PROPERTY, PRIVATE_METHOD: object, key
+    // KEYED_PROPERTY: object, key
     // NAMED_SUPER_PROPERTY: super_property_args
     // KEYED_SUPER_PROPERT:  super_property_args
     Expression* expr_;

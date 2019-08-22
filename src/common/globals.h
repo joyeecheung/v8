@@ -1070,22 +1070,36 @@ enum class VariableMode : uint8_t {
 
   // Variables for private methods or accessors whose access require
   // brand check. Declared only in class scopes by the compiler
-  // and allocated only in class contexts:
-  kPrivateMethod,  // Does not coexist with any other variable with the same
-                   // name in the same scope.
+  // and allocated only in class contexts.
 
-  kPrivateSetterOnly,  // Incompatible with variables with the same name but
-                       // any mode other than kPrivateGetterOnly. Transition to
-                       // kPrivateGetterAndSetter if a later declaration for the
-                       // same name with kPrivateGetterOnly is made.
+  // Instance variables:
 
-  kPrivateGetterOnly,  // Incompatible with variables with the same name but
-                       // any mode other than kPrivateSetterOnly. Transition to
-                       // kPrivateGetterAndSetter if a later declaration for the
-                       // same name with kPrivateSetterOnly is made.
+  // Does not coexist with any other variable with the same
+  // name in the same scope.
+  kInstancePrivateMethod,
 
-  kPrivateGetterAndSetter,  // Does not coexist with any other variable with the
-                            // same name in the same scope.
+  // Incompatible with variables with the same name but
+  // any mode other than kInstancePrivateGetterOnly. Transition to
+  // kInstancePrivateGetterAndSetter if a later declaration for the
+  // same name with kInstancePrivateGetterOnly is made.
+  kInstancePrivateSetterOnly,
+
+  // Incompatible with variables with the same name but
+  // any mode other than kInstancePrivateSetterOnly. Transition to
+  // kInstancePrivateGetterAndSetter if a later declaration for the
+  // same name with kInstancePrivateSetterOnly is made.
+  kInstancePrivateGetterOnly,
+
+  // Does not coexist with any other variable with the
+  // same name in the same scope.
+  kInstancePrivateGetterAndSetter,
+
+  // Static variables - similar to their instance counterparts, but can
+  // only be used with the class in the closest class scope as receivers:
+  kStaticPrivateMethod,
+  kStaticPrivateSetterOnly,
+  kStaticPrivateGetterOnly,
+  kStaticPrivateGetterAndSetter,
 
   kLastLexicalVariableMode = kConst,
 };
@@ -1098,14 +1112,22 @@ inline const char* VariableMode2String(VariableMode mode) {
       return "VAR";
     case VariableMode::kLet:
       return "LET";
-    case VariableMode::kPrivateGetterOnly:
-      return "PRIVATE_GETTER_ONLY";
-    case VariableMode::kPrivateSetterOnly:
-      return "PRIVATE_SETTER_ONLY";
-    case VariableMode::kPrivateMethod:
-      return "PRIVATE_METHOD";
-    case VariableMode::kPrivateGetterAndSetter:
-      return "PRIVATE_GETTER_AND_SETTER";
+    case VariableMode::kInstancePrivateGetterOnly:
+      return "INSTANCE_INSTANCE_PRIVATE_GETTER_ONLY";
+    case VariableMode::kInstancePrivateSetterOnly:
+      return "INSTANCE_PRIVATE_INSTANCE_PRIVATE_SETTER_ONLY";
+    case VariableMode::kInstancePrivateMethod:
+      return "INSTANCE_INSTANCE_PRIVATE_METHOD";
+    case VariableMode::kInstancePrivateGetterAndSetter:
+      return "INSTANCE_INSTANCE_PRIVATE_GETTER_AND_SETTER";
+    case VariableMode::kStaticPrivateGetterOnly:
+      return "STATIC_INSTANCE_PRIVATE_GETTER_ONLY";
+    case VariableMode::kStaticPrivateSetterOnly:
+      return "STATIC_PRIVATE_INSTANCE_PRIVATE_SETTER_ONLY";
+    case VariableMode::kStaticPrivateMethod:
+      return "STATIC_INSTANCE_PRIVATE_METHOD";
+    case VariableMode::kStaticPrivateGetterAndSetter:
+      return "STATIC_INSTANCE_PRIVATE_GETTER_AND_SETTER";
     case VariableMode::kConst:
       return "CONST";
     case VariableMode::kDynamic:
@@ -1140,8 +1162,13 @@ inline bool IsDeclaredVariableMode(VariableMode mode) {
 }
 
 inline bool IsPrivateMethodOrAccessorVariableMode(VariableMode mode) {
-  return mode >= VariableMode::kPrivateMethod &&
-         mode <= VariableMode::kPrivateGetterAndSetter;
+  return mode >= VariableMode::kInstancePrivateMethod &&
+         mode <= VariableMode::kStaticPrivateGetterAndSetter;
+}
+
+inline bool IsStaticPrivateMethodOrAccessorVariableMode(VariableMode mode) {
+  return mode >= VariableMode::kStaticPrivateMethod &&
+         mode <= VariableMode::kStaticPrivateGetterAndSetter;
 }
 
 inline bool IsSerializableVariableMode(VariableMode mode) {

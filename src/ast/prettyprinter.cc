@@ -1299,20 +1299,36 @@ void AstPrinter::VisitProperty(Property* node) {
       PrintLiteralIndented("NAME", node->key()->AsLiteral(), false);
       break;
     }
-    case PRIVATE_METHOD: {
-      PrintIndentedVisit("PRIVATE_METHOD", node->key());
+    case INSTANCE_PRIVATE_METHOD: {
+      PrintIndentedVisit("INSTANCE_PRIVATE_METHOD", node->key());
       break;
     }
-    case PRIVATE_GETTER_ONLY: {
-      PrintIndentedVisit("PRIVATE_GETTER_ONLY", node->key());
+    case INSTANCE_PRIVATE_GETTER_ONLY: {
+      PrintIndentedVisit("INSTANCE_PRIVATE_GETTER_ONLY", node->key());
       break;
     }
-    case PRIVATE_SETTER_ONLY: {
-      PrintIndentedVisit("PRIVATE_SETTER_ONLY", node->key());
+    case INSTANCE_PRIVATE_SETTER_ONLY: {
+      PrintIndentedVisit("INSTANCE_PRIVATE_SETTER_ONLY", node->key());
       break;
     }
-    case PRIVATE_GETTER_AND_SETTER: {
-      PrintIndentedVisit("PRIVATE_GETTER_AND_SETTER", node->key());
+    case INSTANCE_PRIVATE_GETTER_AND_SETTER: {
+      PrintIndentedVisit("INSTANCE_PRIVATE_GETTER_AND_SETTER", node->key());
+      break;
+    }
+    case STATIC_PRIVATE_METHOD: {
+      PrintIndentedVisit("STATIC_PRIVATE_METHOD", node->key());
+      break;
+    }
+    case STATIC_PRIVATE_GETTER_ONLY: {
+      PrintIndentedVisit("STATIC_PRIVATE_GETTER_ONLY", node->key());
+      break;
+    }
+    case STATIC_PRIVATE_SETTER_ONLY: {
+      PrintIndentedVisit("STATIC_PRIVATE_SETTER_ONLY", node->key());
+      break;
+    }
+    case STATIC_PRIVATE_GETTER_AND_SETTER: {
+      PrintIndentedVisit("STATIC_PRIVATE_GETTER_AND_SETTER", node->key());
       break;
     }
     case KEYED_PROPERTY:

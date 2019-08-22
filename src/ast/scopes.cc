@@ -2336,10 +2336,14 @@ int Scope::ContextLocalCount() const {
 
 bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
   switch (a) {
-    case VariableMode::kPrivateGetterOnly:
-      return b == VariableMode::kPrivateSetterOnly;
-    case VariableMode::kPrivateSetterOnly:
-      return b == VariableMode::kPrivateGetterOnly;
+    case VariableMode::kInstancePrivateGetterOnly:
+      return b == VariableMode::kInstancePrivateSetterOnly;
+    case VariableMode::kInstancePrivateSetterOnly:
+      return b == VariableMode::kInstancePrivateGetterOnly;
+    case VariableMode::kStaticPrivateGetterOnly:
+      return b == VariableMode::kStaticPrivateSetterOnly;
+    case VariableMode::kStaticPrivateSetterOnly:
+      return b == VariableMode::kStaticPrivateGetterOnly;
     default:
       return false;
   }
@@ -2355,7 +2359,10 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
     locals_.Add(result);
   } else if (IsComplementaryAccessorPair(result->mode(), mode)) {
     *was_added = true;
-    result->set_mode(VariableMode::kPrivateGetterAndSetter);
+    VariableMode new_mode = IsStaticPrivateMethodOrAccessorVariableMode(mode)
+                                ? VariableMode::kStaticPrivateGetterAndSetter
+                                : VariableMode::kInstancePrivateGetterAndSetter;
+    result->set_mode(new_mode);
   }
   result->ForceContextAllocation();
   result->ForceHoleInitialization();

@@ -635,16 +635,20 @@ class ParserBase {
     }
   }
 
-  VariableMode GetVariableMode(ClassLiteralProperty::Kind kind) {
+  VariableMode GetVariableMode(ClassLiteralProperty::Kind kind,
+                               bool is_static) {
     switch (kind) {
       case ClassLiteralProperty::Kind::FIELD:
         return VariableMode::kConst;
       case ClassLiteralProperty::Kind::METHOD:
-        return VariableMode::kPrivateMethod;
+        return is_static ? VariableMode::kStaticPrivateMethod
+                         : VariableMode::kInstancePrivateMethod;
       case ClassLiteralProperty::Kind::GETTER:
-        return VariableMode::kPrivateGetterOnly;
+        return is_static ? VariableMode::kStaticPrivateGetterOnly
+                         : VariableMode::kInstancePrivateGetterOnly;
       case ClassLiteralProperty::Kind::SETTER:
-        return VariableMode::kPrivateSetterOnly;
+        return is_static ? VariableMode::kStaticPrivateSetterOnly
+                         : VariableMode::kInstancePrivateSetterOnly;
     }
   }
 

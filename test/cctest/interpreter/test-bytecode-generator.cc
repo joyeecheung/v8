@@ -2804,6 +2804,43 @@ TEST(PrivateMethods) {
   i::FLAG_harmony_private_methods = old_methods_flag;
 }
 
+TEST(StaticPrivateMethodsAndAccessors) {
+  bool old_methods_flag = i::FLAG_harmony_private_methods;
+  i::FLAG_harmony_private_methods = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "{\n"
+      "  class A {\n"
+      "    static #a() { return 1; }\n"
+      "  }\n"
+      "}\n",
+
+      "{\n"
+      "  class A {\n"
+      "    static get #a() { return 1; }\n"
+      "  }\n"
+      "}\n",
+
+      "{\n"
+      "  class A {\n"
+      "    static set #a(val) { }\n"
+      "  }\n"
+      "}\n",
+
+      "{\n"
+      "  class A {\n"
+      "    static get #a() { return 1; }\n"
+      "    static set #a(val) { }\n"
+      "  }\n"
+      "}\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("StaticPrivateMethodsAndAccessors.golden")));
+  i::FLAG_harmony_private_methods = old_methods_flag;
+}
+
 TEST(PrivateAccessors) {
   bool old_methods_flag = i::FLAG_harmony_private_methods;
   i::FLAG_harmony_private_methods = true;
