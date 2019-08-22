@@ -2834,6 +2834,13 @@ TEST(StaticPrivateMethodsAndAccessors) {
       "    static get #a() { return 1; }\n"
       "    static set #a(val) { }\n"
       "  }\n"
+      "}\n",
+
+      "{\n"
+      "  class A {\n"
+      "    static #a() { }\n"
+      "    #b() { }\n"
+      "  }\n"
       "}\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

@@ -1253,8 +1253,10 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // The derived constructor case is handled in VisitCallSuper.
   if (IsBaseConstructor(function_kind())) {
-    if (literal->requires_brand_initialization()) {
-      BuildPrivateBrandInitialization(builder()->Receiver());
+    if (literal->requires_instance_brand_initialization()) {
+      BuildPrivateBrandInitialization(
+          builder()->Receiver(),
+          info()->scope()->outer_scope()->AsClassScope()->instance_brand());
     }
 
     if (literal->requires_instance_members_initializer()) {
@@ -2030,6 +2032,37 @@ bool BytecodeGenerator::ShouldOptimizeAsOneShot() const {
          info()->literal()->is_oneshot_iife();
 }
 
+void BytecodeGenerator::BuildPrivateClassBrandAndMethods(ClassLiteral* expr,
+                                                         Variable* brand_var,
+                                                         bool is_static,
+                                                         Register home_object) {
+  Register brand = register_allocator()->NewRegister();
+  const AstRawString* class_name = expr->class_variable() != nullptr
+                                       ? expr->class_variable()->raw_name()
+                                       : ast_string_constants()->empty_string();
+  builder()
+      ->LoadLiteral(class_name)
+      .StoreAccumulatorInRegister(brand)
+      .CallRuntime(Runtime::kCreatePrivateNameSymbol, brand);
+  BuildVariableAssignment(brand_var, Token::INIT, HoleCheckMode::kElided);
+
+  // Store the home object for any private methods that need
+  // them. We do this here once the home object and brand symbol are
+  // available. Private accessors have their home object set later
+  // when they are defined.
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    ClassLiteral::Property* property = expr->properties()->at(i);
+    if (property->NeedsHomeObjectOnClassPrototype() &&
+        is_static == property->is_static()) {
+      RegisterAllocationScope register_scope(this);
+      Register func = register_allocator()->NewRegister();
+      BuildVariableLoad(property->private_name_var(), HoleCheckMode::kElided);
+      builder()->StoreAccumulatorInRegister(func);
+      VisitSetHomeObject(func, home_object, property);
+    }
+  }
+}
+
 void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
   size_t class_boilerplate_entry =
       builder()->AllocateDeferredConstantPoolEntry();
@@ -2164,52 +2197,37 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
                             HoleCheckMode::kElided);
   }
 
-  // Create the class brand symbol and store it on the context
-  // during class evaluation. This will be stored in the
-  // receiver later in the constructor.
-  if (expr->scope()->brand() != nullptr) {
-    Register brand = register_allocator()->NewRegister();
-    const AstRawString* class_name =
-        expr->class_variable() != nullptr
-            ? expr->class_variable()->raw_name()
-            : ast_string_constants()->empty_string();
-    builder()
-        ->LoadLiteral(class_name)
-        .StoreAccumulatorInRegister(brand)
-        .CallRuntime(Runtime::kCreatePrivateNameSymbol, brand);
-    BuildVariableAssignment(expr->scope()->brand(), Token::INIT,
-                            HoleCheckMode::kElided);
+  // Create the class brand symbols and store them on the context
+  // during class evaluation. The instance brand will be stored in the
+  // instance later in the constructor.
+  if (expr->scope()->instance_brand() != nullptr) {
+    BuildPrivateClassBrandAndMethods(expr, expr->scope()->instance_brand(),
+                                     false, prototype);
+  }
+  if (expr->scope()->static_brand() != nullptr) {
+    BuildPrivateClassBrandAndMethods(expr, expr->scope()->static_brand(), true,
+                                     class_constructor);
+    BuildPrivateBrandInitialization(class_constructor,
+                                    expr->scope()->static_brand());
+  }
 
-    // Store the home object for any private methods that need
-    // them. We do this here once the prototype and brand symbol has
-    // been created. Private accessors have their home object set later
-    // when they are defined.
-    for (int i = 0; i < expr->properties()->length(); i++) {
-      RegisterAllocationScope register_scope(this);
-      ClassLiteral::Property* property = expr->properties()->at(i);
-      if (property->NeedsHomeObjectOnClassPrototype()) {
-        Register func = register_allocator()->NewRegister();
-        BuildVariableLoad(property->private_name_var(), HoleCheckMode::kElided);
-        builder()->StoreAccumulatorInRegister(func);
-        VisitSetHomeObject(func, prototype, property);
-      }
-    }
-
-    // Define accessors, using only a single call to the runtime for each pair
-    // of corresponding getters and setters.
-    for (auto accessors : private_accessors.ordered_accessors()) {
-      RegisterAllocationScope inner_register_scope(this);
-      RegisterList accessors_reg = register_allocator()->NewRegisterList(2);
-      ClassLiteral::Property* getter = accessors.second->getter;
-      ClassLiteral::Property* setter = accessors.second->setter;
-      VisitLiteralAccessor(prototype, getter, accessors_reg[0]);
-      VisitLiteralAccessor(prototype, setter, accessors_reg[1]);
-      builder()->CallRuntime(Runtime::kCreatePrivateAccessors, accessors_reg);
-      Variable* var = getter != nullptr ? getter->private_name_var()
-                                        : setter->private_name_var();
-      DCHECK_NOT_NULL(var);
-      BuildVariableAssignment(var, Token::INIT, HoleCheckMode::kElided);
-    }
+  // Define accessors, using only a single call to the runtime for each pair
+  // of corresponding getters and setters.
+  for (auto accessors : private_accessors.ordered_accessors()) {
+    RegisterAllocationScope inner_register_scope(this);
+    RegisterList accessors_reg = register_allocator()->NewRegisterList(2);
+    ClassLiteral::Property* getter = accessors.second->getter;
+    ClassLiteral::Property* setter = accessors.second->setter;
+    bool is_static =
+        getter != nullptr ? getter->is_static() : setter->is_static();
+    Register home_object = is_static ? class_constructor : prototype;
+    VisitLiteralAccessor(home_object, getter, accessors_reg[0]);
+    VisitLiteralAccessor(home_object, setter, accessors_reg[1]);
+    builder()->CallRuntime(Runtime::kCreatePrivateAccessors, accessors_reg);
+    Variable* var = getter != nullptr ? getter->private_name_var()
+                                      : setter->private_name_var();
+    DCHECK_NOT_NULL(var);
+    BuildVariableAssignment(var, Token::INIT, HoleCheckMode::kElided);
   }
 
   if (expr->instance_members_initializer_function() != nullptr) {
@@ -2343,10 +2361,9 @@ void BytecodeGenerator::BuildInvalidPropertyAccess(MessageTemplate tmpl,
       .Throw();
 }
 
-void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver) {
+void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver,
+                                                        Variable* brand) {
   RegisterList brand_args = register_allocator()->NewRegisterList(2);
-  Variable* brand = info()->scope()->outer_scope()->AsClassScope()->brand();
-  DCHECK_NOT_NULL(brand);
   BuildVariableLoad(brand, HoleCheckMode::kElided);
   builder()
       ->StoreAccumulatorInRegister(brand_args[1])
@@ -3904,7 +3921,9 @@ void BytecodeGenerator::BuildAssignment(
       break;
     }
     case INSTANCE_PRIVATE_SETTER_ONLY:
-    case INSTANCE_PRIVATE_GETTER_AND_SETTER: {
+    case INSTANCE_PRIVATE_GETTER_AND_SETTER:
+    case STATIC_PRIVATE_SETTER_ONLY:
+    case STATIC_PRIVATE_GETTER_AND_SETTER: {
       Register value = register_allocator()->NewRegister();
       builder()->StoreAccumulatorInRegister(value);
       Property* property = lhs_data.expr()->AsProperty();
@@ -3915,11 +3934,6 @@ void BytecodeGenerator::BuildAssignment(
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
-      break;
-    }
-    case STATIC_PRIVATE_SETTER_ONLY:
-    case STATIC_PRIVATE_GETTER_AND_SETTER: {
-      // TODO(joyee): implement static private methods and accessors.
       break;
     }
   }
@@ -4451,23 +4465,20 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       break;
     }
     case INSTANCE_PRIVATE_GETTER_ONLY:
-    case INSTANCE_PRIVATE_GETTER_AND_SETTER: {
+    case INSTANCE_PRIVATE_GETTER_AND_SETTER:
+    case STATIC_PRIVATE_GETTER_ONLY:
+    case STATIC_PRIVATE_GETTER_AND_SETTER: {
       BuildPrivateBrandCheck(property, obj);
       Register key = VisitForRegisterValue(property->key());
       BuildPrivateGetterAccess(obj, key);
       break;
     }
-    case INSTANCE_PRIVATE_METHOD: {
+    case INSTANCE_PRIVATE_METHOD:
+    case STATIC_PRIVATE_METHOD: {
       BuildPrivateBrandCheck(property, obj);
       // In the case of private methods, property->key() is the function to be
       // loaded (stored in a context slot), so load this directly.
       VisitForAccumulatorValue(property->key());
-      break;
-    }
-    case STATIC_PRIVATE_GETTER_ONLY:
-    case STATIC_PRIVATE_GETTER_AND_SETTER:
-    case STATIC_PRIVATE_METHOD: {
-      // TODO(joyee): implement static private methods and accessors.
       break;
     }
   }
@@ -4506,9 +4517,12 @@ void BytecodeGenerator::BuildPrivateSetterAccess(Register object,
 void BytecodeGenerator::BuildPrivateBrandCheck(Property* property,
                                                Register object) {
   Variable* private_name = property->key()->AsVariableProxy()->var();
-  DCHECK(private_name->requires_brand_check());
+  DCHECK(IsPrivateMethodOrAccessorVariableMode(private_name->mode()));
   ClassScope* scope = private_name->scope()->AsClassScope();
-  Variable* brand = scope->brand();
+  Variable* brand =
+      IsStaticPrivateMethodOrAccessorVariableMode(private_name->mode())
+          ? scope->static_brand()
+          : scope->instance_brand();
   BuildVariableLoadForAccumulatorValue(brand, HoleCheckMode::kElided);
   builder()->SetExpressionPosition(property);
   builder()->LoadKeyedProperty(
@@ -4842,8 +4856,10 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   Register instance = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(instance);
 
-  if (info()->literal()->requires_brand_initialization()) {
-    BuildPrivateBrandInitialization(instance);
+  if (info()->literal()->requires_instance_brand_initialization()) {
+    BuildPrivateBrandInitialization(
+        instance,
+        info()->scope()->outer_scope()->AsClassScope()->instance_brand());
   }
 
   // The derived constructor has the correct bit set always, so we
@@ -5118,15 +5134,12 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
                                  property);
       return;
     }
+    case STATIC_PRIVATE_GETTER_AND_SETTER:
     case INSTANCE_PRIVATE_GETTER_AND_SETTER: {
       object = VisitForRegisterValue(property->obj());
       key = VisitForRegisterValue(property->key());
       BuildPrivateBrandCheck(property, object);
       BuildPrivateGetterAccess(object, key);
-      break;
-    }
-    case STATIC_PRIVATE_GETTER_AND_SETTER: {
-      // TODO(joyee): implement static private methods and accessors.
       break;
     }
   }
@@ -5203,6 +5216,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     case STATIC_PRIVATE_METHOD: {
       UNREACHABLE();
     }
+    case STATIC_PRIVATE_GETTER_AND_SETTER:
     case INSTANCE_PRIVATE_GETTER_AND_SETTER: {
       Register value = register_allocator()->NewRegister();
       builder()->StoreAccumulatorInRegister(value);
@@ -5210,10 +5224,6 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
-      break;
-    }
-    case STATIC_PRIVATE_GETTER_AND_SETTER: {
-      // TODO(joyee): implement static private methods and accessors.
       break;
     }
   }

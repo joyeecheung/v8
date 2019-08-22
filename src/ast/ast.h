@@ -2360,7 +2360,7 @@ class FunctionLiteral final : public Expression {
     return RequiresInstanceMembersInitializer::decode(bit_field_);
   }
 
-  bool requires_brand_initialization() const;
+  bool requires_instance_brand_initialization() const;
 
   ProducedPreparseData* produced_preparse_data() const {
     return produced_preparse_data_;

@@ -538,7 +538,8 @@ class ParserBase {
           has_static_computed_names(false),
           has_static_class_fields(false),
           has_instance_members(false),
-          requires_brand(false),
+          requires_instance_brand(false),
+          requires_static_brand(false),
           is_anonymous(false),
           static_fields_scope(nullptr),
           instance_members_scope(nullptr),
@@ -555,7 +556,8 @@ class ParserBase {
     bool has_static_computed_names;
     bool has_static_class_fields;
     bool has_instance_members;
-    bool requires_brand;
+    bool requires_instance_brand;
+    bool requires_static_brand;
     bool is_anonymous;
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_members_scope;
@@ -4405,7 +4407,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
     if (V8_UNLIKELY(prop_info.is_private)) {
       DCHECK(!is_constructor);
-      class_info.requires_brand |= !is_field;
+      if (!is_field) {
+        if (prop_info.is_static) {
+          class_info.requires_static_brand = true;
+        } else {
+          class_info.requires_instance_brand = true;
+        }
+      }
       impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
                                         property_kind, prop_info.is_static,
                                         &class_info);
@@ -4443,8 +4451,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     return impl()->FailureExpression();
   }
 
-  if (class_info.requires_brand) {
-    class_scope->DeclareBrandVariable(ast_value_factory(), kNoSourcePosition);
+  if (class_info.requires_instance_brand) {
+    class_scope->DeclareBrandVariable(ast_value_factory(), kNoSourcePosition,
+                                      false);
+  }
+
+  if (class_info.requires_static_brand) {
+    class_scope->DeclareBrandVariable(ast_value_factory(), kNoSourcePosition,
+                                      true);
   }
 
   return impl()->RewriteClassLiteral(class_scope, name, &class_info,

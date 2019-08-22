@@ -312,11 +312,13 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildPrivateGetterAccess(Register obj, Register access_pair);
   void BuildPrivateSetterAccess(Register obj, Register access_pair,
                                 Register value);
+  void BuildPrivateClassBrandAndMethods(ClassLiteral* expr, Variable* brand,
+                                        bool is_static, Register home_object);
   void BuildClassLiteral(ClassLiteral* expr, Register name);
   void VisitClassLiteral(ClassLiteral* expr, Register name);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);
-  void BuildPrivateBrandInitialization(Register receiver);
+  void BuildPrivateBrandInitialization(Register receiver, Variable* brand);
   void BuildInstanceMemberInitialization(Register constructor,
                                          Register instance);
   void BuildGeneratorObjectVariableInitialization();

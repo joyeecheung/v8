@@ -163,6 +163,7 @@
   V(_, display_name_string, "displayName")                           \
   V(_, done_string, "done")                                          \
   V(_, dot_brand_string, ".brand")                                   \
+  V(_, dot_static_brand_string, ".static_brand")                     \
   V(_, dot_catch_string, ".catch")                                   \
   V(_, dot_default_string, ".default")                               \
   V(_, dot_for_string, ".for")                                       \

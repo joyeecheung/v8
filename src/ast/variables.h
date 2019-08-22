@@ -86,10 +86,6 @@ class Variable final : public ZoneObject {
     set_maybe_assigned();
   }
 
-  bool requires_brand_check() const {
-    return IsPrivateMethodOrAccessorVariableMode(mode());
-  }
-
   int initializer_position() { return initializer_position_; }
   void set_initializer_position(int pos) { initializer_position_ = pos; }
 

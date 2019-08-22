@@ -1065,9 +1065,15 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
   }
   Scope* outer = node->constructor()->scope()->outer_scope();
   if (outer->is_class_scope()) {
-    Variable* brand = outer->AsClassScope()->brand();
-    if (brand != nullptr) {
-      PrintLiteralWithModeIndented("BRAND", brand, brand->raw_name());
+    ClassScope* class_scope = outer->AsClassScope();
+    if (class_scope->instance_brand() != nullptr) {
+      PrintLiteralWithModeIndented("INSTANCE BRAND",
+                                   class_scope->instance_brand(),
+                                   class_scope->instance_brand()->raw_name());
+    }
+    if (class_scope->static_brand() != nullptr) {
+      PrintLiteralWithModeIndented("STATIC BRAND", class_scope->static_brand(),
+                                   class_scope->static_brand()->raw_name());
     }
   }
   if (node->static_fields_initializer() != nullptr) {

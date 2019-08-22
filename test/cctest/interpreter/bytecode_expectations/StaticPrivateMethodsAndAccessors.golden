@@ -14,9 +14,9 @@ snippet: "
     }
   }
 "
-frame size: 7
+frame size: 8
 parameter count: 1
-bytecode array length: 55
+bytecode array length: 67
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
@@ -37,8 +37,12 @@ bytecodes: [
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(5), U8(1),
                 B(StaCurrentContextSlot), U8(5),
+                B(LdaCurrentContextSlot), U8(5),
+                B(Star), R(7),
+                B(Mov), R(1), R(6),
+                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(6), U8(2),
                 B(PopContext), R(2),
-                B(Mov), R(1), R(0),
+                B(Mov), R(6), R(0),
                 B(LdaUndefined),
   /*   84 S> */ B(Return),
 ]
@@ -60,9 +64,9 @@ snippet: "
     }
   }
 "
-frame size: 8
+frame size: 10
 parameter count: 1
-bytecode array length: 65
+bytecode array length: 77
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
@@ -81,14 +85,18 @@ bytecodes: [
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(5), U8(1),
                 B(StaCurrentContextSlot), U8(5),
-                B(CreateClosure), U8(4), U8(1), U8(2),
-                B(Star), R(6),
-                B(LdaNull),
+                B(LdaCurrentContextSlot), U8(5),
                 B(Star), R(7),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(6), U8(2),
+                B(Mov), R(1), R(6),
+                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(6), U8(2),
+                B(CreateClosure), U8(4), U8(1), U8(2),
+                B(Star), R(8),
+                B(LdaNull),
+                B(Star), R(9),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(8), U8(2),
                 B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(2),
-                B(Mov), R(1), R(0),
+                B(Mov), R(6), R(0),
                 B(LdaUndefined),
   /*   88 S> */ B(Return),
 ]
@@ -110,9 +118,9 @@ snippet: "
     }
   }
 "
-frame size: 8
+frame size: 10
 parameter count: 1
-bytecode array length: 65
+bytecode array length: 77
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
@@ -131,14 +139,18 @@ bytecodes: [
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(5), U8(1),
                 B(StaCurrentContextSlot), U8(5),
-                B(LdaNull),
-                B(Star), R(6),
-                B(CreateClosure), U8(4), U8(1), U8(2),
+                B(LdaCurrentContextSlot), U8(5),
                 B(Star), R(7),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(6), U8(2),
+                B(Mov), R(1), R(6),
+                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(6), U8(2),
+                B(LdaNull),
+                B(Star), R(8),
+                B(CreateClosure), U8(4), U8(1), U8(2),
+                B(Star), R(9),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(8), U8(2),
                 B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(2),
-                B(Mov), R(1), R(0),
+                B(Mov), R(6), R(0),
                 B(LdaUndefined),
   /*   81 S> */ B(Return),
 ]
@@ -161,9 +173,9 @@ snippet: "
     }
   }
 "
-frame size: 8
+frame size: 10
 parameter count: 1
-bytecode array length: 68
+bytecode array length: 80
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(CreateBlockContext), U8(0),
@@ -182,14 +194,18 @@ bytecodes: [
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(5), U8(1),
                 B(StaCurrentContextSlot), U8(5),
-                B(CreateClosure), U8(4), U8(1), U8(2),
-                B(Star), R(6),
-                B(CreateClosure), U8(5), U8(2), U8(2),
+                B(LdaCurrentContextSlot), U8(5),
                 B(Star), R(7),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(6), U8(2),
+                B(Mov), R(1), R(6),
+                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(6), U8(2),
+                B(CreateClosure), U8(4), U8(1), U8(2),
+                B(Star), R(8),
+                B(CreateClosure), U8(5), U8(2), U8(2),
+                B(Star), R(9),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(8), U8(2),
                 B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(2),
-                B(Mov), R(1), R(0),
+                B(Mov), R(6), R(0),
                 B(LdaUndefined),
   /*  115 S> */ B(Return),
 ]
@@ -200,6 +216,64 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["A"],
   SHARED_FUNCTION_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
+]
+handlers: [
+]
+
+---
+snippet: "
+  {
+    class A {
+      static #a() { }
+      #b() { }
+    }
+  }
+"
+frame size: 9
+parameter count: 1
+bytecode array length: 84
+bytecodes: [
+  /*   30 E> */ B(StackCheck),
+                B(CreateBlockContext), U8(0),
+                B(PushContext), R(2),
+                B(LdaTheHole),
+                B(Star), R(6),
+                B(CreateClosure), U8(2), U8(0), U8(2),
+                B(Star), R(3),
+                B(LdaConstant), U8(1),
+                B(Star), R(4),
+                B(CreateClosure), U8(3), U8(1), U8(2),
+                B(StaCurrentContextSlot), U8(4),
+                B(CreateClosure), U8(4), U8(2), U8(2),
+                B(StaCurrentContextSlot), U8(5),
+                B(Mov), R(3), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
+                B(Star), R(4),
+                B(Mov), R(5), R(1),
+                B(LdaConstant), U8(5),
+                B(Star), R(5),
+                B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(5), U8(1),
+                B(StaCurrentContextSlot), U8(6),
+                B(LdaConstant), U8(5),
+                B(Star), R(6),
+                B(CallRuntime), U16(Runtime::kCreatePrivateNameSymbol), R(6), U8(1),
+                B(StaCurrentContextSlot), U8(7),
+                B(LdaCurrentContextSlot), U8(7),
+                B(Star), R(8),
+                B(Mov), R(1), R(7),
+                B(CallRuntime), U16(Runtime::kAddPrivateBrand), R(7), U8(2),
+                B(PopContext), R(2),
+                B(Mov), R(7), R(0),
+                B(LdaUndefined),
+  /*   87 S> */ B(Return),
+]
+constant pool: [
+  SCOPE_INFO_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["A"],
 ]
 handlers: [
 ]

@@ -282,7 +282,7 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
   return result;
 }
 
-bool FunctionLiteral::requires_brand_initialization() const {
+bool FunctionLiteral::requires_instance_brand_initialization() const {
   Scope* outer = scope_->outer_scope();
 
   // If there are no variables declared in the outer scope other than
@@ -290,7 +290,7 @@ bool FunctionLiteral::requires_brand_initialization() const {
   // the function is deserialized after preparsing.
   if (!outer->is_class_scope()) return false;
 
-  return outer->AsClassScope()->brand() != nullptr;
+  return outer->AsClassScope()->instance_brand() != nullptr;
 }
 
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,

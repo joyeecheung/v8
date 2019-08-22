@@ -1210,9 +1210,13 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   void MigrateUnresolvedPrivateNameTail(AstNodeFactory* ast_node_factory,
                                         UnresolvedList::Iterator tail);
   Variable* DeclareBrandVariable(AstValueFactory* ast_value_factory,
-                                 int class_token_pos);
-  Variable* brand() {
-    return rare_data_ == nullptr ? nullptr : rare_data_->brand;
+                                 int class_token_pos, bool is_static);
+  Variable* instance_brand() {
+    return rare_data_ == nullptr ? nullptr : rare_data_->instance_brand;
+  }
+
+  Variable* static_brand() {
+    return rare_data_ == nullptr ? nullptr : rare_data_->static_brand;
   }
 
  private:
@@ -1231,7 +1235,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     explicit RareData(Zone* zone) : private_name_map(zone) {}
     UnresolvedList unresolved_private_names;
     VariableMap private_name_map;
-    Variable* brand = nullptr;
+    Variable* instance_brand = nullptr;
+    Variable* static_brand = nullptr;
   };
 
   V8_INLINE RareData* EnsureRareData() {

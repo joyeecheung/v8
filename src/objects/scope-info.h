@@ -69,8 +69,13 @@ class ScopeInfo : public FixedArray {
   // or context-allocated?
   bool HasAllocatedReceiver() const;
 
-  // Does this scope has class brand (for private methods)?
-  bool HasClassBrand() const;
+  // Does this scope has instance brand (for instance private methods and
+  // accessors)?
+  bool HasInstanceBrand() const;
+
+  // Does this scope has static brand (for static private methods and
+  // accessors)?
+  bool HasStaticBrand() const;
 
   // Does this scope declare a "new.target" binding?
   bool HasNewTarget() const;
@@ -227,8 +232,9 @@ class ScopeInfo : public FixedArray {
   using DeclarationScopeField = LanguageModeField::Next<bool, 1>;
   using ReceiverVariableField =
       DeclarationScopeField::Next<VariableAllocationInfo, 2>;
-  using HasClassBrandField = ReceiverVariableField::Next<bool, 1>;
-  using HasNewTargetField = HasClassBrandField::Next<bool, 1>;
+  using HasInstanceBrandField = ReceiverVariableField::Next<bool, 1>;
+  using HasStaticBrandField = HasInstanceBrandField::Next<bool, 1>;
+  using HasNewTargetField = HasStaticBrandField::Next<bool, 1>;
   using FunctionVariableField =
       HasNewTargetField::Next<VariableAllocationInfo, 2>;
   // TODO(cbruni): Combine with function variable field when only storing the
