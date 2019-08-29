@@ -3903,9 +3903,9 @@ void BytecodeGenerator::BuildAssignment(
       builder()->StoreAccumulatorInRegister(value);
       Property* property = lhs_data.expr()->AsProperty();
       Register object = VisitForRegisterValue(property->obj());
-      Register accessor_pair = VisitForRegisterValue(property->key());
+      Register key = VisitForRegisterValue(property->key());
       BuildPrivateBrandCheck(property, object);
-      BuildPrivateSetterAccess(object, accessor_pair, value);
+      BuildPrivateSetterAccess(object, key, value);
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
@@ -3956,11 +3956,11 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
                              lhs_data.super_property_args().Truncate(3));
       break;
     }
-    // ({ #foo: name } = obj) is currently syntactically invalid.
     case PRIVATE_METHOD:
     case PRIVATE_GETTER_ONLY:
     case PRIVATE_SETTER_ONLY:
     case PRIVATE_GETTER_AND_SETTER: {
+      // ({ #foo: name } = obj) is currently syntactically invalid.
       UNREACHABLE();
       break;
     }
@@ -4484,7 +4484,6 @@ void BytecodeGenerator::BuildPrivateSetterAccess(Register object,
 void BytecodeGenerator::BuildPrivateBrandCheck(Property* property,
                                                Register object) {
   Variable* private_name = property->key()->AsVariableProxy()->var();
-  // Perform the brand check.
   DCHECK(private_name->requires_brand_check());
   ClassScope* scope = private_name->scope()->AsClassScope();
   Variable* brand = scope->brand();
@@ -5173,9 +5172,12 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       UNREACHABLE();
     }
     case PRIVATE_GETTER_AND_SETTER: {
-      Register new_value = register_allocator()->NewRegister();
-      builder()->StoreAccumulatorInRegister(new_value);
-      BuildPrivateSetterAccess(object, key, new_value);
+      Register value = register_allocator()->NewRegister();
+      builder()->StoreAccumulatorInRegister(value);
+      BuildPrivateSetterAccess(object, key, value);
+      if (!execution_result()->IsEffect()) {
+        builder()->LoadAccumulatorWithRegister(value);
+      }
       break;
     }
   }
