@@ -324,6 +324,8 @@ namespace internal {
   F(SetKeyedProperty, 3, 1)                                     \
   F(SetNamedProperty, 3, 1)                                     \
   F(StoreDataPropertyInLiteral, 3, 1)                           \
+  F(StorePrivateGetter, 2, 1)                                   \
+  F(StorePrivateSetter, 2, 1)                                   \
   F(ShrinkPropertyDictionary, 1, 1)                             \
   F(ToFastProperties, 1, 1)                                     \
   I(ToLength, 1, 1)                                             \

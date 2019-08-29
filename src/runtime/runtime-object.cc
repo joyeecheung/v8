@@ -1216,6 +1216,24 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
   return *desc.ToPropertyDescriptorObject(isolate);
 }
 
+RUNTIME_FUNCTION(Runtime_StorePrivateGetter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 2);
+  CONVERT_ARG_HANDLE_CHECKED(AccessorPair, pair, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, getter, 1);
+  pair->set_getter(*getter);
+  return *pair;
+}
+
+RUNTIME_FUNCTION(Runtime_StorePrivateSetter) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 2);
+  CONVERT_ARG_HANDLE_CHECKED(AccessorPair, pair, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, setter, 1);
+  pair->set_setter(*setter);
+  return *pair;
+}
+
 RUNTIME_FUNCTION(Runtime_LoadPrivateSetter) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
