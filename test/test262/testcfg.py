@@ -59,11 +59,11 @@ FEATURE_FLAGS = {
   'WeakRef': '--harmony-weak-refs',
   'host-gc-required': '--expose-gc-as=v8GC',
   'optional-chaining': '--harmony-optional-chaining',
+  'class-methods-private': '--harmony-private-methods',
+  'class-static-methods-private': '--harmony-private-methods',
 }
 
-SKIPPED_FEATURES = set(['class-methods-private',
-                        'class-static-methods-private',
-                        'top-level-await'])
+SKIPPED_FEATURES = set(['top-level-await'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
