@@ -89,3 +89,10 @@
   assertThrows('class C { get #a() {} get #a() {} }', SyntaxError);
   assertThrows('class C { set #a(val) {} set #a(val) {} }', SyntaxError);
 }
+
+assertThrows(() => {
+  class C {
+    get #c() { }
+    [this.#c] = 'test'
+  }
+}, TypeError);

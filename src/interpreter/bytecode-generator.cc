@@ -2060,6 +2060,26 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         .LoadConstantPoolEntry(class_boilerplate_entry)
         .StoreAccumulatorInRegister(class_boilerplate);
 
+    // Create the class brand symbols and store them on the context
+    // during class evaluation. The instance brand will be stored in the
+    // instance later in the constructor.
+    // This needs to be done early so that access to private methods in
+    // computed property keys throw TypeErrors.
+    if (expr->scope()->brand() != nullptr) {
+      RegisterAllocationScope register_scope(this);
+      Register brand = register_allocator()->NewRegister();
+      const AstRawString* class_name =
+          expr->class_variable() != nullptr
+              ? expr->class_variable()->raw_name()
+              : ast_string_constants()->empty_string();
+      builder()
+          ->LoadLiteral(class_name)
+          .StoreAccumulatorInRegister(brand)
+          .CallRuntime(Runtime::kCreatePrivateNameSymbol, brand);
+      BuildVariableAssignment(expr->scope()->brand(), Token::INIT,
+                              HoleCheckMode::kElided);
+    }
+
     // Create computed names and method values nodes to store into the literal.
     for (int i = 0; i < expr->properties()->length(); i++) {
       ClassLiteral::Property* property = expr->properties()->at(i);
@@ -2123,14 +2143,52 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
           }
           case ClassLiteral::Property::GETTER: {
             Literal* key = property->key()->AsLiteral();
-            DCHECK_NULL(private_accessors.LookupOrInsert(key)->getter);
+            Accessors<ClassLiteral::Property>* accessors =
+                private_accessors.LookupOrInsert(key);
+            DCHECK_NULL(accessors->getter);
             private_accessors.LookupOrInsert(key)->getter = property;
+            if (accessors->setter != nullptr) {
+              RegisterAllocationScope reg_scope(this);
+              RegisterList args = register_allocator()->NewRegisterList(2);
+              VisitForRegisterValue(property->value(), args[1]);
+              BuildVariableLoad(property->private_name_var(),
+                                HoleCheckMode::kElided);
+              builder()->StoreAccumulatorInRegister(args[0]);
+              builder()->CallRuntime(Runtime::kStorePrivateGetter, args);
+            } else {
+              RegisterAllocationScope reg_scope(this);
+              RegisterList args = register_allocator()->NewRegisterList(2);
+              VisitForRegisterValue(property->value(), args[0]);
+              builder()->LoadNull().StoreAccumulatorInRegister(args[1]);
+              builder()->CallRuntime(Runtime::kCreatePrivateAccessors, args);
+              BuildVariableAssignment(property->private_name_var(), Token::INIT,
+                                      HoleCheckMode::kElided);
+            }
             break;
           }
           case ClassLiteral::Property::SETTER: {
             Literal* key = property->key()->AsLiteral();
-            DCHECK_NULL(private_accessors.LookupOrInsert(key)->setter);
+            Accessors<ClassLiteral::Property>* accessors =
+                private_accessors.LookupOrInsert(key);
+            DCHECK_NULL(accessors->setter);
             private_accessors.LookupOrInsert(key)->setter = property;
+            if (accessors->getter != nullptr) {
+              RegisterAllocationScope reg_scope(this);
+              RegisterList args = register_allocator()->NewRegisterList(2);
+              VisitForRegisterValue(property->value(), args[1]);
+              BuildVariableLoad(property->private_name_var(),
+                                HoleCheckMode::kElided);
+              builder()->StoreAccumulatorInRegister(args[0]);
+              builder()->CallRuntime(Runtime::kStorePrivateSetter, args);
+            } else {
+              RegisterAllocationScope reg_scope(this);
+              RegisterList args = register_allocator()->NewRegisterList(2);
+              builder()->LoadNull().StoreAccumulatorInRegister(args[0]);
+              VisitForRegisterValue(property->value(), args[1]);
+              builder()->CallRuntime(Runtime::kCreatePrivateAccessors, args);
+              BuildVariableAssignment(property->private_name_var(), Token::INIT,
+                                      HoleCheckMode::kElided);
+            }
             break;
           }
         }
@@ -2164,51 +2222,32 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
                             HoleCheckMode::kElided);
   }
 
-  // Create the class brand symbol and store it on the context
-  // during class evaluation. This will be stored in the
-  // receiver later in the constructor.
-  if (expr->scope()->brand() != nullptr) {
-    Register brand = register_allocator()->NewRegister();
-    const AstRawString* class_name =
-        expr->class_variable() != nullptr
-            ? expr->class_variable()->raw_name()
-            : ast_string_constants()->empty_string();
-    builder()
-        ->LoadLiteral(class_name)
-        .StoreAccumulatorInRegister(brand)
-        .CallRuntime(Runtime::kCreatePrivateNameSymbol, brand);
-    BuildVariableAssignment(expr->scope()->brand(), Token::INIT,
-                            HoleCheckMode::kElided);
-
-    // Store the home object for any private methods that need
-    // them. We do this here once the prototype and brand symbol has
-    // been created. Private accessors have their home object set later
+  // Store the home objects on the private methods or accessors if necessary.
+  if (expr->scope()->brand() !=
+      nullptr) {  // Store the home object for any private methods that need
+    // them. We do this here once the home object and brand symbol are
+    // available. Private accessors have their home object set later
     // when they are defined.
     for (int i = 0; i < expr->properties()->length(); i++) {
-      RegisterAllocationScope register_scope(this);
       ClassLiteral::Property* property = expr->properties()->at(i);
       if (property->NeedsHomeObjectOnClassPrototype()) {
+        RegisterAllocationScope register_scope(this);
         Register func = register_allocator()->NewRegister();
         BuildVariableLoad(property->private_name_var(), HoleCheckMode::kElided);
+
+        if (property->kind() == ClassLiteral::Property::GETTER) {
+          Register accessor_pair = register_allocator()->NewRegister();
+          builder()->StoreAccumulatorInRegister(accessor_pair);
+          builder()->CallRuntime(Runtime::kLoadPrivateGetter, accessor_pair);
+        } else if (property->kind() == ClassLiteral::Property::SETTER) {
+          Register accessor_pair = register_allocator()->NewRegister();
+          builder()->StoreAccumulatorInRegister(accessor_pair);
+          builder()->CallRuntime(Runtime::kLoadPrivateSetter, accessor_pair);
+        }
+
         builder()->StoreAccumulatorInRegister(func);
         VisitSetHomeObject(func, prototype, property);
       }
-    }
-
-    // Define accessors, using only a single call to the runtime for each pair
-    // of corresponding getters and setters.
-    for (auto accessors : private_accessors.ordered_accessors()) {
-      RegisterAllocationScope inner_register_scope(this);
-      RegisterList accessors_reg = register_allocator()->NewRegisterList(2);
-      ClassLiteral::Property* getter = accessors.second->getter;
-      ClassLiteral::Property* setter = accessors.second->setter;
-      VisitLiteralAccessor(prototype, getter, accessors_reg[0]);
-      VisitLiteralAccessor(prototype, setter, accessors_reg[1]);
-      builder()->CallRuntime(Runtime::kCreatePrivateAccessors, accessors_reg);
-      Variable* var = getter != nullptr ? getter->private_name_var()
-                                        : setter->private_name_var();
-      DCHECK_NOT_NULL(var);
-      BuildVariableAssignment(var, Token::INIT, HoleCheckMode::kElided);
     }
   }
 
