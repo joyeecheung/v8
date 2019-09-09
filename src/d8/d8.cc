@@ -1492,6 +1492,24 @@ void Shell::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
   WriteAndFlush(stdout, args);
 }
 
+class ExternalData {
+ public:
+  int data;
+};
+
+static void UnwrapExternal(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Local<External> data = args.Data().As<External>();
+  ExternalData* external_data = static_cast<ExternalData*>(data->Value());
+  CHECK_EQ(external_data->data, 1);
+}
+
+static void UnwrapAligned(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Local<Object> data = args.Data().As<Object>();
+  ExternalData* external_data =
+      static_cast<ExternalData*>(data->GetAlignedPointerFromInternalField(0));
+  CHECK_EQ(external_data->data, 1);
+}
+
 void Shell::PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args) {
   WriteAndFlush(stderr, args);
 }
@@ -2102,6 +2120,33 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
     isolate->SetWasmLoadSourceMapCallback(ReadFile);
   }
   InitializeModuleEmbedderData(context);
+
+  ExternalData* external_raw = new ExternalData{1};
+  Local<External> external_data = External::New(isolate, external_raw);
+  context->Global()
+      ->Set(
+          context,
+          String::NewFromUtf8(isolate, "unwrapExternal", NewStringType::kNormal)
+              .ToLocalChecked(),
+          FunctionTemplate::New(isolate, UnwrapExternal, external_data)
+              ->GetFunction(context)
+              .ToLocalChecked())
+      .Check();
+
+  Local<ObjectTemplate> external_template = ObjectTemplate::New(isolate);
+  external_template->SetInternalFieldCount(1);
+  Local<Object> obj = external_template->NewInstance(context).ToLocalChecked();
+  obj->SetAlignedPointerInInternalField(0, external_raw);
+  context->Global()
+      ->Set(
+          context,
+          String::NewFromUtf8(isolate, "unwrapAligned", NewStringType::kNormal)
+              .ToLocalChecked(),
+          FunctionTemplate::New(isolate, UnwrapAligned, obj)
+              ->GetFunction(context)
+              .ToLocalChecked())
+      .Check();
+
   if (options.include_arguments) {
     Context::Scope scope(context);
     const std::vector<const char*>& args = options.arguments;
