@@ -1227,14 +1227,12 @@ class PreParser : public ParserBase<PreParser> {
                         &was_added);
     return PreParserStatement::Default();
   }
-  V8_INLINE void DeclareClassVariable(const PreParserIdentifier& name,
+  V8_INLINE void DeclareClassVariable(ClassScope* scope,
+                                      const PreParserIdentifier& name,
                                       ClassInfo* class_info,
                                       int class_token_pos) {
-    if (!IsNull(name)) {
-      bool was_added;
-      DeclareVariableName(name.string_, VariableMode::kConst, scope(),
-                          &was_added);
-    }
+    class_info->variable = scope->DeclareClassVariable(
+        ast_value_factory(), name.string_, class_token_pos);
   }
   V8_INLINE void DeclarePublicClassMethod(const PreParserIdentifier& class_name,
                                           const PreParserExpression& property,

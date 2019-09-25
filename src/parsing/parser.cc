@@ -2782,17 +2782,17 @@ void Parser::ParseFunction(
   *suspend_count = function_state.suspend_count();
 }
 
-void Parser::DeclareClassVariable(const AstRawString* name,
+void Parser::DeclareClassVariable(ClassScope* scope, const AstRawString* name,
                                   ClassInfo* class_info, int class_token_pos) {
 #ifdef DEBUG
-  scope()->SetScopeName(name);
+  scope->SetScopeName(name);
 #endif
 
-  if (name != nullptr) {
-    VariableProxy* proxy =
-        DeclareBoundVariable(name, VariableMode::kConst, class_token_pos);
-    class_info->variable = proxy->var();
-  }
+  class_info->variable =
+      scope->DeclareClassVariable(ast_value_factory(), name, class_token_pos);
+  Declaration* declaration = factory()->NewVariableDeclaration(class_token_pos);
+  scope->declarations()->Add(declaration);
+  declaration->set_var(class_info->variable);
 }
 
 // TODO(gsathya): Ideally, this should just bypass scope analysis and

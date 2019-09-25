@@ -11,7 +11,10 @@
   let store = 1;
   class C {
     static #a() { return store; }
+    static a() { return this.#a(); }
   }
+  assertEquals(C.a(), store);
+  assertThrows(() => C.a.call(new C), TypeError);
 }
 
 // Complementary static private accessors.
@@ -20,7 +23,71 @@
   class C {
     static get #a() { return store; }
     static set #a(val) { store = val; }
+    static incA() { this.#a++; }
+    static getA() { return this.#a; }
+    static setA(val) { this.#a = val; }
   }
+  assertEquals(C.getA(), 1);
+  C.incA();
+  assertEquals(store, 2);
+  C.setA(3);
+  assertEquals(store, 3);
+
+  assertThrows(() => C.incA.call(new C), TypeError);
+  assertThrows(() => C.getA.call(new C), TypeError);
+  assertThrows(() => C.setA.call(new C), TypeError);
+
+  assertThrows(() => { const incA = C.incA; incA(); }, TypeError);
+  assertThrows(() => { const getA = C.getA; getA(); }, TypeError);
+  assertThrows(() => { const setA = C.setA; setA(); }, TypeError);
+}
+
+// Nested static private methods.
+{
+  class Outer {
+    #a() { return 'Outer'; }
+    a() { return this.#a(); }
+    test() {
+      return class {
+        static #a() { return 'C'; }
+        static a() { return this.#a(); }
+      };
+    }
+  }
+
+  const obj = new Outer;
+  const C = obj.test();
+  assertEquals(C.a(), 'C');
+  assertThrows(() => obj.a.call(C), TypeError);
+  assertThrows(() => obj.a.call(new C), TypeError);
+}
+
+// Super property access in static private methods
+{
+  class A {
+    static a = 1;
+  }
+
+  class B extends A {
+    static #a() { return super.a; }
+    static getA() { return this.#a(); }
+  }
+
+  assertEquals(B.getA(), 1);
+}
+
+// Invalid super property access in static private methods
+{
+  class A {
+    static #a() { return 1; }
+    static getA() { return this.#a(); }
+  }
+
+  class B extends A {
+    static getA() { return super.getA(); }
+  }
+
+  assertThrows(() => B.getA(), TypeError);
 }
 
 // Duplicate static private accessors and methods.

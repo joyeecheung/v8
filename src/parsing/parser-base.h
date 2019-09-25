@@ -4397,7 +4397,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
-  impl()->DeclareClassVariable(name, &class_info, class_token_pos);
+  impl()->DeclareClassVariable(class_scope, name, &class_info, class_token_pos);
 
   scope()->set_start_position(end_position());
   if (Check(Token::EXTENDS)) {
@@ -4436,7 +4436,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
     if (V8_UNLIKELY(prop_info.is_private)) {
       DCHECK(!is_constructor);
-      class_info.requires_brand |= !is_field;
+      class_info.requires_brand |= (!is_field && !prop_info.is_static);
       impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
                                         property_kind, prop_info.is_static,
                                         &class_info);
