@@ -2368,13 +2368,15 @@ void BytecodeGenerator::BuildInvalidPropertyAccess(MessageTemplate tmpl,
 }
 
 void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver) {
-  RegisterList brand_args = register_allocator()->NewRegisterList(2);
+  RegisterList brand_args = register_allocator()->NewRegisterList(3);
   Variable* brand = info()->scope()->outer_scope()->AsClassScope()->brand();
   DCHECK_NOT_NULL(brand);
+  DCHECK_EQ(0, execution_context()->ContextChainDepth(brand->scope()));
   BuildVariableLoad(brand, HoleCheckMode::kElided);
   builder()
       ->StoreAccumulatorInRegister(brand_args[1])
       .MoveRegister(receiver, brand_args[0])
+      .MoveRegister(execution_context()->reg(), brand_args[2])
       .CallRuntime(Runtime::kAddPrivateBrand, brand_args);
 }
 
