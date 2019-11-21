@@ -52,12 +52,19 @@ V8_EXPORT_PRIVATE void ClearBreakOnNextFunctionCall(Isolate* isolate);
 MaybeLocal<Array> GetInternalProperties(Isolate* isolate, Local<Value> value);
 
 /**
- * Returns array of private fields specific to the value type. Result has
- * the following format: [<name>, <value>,...,<name>, <value>]. Result array
- * will be allocated in the current context.
+ * Returns an array of descriptors for private members, including fields,
+ * methods, accessors specific to the value type.
+ *
+ * Descriptors for private fields or methods are v8::Object in the format:
+ *   { name: '#name', value: ... }
+ *
+ * Descriptors for private accessors are v8::Object in the format:
+ *   { name: '#name', get: ..., set: ... }
+ *
+ * Result array will be allocated in the current context.
  */
-V8_EXPORT_PRIVATE MaybeLocal<Array> GetPrivateFields(Local<Context> context,
-                                                     Local<Object> value);
+V8_EXPORT_PRIVATE MaybeLocal<Array> GetPrivateMemberDescriptors(
+    Local<Context> context, Local<Object> value);
 
 /**
  * Forwards to v8::Object::CreationContext, but with special handling for

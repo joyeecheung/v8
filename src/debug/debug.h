@@ -266,7 +266,7 @@ class V8_EXPORT_PRIVATE Debug {
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);
 
-  MaybeHandle<JSArray> GetPrivateFields(Handle<JSReceiver> receiver);
+  MaybeHandle<JSArray> GetPrivateMemberDescriptors(Handle<JSReceiver> receiver);
 
   bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
 

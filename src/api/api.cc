@@ -9242,14 +9242,15 @@ MaybeLocal<Array> debug::GetInternalProperties(Isolate* v8_isolate,
   return Utils::ToLocal(result);
 }
 
-MaybeLocal<Array> debug::GetPrivateFields(Local<Context> context,
-                                          Local<Object> value) {
-  PREPARE_FOR_EXECUTION(context, debug, GetPrivateFields, Array);
+MaybeLocal<Array> debug::GetPrivateMemberDescriptors(Local<Context> context,
+                                                     Local<Object> value) {
+  PREPARE_FOR_EXECUTION(context, debug, GetPrivateMemberDescriptors, Array);
   i::Handle<i::JSReceiver> val = Utils::OpenHandle(*value);
   i::Handle<i::JSArray> result;
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   has_pending_exception =
-      !(internal_isolate->debug()->GetPrivateFields(val).ToHandle(&result));
+      !(internal_isolate->debug()->GetPrivateMemberDescriptors(val).ToHandle(
+          &result));
   RETURN_ON_FAILED_EXECUTION(Array);
   RETURN_ESCAPED(Utils::ToLocal(result));
 }

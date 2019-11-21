@@ -3,6 +3,48 @@ Test private class methods
 Running test: testScopesPaused
 [
     [0] : {
+        name : #inc
+        value : {
+            className : Function
+            description : #inc() { this.#field++; return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [1] : {
+        name : #writeOnly
+        set : {
+            className : Function
+            description : set #writeOnly(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [2] : {
+        get : {
+            className : Function
+            description : get #readOnly() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #readOnly
+    }
+    [3] : {
+        get : {
+            className : Function
+            description : get #accessor() { return this.#field; }
+            objectId : <objectId>
+            type : function
+        }
+        name : #accessor
+        set : {
+            className : Function
+            description : set #accessor(val) { this.#field = val; }
+            objectId : <objectId>
+            type : function
+        }
+    }
+    [4] : {
         name : #field
         value : {
             description : 2

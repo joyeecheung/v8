@@ -4710,10 +4710,17 @@ TEST(Regress517592) {
   v8::debug::SetDebugDelegate(env->GetIsolate(), nullptr);
 }
 
-TEST(GetPrivateFields) {
+namespace {
+bool StartsWithHash(v8::Isolate* isolate, v8::Local<v8::String> str) {
+  v8::String::Utf8Value utf8(isolate, str);
+  char* str_bytes = *utf8;
+  return str_bytes[0] == '#';
+}
+}  // namespace
+
+TEST(GetPrivateMemberDescriptors) {
   LocalContext env;
   v8::Isolate* v8_isolate = CcTest::isolate();
-  v8::internal::Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(v8_isolate);
   v8::Local<v8::Context> context = env.local();
   v8::Local<v8::String> source = v8_str(
@@ -4727,20 +4734,22 @@ TEST(GetPrivateFields) {
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "x"))
           .ToLocalChecked());
-  v8::Local<v8::Array> private_names =
-      v8::debug::GetPrivateFields(context, object).ToLocalChecked();
+  v8::Local<v8::Array> descriptors =
+      v8::debug::GetPrivateMemberDescriptors(context, object).ToLocalChecked();
 
-  for (int i = 0; i < 4; i = i + 2) {
-    Handle<v8::internal::JSReceiver> private_name =
-        v8::Utils::OpenHandle(*private_names->Get(context, i)
-                                   .ToLocalChecked()
-                                   ->ToObject(context)
-                                   .ToLocalChecked());
-    Handle<v8::internal::JSPrimitiveWrapper> private_value =
-        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
-    Handle<v8::internal::Symbol> priv_symbol(
-        v8::internal::Symbol::cast(private_value->value()), isolate);
-    CHECK(priv_symbol->is_private_name());
+  CHECK_EQ(descriptors->Length(), 2);
+  for (int i = 0; i < 2; i++) {
+    v8::Local<v8::Object> desc = descriptors->Get(context, i)
+                                     .ToLocalChecked()
+                                     ->ToObject(context)
+                                     .ToLocalChecked();
+    v8::Local<v8::Value> name =
+        desc->Get(context, v8_str("name")).ToLocalChecked();
+    CHECK(name->IsString());
+    CHECK(StartsWithHash(v8_isolate, name.As<v8::String>()));
+    v8::Local<v8::Value> value =
+        desc->Get(context, v8_str("value")).ToLocalChecked();
+    CHECK(value->IsNumber() || value->IsFunction());
   }
 
   source = v8_str(
@@ -4757,19 +4766,22 @@ TEST(GetPrivateFields) {
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "x"))
           .ToLocalChecked());
-  private_names = v8::debug::GetPrivateFields(context, object).ToLocalChecked();
+  descriptors =
+      v8::debug::GetPrivateMemberDescriptors(context, object).ToLocalChecked();
 
-  for (int i = 0; i < 6; i = i + 2) {
-    Handle<v8::internal::JSReceiver> private_name =
-        v8::Utils::OpenHandle(*private_names->Get(context, i)
-                                   .ToLocalChecked()
-                                   ->ToObject(context)
-                                   .ToLocalChecked());
-    Handle<v8::internal::JSPrimitiveWrapper> private_value =
-        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
-    Handle<v8::internal::Symbol> priv_symbol(
-        v8::internal::Symbol::cast(private_value->value()), isolate);
-    CHECK(priv_symbol->is_private_name());
+  CHECK_EQ(descriptors->Length(), 3);
+  for (int i = 0; i < 3; i++) {
+    v8::Local<v8::Object> desc = descriptors->Get(context, i)
+                                     .ToLocalChecked()
+                                     ->ToObject(context)
+                                     .ToLocalChecked();
+    v8::Local<v8::Value> name =
+        desc->Get(context, v8_str("name")).ToLocalChecked();
+    CHECK(name->IsString());
+    CHECK(StartsWithHash(v8_isolate, name.As<v8::String>()));
+    v8::Local<v8::Value> value =
+        desc->Get(context, v8_str("value")).ToLocalChecked();
+    CHECK(value->IsNumber() || value->IsFunction());
   }
 
   source = v8_str(
@@ -4788,18 +4800,21 @@ TEST(GetPrivateFields) {
       env->Global()
           ->Get(context, v8_str(env->GetIsolate(), "x"))
           .ToLocalChecked());
-  private_names = v8::debug::GetPrivateFields(context, object).ToLocalChecked();
+  descriptors =
+      v8::debug::GetPrivateMemberDescriptors(context, object).ToLocalChecked();
 
-  for (int i = 0; i < 4; i = i + 2) {
-    Handle<v8::internal::JSReceiver> private_name =
-        v8::Utils::OpenHandle(*private_names->Get(context, i)
-                                   .ToLocalChecked()
-                                   ->ToObject(context)
-                                   .ToLocalChecked());
-    Handle<v8::internal::JSPrimitiveWrapper> private_value =
-        Handle<v8::internal::JSPrimitiveWrapper>::cast(private_name);
-    Handle<v8::internal::Symbol> priv_symbol(
-        v8::internal::Symbol::cast(private_value->value()), isolate);
-    CHECK(priv_symbol->is_private_name());
+  CHECK_EQ(descriptors->Length(), 2);
+  for (int i = 0; i < 2; i++) {
+    v8::Local<v8::Object> desc = descriptors->Get(context, i)
+                                     .ToLocalChecked()
+                                     ->ToObject(context)
+                                     .ToLocalChecked();
+    v8::Local<v8::Value> name =
+        desc->Get(context, v8_str("name")).ToLocalChecked();
+    CHECK(name->IsString());
+    CHECK(StartsWithHash(v8_isolate, name.As<v8::String>()));
+    v8::Local<v8::Value> value =
+        desc->Get(context, v8_str("value")).ToLocalChecked();
+    CHECK(value->IsNumber() || value->IsFunction());
   }
 }

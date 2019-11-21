@@ -8046,39 +8046,107 @@ MaybeHandle<FixedArray> JSReceiver::GetPrivateEntries(
                               GetKeysConversion::kConvertToString),
       MaybeHandle<FixedArray>());
 
-  // Calculate number of private entries to return in the FixedArray.
-  // TODO(v8:9839): take the number of private methods/accessors into account.
-  int private_brand_count = 0;
+  // Estimate number of private entries to return in the FixedArray.
+  int private_entries_count = 0;
   for (int i = 0; i < keys->length(); ++i) {
     // Exclude the private brand symbols.
-    if (Symbol::cast(keys->get(i)).is_private_brand()) {
-      private_brand_count++;
+    Handle<Symbol> name(Symbol::cast(keys->get(i)), isolate);
+    if (name->is_private_brand()) {
+      Handle<Object> value;
+      if (!(Object::GetProperty(isolate, receiver, name).ToHandle(&value))) {
+        DCHECK((isolate)->has_pending_exception());
+        return MaybeHandle<FixedArray>();
+      }
+
+      Handle<Context> context(Context::cast(*value), isolate);
+      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+      // At least one slot contains the brand symbol so it does not count.
+      private_entries_count += (scope_info->ContextLocalCount() - 1);
+    } else {
+      private_entries_count++;
     }
   }
-  int private_entries_count = keys->length() - private_brand_count;
 
   Handle<FixedArray> entries =
-      isolate->factory()->NewFixedArray(private_entries_count * 2);
+      isolate->factory()->NewFixedArray(private_entries_count);
+  LookupIterator::Configuration config = LookupIterator::OWN_SKIP_INTERCEPTOR;
+  Factory* factory = isolate->factory();
   int length = 0;
 
   for (int i = 0; i < keys->length(); ++i) {
     Handle<Object> obj_key = handle(keys->get(i), isolate);
     Handle<Symbol> key(Symbol::cast(*obj_key), isolate);
     CHECK(key->is_private_name());
-    if (key->is_private_brand()) {
-      // TODO(v8:9839): get the private methods/accessors of the instance
-      // using the brand and add them to the entries.
-      continue;
-    }
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value, Object::GetProperty(isolate, receiver, key),
-        MaybeHandle<FixedArray>());
+    if (!(Object::GetProperty(isolate, receiver, key).ToHandle(&value))) {
+      DCHECK((isolate)->has_pending_exception());
+      return MaybeHandle<FixedArray>();
+    }
+    if (key->is_private_brand()) {
+      DCHECK(value->IsContext());
+      Handle<Context> context(Context::cast(*value), isolate);
+      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+      int local_count = scope_info->ContextLocalCount();
 
-    entries->set(length++, *key);
-    entries->set(length++, *value);
+      for (int j = 0; j < local_count; ++j) {
+        VariableMode mode = scope_info->ContextLocalMode(j);
+        if (!IsPrivateMethodOrAccessorVariableMode(mode)) {
+          continue;
+        }
+
+        Handle<JSObject> desc =
+            factory->NewJSObject(isolate->object_function());
+        Handle<String> name(scope_info->ContextLocalName(j), isolate);
+        int context_index = scope_info->ContextHeaderLength() + j;
+        Handle<Object> slot_value(context->get(context_index), isolate);
+
+        // desc.name
+        LookupIterator name_it(desc, factory->name_string(), desc, config);
+        MAYBE_RETURN(JSObject::CreateDataProperty(&name_it, name),
+                     MaybeHandle<FixedArray>());
+
+        if (mode == VariableMode::kPrivateMethod) {
+          DCHECK(slot_value->IsJSFunction());
+          // desc.value
+          LookupIterator value_it(desc, factory->value_string(), desc, config);
+          MAYBE_RETURN(JSObject::CreateDataProperty(&value_it, slot_value),
+                       MaybeHandle<FixedArray>());
+        } else {
+          DCHECK(slot_value->IsAccessorPair());
+          // desc.get
+          Handle<Object> get(AccessorPair::cast(*slot_value).getter(), isolate);
+          if (!get->IsNull()) {
+            LookupIterator get_it(desc, factory->get_string(), desc, config);
+            MAYBE_RETURN(JSObject::CreateDataProperty(&get_it, get),
+                         MaybeHandle<FixedArray>());
+          }
+          // desc.set
+          Handle<Object> set(AccessorPair::cast(*slot_value).setter(), isolate);
+          if (!set->IsNull()) {
+            LookupIterator set_it(desc, factory->set_string(), desc, config);
+            MAYBE_RETURN(JSObject::CreateDataProperty(&set_it, set),
+                         MaybeHandle<FixedArray>());
+          }
+        }
+        entries->set(length++, *desc);
+      }
+    } else {  // Private fields
+      Handle<JSObject> desc = factory->NewJSObject(isolate->object_function());
+      // desc.name
+      Handle<String> name(String::cast(Symbol::cast(*key).description()),
+                          isolate);
+      LookupIterator name_it(desc, factory->name_string(), desc, config);
+      if (!JSObject::CreateDataProperty(&name_it, name).IsJust()) {
+        return MaybeHandle<FixedArray>();
+      }
+      // desc.value
+      LookupIterator value_it(desc, factory->value_string(), desc, config);
+      JSObject::CreateDataProperty(&value_it, value).IsJust();
+      entries->set(length++, *desc);
+    }
   }
-  DCHECK_EQ(length, entries->length());
+
+  DCHECK_LE(length, entries->length());
   return FixedArray::ShrinkOrEmpty(isolate, entries, length);
 }
 

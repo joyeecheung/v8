@@ -1385,7 +1385,8 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
   UNREACHABLE();
 }
 
-MaybeHandle<JSArray> Debug::GetPrivateFields(Handle<JSReceiver> receiver) {
+MaybeHandle<JSArray> Debug::GetPrivateMemberDescriptors(
+    Handle<JSReceiver> receiver) {
   Factory* factory = isolate_->factory();
 
   Handle<FixedArray> internal_fields;

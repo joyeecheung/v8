@@ -14,8 +14,10 @@ function run() {
   class A {
     #field = 2;
     #inc() { this.#field++; return this.#field; }
-    get #getter() { return this.#field; }
-    set #setter(val) { this.#field = val; }
+    set #writeOnly(val) { this.#field = val; }
+    get #readOnly() { return this.#field; }
+    get #accessor() { return this.#field; }
+    set #accessor(val) { this.#field = val; }
     fn () {
       debugger;
     }
