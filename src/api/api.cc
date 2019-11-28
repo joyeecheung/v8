@@ -3761,6 +3761,12 @@ void v8::WasmModuleObject::CheckCast(Value* that) {
                   "Could not convert to wasm module object");
 }
 
+void v8::debug::AccessorPair::CheckCast(Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsAccessorPair(), "v8::AccessorPair::Cast",
+                  "Could not convert to AccessorPair");
+}
+
 v8::BackingStore::~BackingStore() {
   auto i_this = reinterpret_cast<const i::BackingStore*>(this);
   i_this->~BackingStore();  // manually call internal destructor
@@ -9242,16 +9248,29 @@ MaybeLocal<Array> debug::GetInternalProperties(Isolate* v8_isolate,
   return Utils::ToLocal(result);
 }
 
-MaybeLocal<Array> debug::GetPrivateFields(Local<Context> context,
-                                          Local<Object> value) {
-  PREPARE_FOR_EXECUTION(context, debug, GetPrivateFields, Array);
+MaybeLocal<Array> debug::GetPrivateMembers(
+    Local<Context> context, Local<Object> value,
+    std::vector<Local<Value>>* members_out) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  LOG_API(isolate, debug, GetPrivateMembers);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::JSReceiver> val = Utils::OpenHandle(*value);
-  i::Handle<i::JSArray> result;
+  i::Handle<i::JSArray> names;
+  i::Handle<i::FixedArray> members;
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  has_pending_exception =
-      !(internal_isolate->debug()->GetPrivateFields(val).ToHandle(&result));
-  RETURN_ON_FAILED_EXECUTION(Array);
-  RETURN_ESCAPED(Utils::ToLocal(result));
+  if (!(internal_isolate->debug()
+            ->GetPrivateMembers(val, &members)
+            .ToHandle(&names))) {
+    return MaybeLocal<Array>();
+  }
+  int len = members->length();
+  *members_out = std::vector<Local<Value>>();
+  members_out->reserve(len);
+  for (int i = 0; i < len; ++i) {
+    members_out->push_back(
+        Utils::ToLocal(i::Handle<i::Object>(members->get(i), isolate)));
+  }
+  return Utils::ToLocal(names);
 }
 
 Local<Context> debug::GetCreationContext(Local<Object> value) {
@@ -10128,6 +10147,37 @@ Local<debug::WeakMap> debug::WeakMap::New(v8::Isolate* isolate) {
 
 debug::WeakMap* debug::WeakMap::Cast(v8::Value* value) {
   return static_cast<debug::WeakMap*>(value);
+}
+
+Local<Value> debug::AccessorPair::getter() {
+  i::Handle<i::AccessorPair> accessors = Utils::OpenHandle(this);
+  i::Isolate* isolate = accessors->GetIsolate();
+  i::Handle<i::Object> getter(accessors->getter(), isolate);
+  return Utils::ToLocal(getter);
+}
+
+Local<Value> debug::AccessorPair::setter() {
+  i::Handle<i::AccessorPair> accessors = Utils::OpenHandle(this);
+  i::Isolate* isolate = accessors->GetIsolate();
+  i::Handle<i::Object> setter(accessors->setter(), isolate);
+  return Utils::ToLocal(setter);
+}
+
+Local<debug::AccessorPair> debug::AccessorPair::New(Isolate* isolate,
+                                                    Local<Value> getter,
+                                                    Local<Value> setter) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, AccessorPair, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::Handle<i::AccessorPair> result = i_isolate->factory()->NewAccessorPair();
+  if (!getter.IsEmpty()) result->set_getter(*Utils::OpenHandle(*getter));
+  if (!setter.IsEmpty()) result->set_setter(*Utils::OpenHandle(*setter));
+  return Utils::ToLocal(result);
+}
+
+bool debug::AccessorPair::IsAccessorPair(Local<Value> that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(*that);
+  return obj->IsAccessorPair();
 }
 
 const char* CpuProfileNode::GetFunctionNameStr() const {

@@ -271,7 +271,8 @@ class JSReceiver : public HeapObject {
   bool HasProxyInPrototype(Isolate* isolate);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> GetPrivateEntries(
-      Isolate* isolate, Handle<JSReceiver> receiver);
+      Isolate* isolate, Handle<JSReceiver> receiver,
+      Handle<FixedArray>* members_out);
 
   OBJECT_CONSTRUCTORS(JSReceiver, HeapObject);
 };

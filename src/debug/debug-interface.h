@@ -52,12 +52,16 @@ V8_EXPORT_PRIVATE void ClearBreakOnNextFunctionCall(Isolate* isolate);
 MaybeLocal<Array> GetInternalProperties(Isolate* isolate, Local<Value> value);
 
 /**
- * Returns array of private fields specific to the value type. Result has
- * the following format: [<name>, <value>,...,<name>, <value>]. Result array
- * will be allocated in the current context.
+ * Returns an array of descriptors for private members, including fields,
+ * methods, accessors specific to the value type.
+ * Result has the following format: [<name>, <value>,...,<name>, <value>],
+ * where <value> is a v8::Value for private fields and methods,
+ * v8::debug::AccessorPair for private accessors with missing accessor as null.
+ * Result array will be allocated in the current context.
  */
-V8_EXPORT_PRIVATE MaybeLocal<Array> GetPrivateFields(Local<Context> context,
-                                                     Local<Object> value);
+V8_EXPORT_PRIVATE MaybeLocal<Array> GetPrivateMembers(
+    Local<Context> context, Local<Object> value,
+    std::vector<Local<Value>>* members);
 
 /**
  * Forwards to v8::Object::CreationContext, but with special handling for
@@ -513,6 +517,23 @@ class WeakMap : public v8::Object {
   WeakMap();
 };
 
+class AccessorPair : public v8::Value {
+ public:
+  V8_EXPORT_PRIVATE v8::Local<v8::Value> getter();
+  V8_EXPORT_PRIVATE v8::Local<v8::Value> setter();
+
+  V8_EXPORT_PRIVATE static bool IsAccessorPair(v8::Local<v8::Value> obj);
+  V8_EXPORT_PRIVATE static Local<AccessorPair> New(v8::Isolate* isolate,
+                                                   v8::Local<v8::Value> getter,
+                                                   v8::Local<v8::Value> setter);
+
+  V8_INLINE static AccessorPair* Cast(v8::Value* obj);
+
+ private:
+  AccessorPair();
+  static void CheckCast(v8::Value* obj);
+};
+
 struct PropertyDescriptor {
   bool enumerable : 1;
   bool has_enumerable : 1;
@@ -545,6 +566,14 @@ class PropertyIterator {
   virtual bool is_own() = 0;
   virtual bool is_array_index() = 0;
 };
+
+AccessorPair* AccessorPair::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<AccessorPair*>(value);
+}
+
 }  // namespace debug
 }  // namespace v8
 

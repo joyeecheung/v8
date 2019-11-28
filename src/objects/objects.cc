@@ -8036,7 +8036,8 @@ Maybe<bool> JSFinalizationGroup::Cleanup(
 }
 
 MaybeHandle<FixedArray> JSReceiver::GetPrivateEntries(
-    Isolate* isolate, Handle<JSReceiver> receiver) {
+    Isolate* isolate, Handle<JSReceiver> receiver,
+    Handle<FixedArray>* members_out) {
   PropertyFilter key_filter = static_cast<PropertyFilter>(PRIVATE_NAMES_ONLY);
 
   Handle<FixedArray> keys;
@@ -8046,40 +8047,75 @@ MaybeHandle<FixedArray> JSReceiver::GetPrivateEntries(
                               GetKeysConversion::kConvertToString),
       MaybeHandle<FixedArray>());
 
-  // Calculate number of private entries to return in the FixedArray.
-  // TODO(v8:9839): take the number of private methods/accessors into account.
-  int private_brand_count = 0;
+  // Estimate number of private entries to return in the FixedArray.
+  int private_entries_count = 0;
   for (int i = 0; i < keys->length(); ++i) {
     // Exclude the private brand symbols.
-    if (Symbol::cast(keys->get(i)).is_private_brand()) {
-      private_brand_count++;
+    Handle<Symbol> name(Symbol::cast(keys->get(i)), isolate);
+    if (name->is_private_brand()) {
+      Handle<Object> value;
+      if (!(Object::GetProperty(isolate, receiver, name).ToHandle(&value))) {
+        DCHECK((isolate)->has_pending_exception());
+        return MaybeHandle<FixedArray>();
+      }
+
+      Handle<Context> context(Context::cast(*value), isolate);
+      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+      // At least one slot contains the brand symbol so it does not count.
+      private_entries_count += (scope_info->ContextLocalCount() - 1);
+    } else {
+      private_entries_count++;
     }
   }
-  int private_entries_count = keys->length() - private_brand_count;
 
+  Handle<FixedArray> names =
+      isolate->factory()->NewFixedArray(private_entries_count);
   Handle<FixedArray> entries =
-      isolate->factory()->NewFixedArray(private_entries_count * 2);
+      isolate->factory()->NewFixedArray(private_entries_count);
   int length = 0;
-
   for (int i = 0; i < keys->length(); ++i) {
     Handle<Object> obj_key = handle(keys->get(i), isolate);
     Handle<Symbol> key(Symbol::cast(*obj_key), isolate);
     CHECK(key->is_private_name());
-    if (key->is_private_brand()) {
-      // TODO(v8:9839): get the private methods/accessors of the instance
-      // using the brand and add them to the entries.
-      continue;
-    }
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value, Object::GetProperty(isolate, receiver, key),
-        MaybeHandle<FixedArray>());
+    if (!(Object::GetProperty(isolate, receiver, key).ToHandle(&value))) {
+      DCHECK((isolate)->has_pending_exception());
+      return MaybeHandle<FixedArray>();
+    }
+    if (key->is_private_brand()) {
+      DCHECK(value->IsContext());
+      Handle<Context> context(Context::cast(*value), isolate);
+      Handle<ScopeInfo> scope_info(context->scope_info(), isolate);
+      int local_count = scope_info->ContextLocalCount();
 
-    entries->set(length++, *key);
-    entries->set(length++, *value);
+      for (int j = 0; j < local_count; ++j) {
+        VariableMode mode = scope_info->ContextLocalMode(j);
+        if (!IsPrivateMethodOrAccessorVariableMode(mode)) {
+          continue;
+        }
+
+        Handle<String> name(scope_info->ContextLocalName(j), isolate);
+        int context_index = scope_info->ContextHeaderLength() + j;
+        Handle<Object> slot_value(context->get(context_index), isolate);
+        DCHECK_IMPLIES(mode == VariableMode::kPrivateMethod,
+                       slot_value->IsJSFunction());
+        DCHECK_IMPLIES(mode != VariableMode::kPrivateMethod,
+                       slot_value->IsAccessorPair());
+        names->set(length, *name);
+        entries->set(length++, *slot_value);
+      }
+    } else {  // Private fields
+      Handle<String> name(String::cast(Symbol::cast(*key).description()),
+                          isolate);
+      names->set(length, *name);
+      entries->set(length++, *value);
+    }
   }
-  DCHECK_EQ(length, entries->length());
-  return FixedArray::ShrinkOrEmpty(isolate, entries, length);
+
+  DCHECK_EQ(entries->length(), names->length());
+  DCHECK_LE(length, names->length());
+  *members_out = FixedArray::ShrinkOrEmpty(isolate, entries, length);
+  return FixedArray::ShrinkOrEmpty(isolate, names, length);
 }
 
 }  // namespace internal
