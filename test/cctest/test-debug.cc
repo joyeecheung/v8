@@ -4836,6 +4836,11 @@ TEST(GetPrivateMethodsAndAccessors) {
 
   v8::Local<v8::String> source = v8_str(
       "var X = class {\n"
+      "  static #staticMethod() { }\n"
+      "  static get #staticAccessor() { }\n"
+      "  static set #staticAccessor(val) { }\n"
+      "  static get #staticReadOnly() { }\n"
+      "  static set #staticWriteOnly(val) { }\n"
       "  #method() { }\n"
       "  get #accessor() { }\n"
       "  set #accessor(val) { }\n"
@@ -4872,6 +4877,40 @@ TEST(GetPrivateMethodsAndAccessors) {
         CHECK(accessors->setter()->IsNull());
       } else {
         CHECK_EQ(name_str, "#writeOnly");
+        CHECK(accessors->getter()->IsNull());
+        CHECK(accessors->setter()->IsFunction());
+      }
+    }
+  }
+
+  object = v8::Local<v8::Object>::Cast(
+      env->Global()
+          ->Get(context, v8_str(env->GetIsolate(), "X"))
+          .ToLocalChecked());
+  names.clear();
+  values.clear();
+  CHECK(v8::debug::GetPrivateMembers(context, object, &names, &values));
+
+  CHECK_EQ(names.size(), 4);
+  for (int i = 0; i < 4; i++) {
+    v8::Local<v8::Value> name = names[i];
+    v8::Local<v8::Value> value = values[i];
+    CHECK(name->IsString());
+    std::string name_str = FromString(v8_isolate, name.As<v8::String>());
+    if (name_str == "#staticMethod") {
+      CHECK(value->IsFunction());
+    } else {
+      CHECK(v8::debug::AccessorPair::IsAccessorPair(value));
+      v8::Local<v8::debug::AccessorPair> accessors =
+          value.As<v8::debug::AccessorPair>();
+      if (name_str == "#staticAccessor") {
+        CHECK(accessors->getter()->IsFunction());
+        CHECK(accessors->setter()->IsFunction());
+      } else if (name_str == "#staticReadOnly") {
+        CHECK(accessors->getter()->IsFunction());
+        CHECK(accessors->setter()->IsNull());
+      } else {
+        CHECK_EQ(name_str, "#staticWriteOnly");
         CHECK(accessors->getter()->IsNull());
         CHECK(accessors->setter()->IsFunction());
       }
