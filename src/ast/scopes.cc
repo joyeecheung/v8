@@ -163,7 +163,7 @@ ClassScope::ClassScope(Isolate* isolate, Zone* zone,
     : Scope(zone, CLASS_SCOPE, scope_info),
       rare_data_and_is_parsing_heritage_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
-  if (scope_info->HasClassBrand()) {
+  if (scope_info->RequiresPrivateBrandInitialization()) {
     Variable* brand =
         LookupInScopeInfo(ast_value_factory->dot_brand_string(), this);
     DCHECK_NOT_NULL(brand);

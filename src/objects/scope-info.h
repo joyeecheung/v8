@@ -76,7 +76,7 @@ class ScopeInfo : public FixedArray, public TorqueGeneratedScopeFlagsFields {
   bool HasAllocatedReceiver() const;
 
   // Does this scope has class brand (for private methods)?
-  bool HasClassBrand() const;
+  bool RequiresPrivateBrandInitialization() const;
 
   // Does this scope contains a saved class variable context local slot index
   // for checking receivers of static private methods?

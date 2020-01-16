@@ -1232,7 +1232,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // The derived constructor case is handled in VisitCallSuper.
   if (IsBaseConstructor(function_kind())) {
-    if (literal->requires_brand_initialization()) {
+    if (literal->requires_private_brand_initialization()) {
       BuildPrivateBrandInitialization(builder()->Receiver());
     }
 

@@ -420,6 +420,19 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Check is this scope is an outer scope of the given scope.
   bool IsOuterScopeOf(Scope* other) const;
 
+  bool requires_private_brand_initialization() {
+    if (is_class_scope()) {
+      return AsClassScope()->brand() != nullptr;
+    } else if (is_declaration_scope()) {
+      if (!IsClassConstructor(AsDeclarationScope()->function_kind())) {
+        return false;
+      }
+      DCHECK(outer_scope()->is_class_scope());
+      return outer_scope()->AsClassScope()->brand() != nullptr;
+    }
+    return false;
+  }
+
   // ---------------------------------------------------------------------------
   // Accessors.
 

@@ -945,6 +945,8 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     if (has_error()) return nullptr;
     result->set_requires_instance_members_initializer(
         info->requires_instance_members_initializer());
+    result->set_requires_private_brand_initialization(
+        outer_function->requires_private_brand_initialization());
     if (info->is_oneshot_iife()) {
       result->mark_as_oneshot_iife();
     }
@@ -2989,6 +2991,10 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
     class_info->constructor->set_requires_instance_members_initializer(true);
     class_info->constructor->add_expected_properties(
         class_info->instance_fields->length());
+  }
+
+  if (class_info->requires_brand) {
+    class_info->constructor->set_requires_private_brand_initialization(true);
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(

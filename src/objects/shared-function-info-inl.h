@@ -184,6 +184,11 @@ int SharedFunctionInfo::function_token_position() const {
   }
 }
 
+bool SharedFunctionInfo::requires_private_brand_initialization() const {
+  DCHECK(name_or_scope_info().IsScopeInfo());
+  return scope_info().RequiresPrivateBrandInitialization();
+}
+
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)
 
