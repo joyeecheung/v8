@@ -1232,6 +1232,12 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // The derived constructor case is handled in VisitCallSuper.
   if (IsBaseConstructor(function_kind())) {
+    PrintF("\n[Use] BytecodeGenerator::GenerateBytecodeBody, ");
+    std::unique_ptr<char[]> name = literal->GetDebugName();
+    PrintF("%s, ", name.get());
+    PrintF("FunctionLiteral %s\n",
+           literal->requires_private_brand_initialization() ? "true" : "false");
+
     if (literal->requires_private_brand_initialization()) {
       BuildPrivateBrandInitialization(builder()->Receiver());
     }
@@ -4901,7 +4907,14 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   Register instance = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(instance);
 
-  if (info()->literal()->requires_brand_initialization()) {
+  PrintF("\n[Use] BytecodeGenerator::VisitCallSuper, ");
+  std::unique_ptr<char[]> name = info()->literal()->GetDebugName();
+  PrintF("%s, ", name.get());
+  PrintF("FunctionLiteral %s\n",
+         info()->literal()->requires_private_brand_initialization() ? "true"
+                                                                    : "false");
+
+  if (info()->literal()->requires_private_brand_initialization()) {
     BuildPrivateBrandInitialization(instance);
   }
 

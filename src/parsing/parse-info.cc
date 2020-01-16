@@ -81,6 +81,8 @@ void ParseInfo::SetFunctionInfo(T function) {
   set_function_syntax_kind(function->syntax_kind());
   set_requires_instance_members_initializer(
       function->requires_instance_members_initializer());
+  PrintF("%s\n",
+         function->requires_private_brand_initialization() ? "true" : "false");
   set_requires_private_brand_initialization(
       function->requires_private_brand_initialization());
   set_toplevel(function->is_toplevel());
@@ -100,6 +102,9 @@ ParseInfo::ParseInfo(Isolate* isolate, SharedFunctionInfo shared)
   set_start_position(shared.StartPosition());
   set_end_position(shared.EndPosition());
   function_literal_id_ = shared.function_literal_id();
+  PrintF("\n[Use] ParseInfo::ParseInfo, ");
+  shared.Name().Print();
+  PrintF(", SharedFunctionInfo -> ParseInfo ");
   SetFunctionInfo(&shared);
 
   Script script = Script::cast(shared.script());
@@ -158,6 +163,10 @@ std::unique_ptr<ParseInfo> ParseInfo::FromParent(
   result->set_start_position(literal->start_position());
   result->set_end_position(literal->end_position());
   result->set_function_literal_id(literal->function_literal_id());
+  PrintF("\n[Use] ParseInfo::FromParent, ");
+  PrintF("%.*s, ", cloned_function_name->length(),
+         cloned_function_name->raw_data());
+  PrintF(", FunctionLiteral -> ParseInfo ");
   result->SetFunctionInfo(literal);
 
   return result;

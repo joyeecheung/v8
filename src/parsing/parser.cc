@@ -945,6 +945,12 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     if (has_error()) return nullptr;
     result->set_requires_instance_members_initializer(
         info->requires_instance_members_initializer());
+    PrintF("[Set] Parser::DoParseFunction, ");
+    PrintF("%.*s, ", raw_name->length(), raw_name->raw_data());
+    PrintF("scope -> FunctionLiteral %s\n",
+           outer_function->requires_private_brand_initialization() ? "true"
+                                                                   : "false");
+
     result->set_requires_private_brand_initialization(
         outer_function->requires_private_brand_initialization());
     if (info->is_oneshot_iife()) {

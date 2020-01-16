@@ -136,7 +136,10 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     function_name_info = VariableAllocationInfo::NONE;
   }
 
-  const bool requries_brand = scope->requires_private_brand_initialization();
+  PrintF("\n[Use] ScopeInfo::Create, ");
+  scope->Print(0);
+
+  const bool requires_brand = scope->requires_private_brand_initialization();
   const bool should_save_class_variable_index =
       scope->is_class_scope()
           ? scope->AsClassScope()->should_save_class_variable_index()

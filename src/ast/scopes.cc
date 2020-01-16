@@ -1426,6 +1426,19 @@ bool Scope::IsOuterScopeOf(Scope* other) const {
   return false;
 }
 
+bool Scope::requires_private_brand_initialization() {
+  if (is_class_scope()) {
+    return AsClassScope()->brand() != nullptr;
+  } else if (is_declaration_scope()) {
+    if (!IsClassConstructor(AsDeclarationScope()->function_kind())) {
+      return false;
+    }
+    DCHECK(outer_scope()->is_class_scope());
+    return outer_scope()->AsClassScope()->brand() != nullptr;
+  }
+  return false;
+}
+
 void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
                              Isolate* isolate, ParseInfo* info,
                              Handle<StringSet>* non_locals) {
@@ -1782,6 +1795,9 @@ void Scope::Print(int n) {
   }
   if (private_name_lookup_skips_outer_class()) {
     Indent(n1, "// scope skips outer class for #-names\n");
+  }
+  if (requires_private_brand_initialization()) {
+    Indent(n1, "// requires private brand initialization\n");
   }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
   if (is_declaration_scope()) {
