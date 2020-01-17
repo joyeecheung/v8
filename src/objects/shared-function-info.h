@@ -493,8 +493,6 @@ class SharedFunctionInfo : public HeapObject,
   // when generating code later.
   DECL_BOOLEAN_ACCESSORS(requires_instance_members_initializer)
 
-  inline bool requires_private_brand_initialization() const;
-
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
   static Handle<Object> GetSourceCode(Handle<SharedFunctionInfo> shared);

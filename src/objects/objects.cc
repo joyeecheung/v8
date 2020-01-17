@@ -5346,6 +5346,10 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
       lit->requires_instance_members_initializer());
   // TODO(joyee): set scope info here?
 
+  PrintF("\n[Use] SharedFunctionInfo::InitFromFunctionLiteral, %s\n",
+         lit->requires_private_brand_initialization() ? "true" : "false");
+  lit->scope()->Print(0);
+
   shared_info->set_is_toplevel(is_toplevel);
   DCHECK(shared_info->outer_scope_info().IsTheHole());
   if (!is_toplevel) {

@@ -61,7 +61,8 @@ bool ScopeInfo::Equals(ScopeInfo other) const {
 
 // static
 Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
-                                    MaybeHandle<ScopeInfo> outer_scope) {
+                                    MaybeHandle<ScopeInfo> chained_outer_scope,
+                                    Scope* actual_outer_scope) {
   // Collect variables.
   int context_local_count = 0;
   int module_vars_count = 0;
@@ -139,6 +140,16 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   PrintF("\n[Use] ScopeInfo::Create, ");
   scope->Print(0);
 
+  if (!chained_outer_scope.is_null()) {
+    PrintF("\nchained outer scope\n");
+    chained_outer_scope.ToHandleChecked()->Print();
+  }
+
+  if (actual_outer_scope != nullptr) {
+    PrintF("\nactual outer scope\n");
+    actual_outer_scope->Print(0);
+  }
+
   const bool requires_brand = scope->requires_private_brand_initialization();
   const bool should_save_class_variable_index =
       scope->is_class_scope()
@@ -153,7 +164,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       scope->is_declaration_scope()
           ? scope->AsDeclarationScope()->num_parameters()
           : 0;
-  const bool has_outer_scope_info = !outer_scope.is_null();
+  const bool has_outer_scope_info = !chained_outer_scope.is_null();
 
   const int length = kVariablePartIndex + 2 * context_local_count +
                      (should_save_class_variable_index ? 1 : 0) +
@@ -354,7 +365,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     // If present, add the outer scope info.
     DCHECK(index == scope_info.OuterScopeInfoIndex());
     if (has_outer_scope_info) {
-      scope_info.set(index++, *outer_scope.ToHandleChecked(), mode);
+      scope_info.set(index++, *chained_outer_scope.ToHandleChecked(), mode);
     }
   }
 

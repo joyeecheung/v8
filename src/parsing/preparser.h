@@ -1289,8 +1289,13 @@ class PreParser : public ParserBase<PreParser> {
       SetLanguageMode(function_scope, LanguageMode::kStrict);
       function_scope->set_start_position(pos);
       function_scope->set_end_position(pos);
+      if (class_info->requires_brand) {
+        function_scope->set_outer_class_scope_has_private_brand(true);
+      }
       FunctionState function_state(&function_state_, &scope_, function_scope);
       GetNextFunctionLiteralId();
+    } else if (class_info->requires_brand) {
+      scope->MarkConstructorHasPrivateBrand();
     }
     if (class_info->has_static_class_fields) {
       GetNextFunctionLiteralId();

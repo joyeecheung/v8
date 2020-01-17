@@ -945,14 +945,13 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     if (has_error()) return nullptr;
     result->set_requires_instance_members_initializer(
         info->requires_instance_members_initializer());
-    PrintF("[Set] Parser::DoParseFunction, ");
-    PrintF("%.*s, ", raw_name->length(), raw_name->raw_data());
-    PrintF("scope -> FunctionLiteral %s\n",
-           outer_function->requires_private_brand_initialization() ? "true"
-                                                                   : "false");
+    PrintF("[Set] Parser::DoParseFunction, scope -> FunctionLiteral \n");
+    PrintF("info->requires_private_brand_initialization() %s\n",
+           info->requires_private_brand_initialization() ? "true" : "false");
+    result->scope()->Print(0);
+    // result->set_requires_private_brand_initialization(
+    //     info->literal()->requires_private_brand_initialization());
 
-    result->set_requires_private_brand_initialization(
-        outer_function->requires_private_brand_initialization());
     if (info->is_oneshot_iife()) {
       result->mark_as_oneshot_iife();
     }
@@ -3000,6 +2999,8 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   }
 
   if (class_info->requires_brand) {
+    class_info->constructor->scope()->set_outer_class_scope_has_private_brand(
+        true);
     class_info->constructor->set_requires_private_brand_initialization(true);
   }
 

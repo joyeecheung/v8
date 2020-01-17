@@ -420,7 +420,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Check is this scope is an outer scope of the given scope.
   bool IsOuterScopeOf(Scope* other) const;
 
-  bool requires_private_brand_initialization();
+  bool requires_private_brand_initialization() const;
 
   // ---------------------------------------------------------------------------
   // Accessors.
@@ -673,7 +673,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void AllocateVariablesRecursively();
 
   void AllocateScopeInfosRecursively(Isolate* isolate,
-                                     MaybeHandle<ScopeInfo> outer_scope);
+                                     MaybeHandle<ScopeInfo> chained_outer_scope,
+                                     Scope* actual_outer_scope);
 
   void AllocateDebuggerScopeInfos(Isolate* isolate,
                                   MaybeHandle<ScopeInfo> outer_scope);
@@ -1165,6 +1166,12 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool needs_private_name_context_chain_recalc() const {
     return needs_private_name_context_chain_recalc_;
   }
+  bool outer_class_scope_has_private_brand() const {
+    return outer_class_scope_has_private_brand_;
+  }
+  void set_outer_class_scope_has_private_brand(bool val) {
+    outer_class_scope_has_private_brand_ = val;
+  }
   void RecordNeedsPrivateNameContextChainRecalc();
 
   // Re-writes the {VariableLocation} of top-level 'let' bindings from CONTEXT
@@ -1216,6 +1223,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool has_this_reference_ : 1;
   bool has_this_declaration_ : 1;
   bool needs_private_name_context_chain_recalc_ : 1;
+  bool outer_class_scope_has_private_brand_ : 1;
 
   // If the scope is a function scope, this is the function kind.
   FunctionKind function_kind_;
@@ -1372,7 +1380,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   Variable* DeclareClassVariable(AstValueFactory* ast_value_factory,
                                  const AstRawString* name, int class_token_pos);
 
-  Variable* brand() {
+  Variable* brand() const {
     return GetRareData() == nullptr ? nullptr : GetRareData()->brand;
   }
 
@@ -1409,6 +1417,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
+  void MarkConstructorHasPrivateBrand();
+
  private:
   friend class Scope;
   friend class PrivateNameScopeIterator;
@@ -1430,7 +1440,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     Variable* brand = nullptr;
   };
 
-  V8_INLINE RareData* GetRareData() {
+  V8_INLINE RareData* GetRareData() const {
     return rare_data_and_is_parsing_heritage_.GetPointer();
   }
   V8_INLINE RareData* EnsureRareData() {

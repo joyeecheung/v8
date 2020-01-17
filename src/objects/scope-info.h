@@ -219,7 +219,8 @@ class ScopeInfo : public FixedArray, public TorqueGeneratedScopeFlagsFields {
 #endif
 
   static Handle<ScopeInfo> Create(Isolate* isolate, Zone* zone, Scope* scope,
-                                  MaybeHandle<ScopeInfo> outer_scope);
+                                  MaybeHandle<ScopeInfo> chained_outer_scope,
+                                  Scope* actual_outer_scope);
   static Handle<ScopeInfo> CreateForWithScope(
       Isolate* isolate, MaybeHandle<ScopeInfo> outer_scope);
   V8_EXPORT_PRIVATE static Handle<ScopeInfo> CreateForEmptyFunction(

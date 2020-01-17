@@ -221,6 +221,9 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
     DCHECK(!is_eval_scope());
     sloppy_eval_can_extend_vars_ = true;
   }
+  if (scope_info->RequiresPrivateBrandInitialization()) {
+    outer_class_scope_has_private_brand_ = true;
+  }
 }
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
@@ -257,6 +260,7 @@ void DeclarationScope::SetDefaults() {
   has_this_declaration_ =
       (is_function_scope() && !is_arrow_scope()) || is_module_scope();
   needs_private_name_context_chain_recalc_ = false;
+  outer_class_scope_has_private_brand_ = false;
   has_rest_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -1426,15 +1430,14 @@ bool Scope::IsOuterScopeOf(Scope* other) const {
   return false;
 }
 
-bool Scope::requires_private_brand_initialization() {
+bool Scope::requires_private_brand_initialization() const {
   if (is_class_scope()) {
     return AsClassScope()->brand() != nullptr;
   } else if (is_declaration_scope()) {
     if (!IsClassConstructor(AsDeclarationScope()->function_kind())) {
       return false;
     }
-    DCHECK(outer_scope()->is_class_scope());
-    return outer_scope()->AsClassScope()->brand() != nullptr;
+    return AsDeclarationScope()->outer_class_scope_has_private_brand();
   }
   return false;
 }
@@ -2465,23 +2468,28 @@ void Scope::AllocateVariablesRecursively() {
   });
 }
 
-void Scope::AllocateScopeInfosRecursively(Isolate* isolate,
-                                          MaybeHandle<ScopeInfo> outer_scope) {
+void Scope::AllocateScopeInfosRecursively(
+    Isolate* isolate, MaybeHandle<ScopeInfo> chained_outer_scope,
+    Scope* actual_outer_scope) {
+  PrintF("\nScope::AllocateScopeInfosRecursively, NeedsScopeInfo() = %s\n",
+         NeedsScopeInfo() ? "true" : "false");
   DCHECK(scope_info_.is_null());
-  MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
+  MaybeHandle<ScopeInfo> next_chained_outer_scope = chained_outer_scope;
 
   if (NeedsScopeInfo()) {
-    scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
+    scope_info_ = ScopeInfo::Create(isolate, zone(), this, chained_outer_scope,
+                                    actual_outer_scope);
     // The ScopeInfo chain should mirror the context chain, so we only link to
     // the next outer scope that needs a context.
-    if (NeedsContext()) next_outer_scope = scope_info_;
+    if (NeedsContext()) next_chained_outer_scope = scope_info_;
   }
 
   // Allocate ScopeInfos for inner scopes.
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     if (!scope->is_function_scope() ||
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
-      scope->AllocateScopeInfosRecursively(isolate, next_outer_scope);
+      scope->AllocateScopeInfosRecursively(isolate, next_chained_outer_scope,
+                                           this);
     }
   }
 }
@@ -2530,7 +2538,7 @@ void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
 // static
 void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
   DeclarationScope* scope = info->literal()->scope();
-
+  PrintF("\nDeclarationScope::AllocateScopeInfos\n");
   // No one else should have allocated a scope info for this scope yet.
   DCHECK(scope->scope_info_.is_null());
 
@@ -2542,15 +2550,16 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
   if (scope->needs_private_name_context_chain_recalc()) {
     scope->RecalcPrivateNameContextChain();
   }
-  scope->AllocateScopeInfosRecursively(isolate, outer_scope);
+  scope->AllocateScopeInfosRecursively(isolate, outer_scope,
+                                       scope->outer_scope_);
 
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure
   // it has one, even if it doesn't need a scope info.
   // TODO(jochen|yangguo): Remove this requirement.
   if (scope->scope_info_.is_null()) {
-    scope->scope_info_ =
-        ScopeInfo::Create(isolate, scope->zone(), scope, outer_scope);
+    scope->scope_info_ = ScopeInfo::Create(isolate, scope->zone(), scope,
+                                           outer_scope, scope->outer_scope_);
   }
 
   // Ensuring that the outer script scope has a scope info avoids having
@@ -2694,6 +2703,19 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DCHECK(was_added);
   var->AllocateTo(VariableLocation::CONTEXT, index);
   return var;
+}
+
+void ClassScope::MarkConstructorHasPrivateBrand() {
+  DCHECK_NOT_NULL(brand());
+  for (Scope* scope = inner_scope_; scope != nullptr;
+       scope = scope->sibling_) {
+    if (!scope->is_declaration_scope()) continue;
+    DeclarationScope* decl_scope = scope->AsDeclarationScope();
+    if (!IsClassConstructor(decl_scope->function_kind())) continue;
+    decl_scope->set_outer_class_scope_has_private_brand(true);
+    return;
+  }
+  return;
 }
 
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {

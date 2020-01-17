@@ -27,6 +27,8 @@ using NeedsPrivateNameContextChainRecalcField =
     InnerScopeCallsEvalField::Next<bool, 1>;
 using ShouldSaveClassVariableIndexField =
     NeedsPrivateNameContextChainRecalcField::Next<bool, 1>;
+using OuterClassScopeHasPrivateBrandField =
+    ShouldSaveClassVariableIndexField::Next<bool, 1>;
 
 using VariableMaybeAssignedField = base::BitField8<bool, 0, 1>;
 using VariableContextAllocatedField = VariableMaybeAssignedField::Next<bool, 1>;
@@ -366,7 +368,11 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
               ->needs_private_name_context_chain_recalc()) |
       ShouldSaveClassVariableIndexField::encode(
           scope->is_class_scope() &&
-          scope->AsClassScope()->should_save_class_variable_index());
+          scope->AsClassScope()->should_save_class_variable_index() |
+              OuterClassScopeHasPrivateBrandField::encode(
+                  scope->is_declaration_scope() &&
+                  scope->AsDeclarationScope()
+                      ->outer_class_scope_has_private_brand()));
   byte_data_.Reserve(kUint8Size);
   byte_data_.WriteUint8(eval_and_private_recalc);
 

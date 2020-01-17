@@ -2354,9 +2354,10 @@ class FunctionLiteral final : public Expression {
   void set_requires_private_brand_initialization(bool value) {
     bit_field_ = RequiresPrivateBrandInitialization::update(bit_field_, value);
   }
-  bool requires_private_brand_initialization() const {
-    return RequiresPrivateBrandInitialization::decode(bit_field_);
-  }
+  bool requires_private_brand_initialization() const;
+  //  {
+  //   return RequiresPrivateBrandInitialization::decode(bit_field_);
+  // }
 
   bool private_name_lookup_skips_outer_class() const;
 
