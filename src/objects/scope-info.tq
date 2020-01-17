@@ -37,6 +37,7 @@ bitfield struct ScopeFlags extends uint32 {
   has_outer_scope_info: bool: 1 bit;
   is_debug_evaluate_scope: bool: 1 bit;
   force_context_allocation: bool: 1 bit;
+  requires_private_brand_initialization: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
   has_context_extension_slot: bool: 1 bit;
   is_repl_mode_scope: bool: 1 bit;

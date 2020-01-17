@@ -264,7 +264,10 @@ bool PreparseDataBuilder::ScopeNeedsData(Scope* scope) {
   if (scope->is_function_scope()) {
     // Default constructors don't need data (they cannot contain inner functions
     // defined by the user). Other functions do.
-    return !IsDefaultConstructor(scope->AsDeclarationScope()->function_kind());
+    if (IsDefaultConstructor(scope->AsDeclarationScope()->function_kind())) {
+      return scope->AsDeclarationScope()->outer_class_scope_has_private_brand();
+    }
+    return true;
   }
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {

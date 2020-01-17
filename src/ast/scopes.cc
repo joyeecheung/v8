@@ -2707,8 +2707,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
 
 void ClassScope::MarkConstructorHasPrivateBrand() {
   DCHECK_NOT_NULL(brand());
-  for (Scope* scope = inner_scope_; scope != nullptr;
-       scope = scope->sibling_) {
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     if (!scope->is_declaration_scope()) continue;
     DeclarationScope* decl_scope = scope->AsDeclarationScope();
     if (!IsClassConstructor(decl_scope->function_kind())) continue;
