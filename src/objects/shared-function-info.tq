@@ -57,12 +57,17 @@ extern class SharedFunctionInfo extends HeapObject {
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 }
 
+bitfield struct UncompiledDataFlags extends uint32 {
+  requires_private_brand_initialization: bool : 1 bit;
+}
+
 @abstract
 @generateCppClass
 extern class UncompiledData extends HeapObject {
   inferred_name: String;
   start_position: int32;
   end_position: int32;
+  flags: UncompiledDataFlags;
 }
 
 @generateCppClass

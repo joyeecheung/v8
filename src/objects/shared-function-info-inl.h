@@ -643,6 +643,8 @@ void UncompiledDataWithPreparseData::Init(
       scope_data);
 }
 
+UINT8_ACCESSORS(UncompiledData, flags, kFlagsOffset)
+
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
   return function_data().IsWasmExportedFunctionData();
 }

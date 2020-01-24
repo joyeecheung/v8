@@ -105,6 +105,9 @@ class UncompiledData
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
 
+  // [flags] Bit field containing various flags about the function.
+  DECL_UINT8_ACCESSORS(flags)
+
   using BodyDescriptor =
       FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                           kHeaderSize>;
