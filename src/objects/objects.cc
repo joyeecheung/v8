@@ -2004,7 +2004,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       UncompiledDataWithoutPreparseData data =
           UncompiledDataWithoutPreparseData::cast(*this);
       os << "<UncompiledDataWithoutPreparseData (" << data.start_position()
-         << ", " << data.end_position() << ")]>";
+         << ", " << data.end_position() << ") brand="
+         << UncompiledData::cast(*this).outer_class_scope_has_private_brand()
+         << ">";
       break;
     }
 
@@ -2012,8 +2014,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       UncompiledDataWithPreparseData data =
           UncompiledDataWithPreparseData::cast(*this);
       os << "<UncompiledDataWithPreparseData (" << data.start_position() << ", "
-         << data.end_position() << ") preparsed=" << Brief(data.preparse_data())
-         << ">";
+         << data.end_position() << ") brand= "
+         << UncompiledData::cast(*this).outer_class_scope_has_private_brand()
+         << ", preparsed=" << Brief(data.preparse_data()) << ">";
       break;
     }
 
@@ -5347,7 +5350,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   // TODO(joyee): set scope info here?
 
   PrintF("\n[Use] SharedFunctionInfo::InitFromFunctionLiteral, %s\n",
-         lit->requires_private_brand_initialization() ? "true" : "false");
+         lit->outer_class_scope_has_private_brand() ? "true" : "false");
   lit->scope()->Print(0);
 
   shared_info->set_is_toplevel(is_toplevel);
@@ -5396,6 +5399,9 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     data = isolate->factory()->NewUncompiledDataWithoutPreparseData(
         lit->inferred_name(), lit->start_position(), lit->end_position());
   }
+
+  data->set_outer_class_scope_has_private_brand(
+      lit->outer_class_scope_has_private_brand());
 
   shared_info->set_uncompiled_data(*data);
 }

@@ -90,9 +90,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
                 requires_instance_members_initializer,
                 set_requires_instance_members_initializer)
-  FLAG_ACCESSOR(kRequiresPrivateBrandInitialization,
-                requires_private_brand_initialization,
-                set_requires_private_brand_initialization)
+  // FLAG_ACCESSOR(kRequiresPrivateBrandInitialization,
+  //               requires_private_brand_initialization,
+  //               set_requires_private_brand_initialization)
   FLAG_ACCESSOR(kMightAlwaysOpt, might_always_opt, set_might_always_opt)
   FLAG_ACCESSOR(kAllowNativeSyntax, allow_natives_syntax,
                 set_allow_natives_syntax)
@@ -329,7 +329,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kAllowHarmonyNullish = 1u << 28,
     kAllowHarmonyTopLevelAwait = 1u << 29,
     kREPLMode = 1u << 30,
-    kRequiresPrivateBrandInitialization = 1u << 31,
+    kOuterClassScopeHasPrivateBrand = 1u << 31,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

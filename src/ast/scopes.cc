@@ -1799,9 +1799,7 @@ void Scope::Print(int n) {
   if (private_name_lookup_skips_outer_class()) {
     Indent(n1, "// scope skips outer class for #-names\n");
   }
-  if (requires_private_brand_initialization()) {
-    Indent(n1, "// requires private brand initialization\n");
-  }
+
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
   if (is_declaration_scope()) {
     DeclarationScope* scope = AsDeclarationScope();
@@ -1809,6 +1807,9 @@ void Scope::Print(int n) {
     if (scope->ShouldEagerCompile()) Indent(n1, "// will be compiled\n");
     if (scope->needs_private_name_context_chain_recalc()) {
       Indent(n1, "// needs #-name context chain recalc\n");
+    }
+    if (scope->outer_class_scope_has_private_brand()) {
+      Indent(n1, "// outer class scope has private brand\n");
     }
   }
   if (num_stack_slots_ > 0) {

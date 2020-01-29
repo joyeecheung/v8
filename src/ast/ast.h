@@ -2351,13 +2351,10 @@ class FunctionLiteral final : public Expression {
     return RequiresInstanceMembersInitializer::decode(bit_field_);
   }
 
-  void set_requires_private_brand_initialization(bool value) {
-    bit_field_ = RequiresPrivateBrandInitialization::update(bit_field_, value);
+  void set_outer_class_scope_has_private_brand(bool value) {
+    bit_field_ = OuterClassScopeHasPrivateBrandField::update(bit_field_, value);
   }
-  bool requires_private_brand_initialization() const;
-  //  {
-  //   return RequiresPrivateBrandInitialization::decode(bit_field_);
-  // }
+  bool outer_class_scope_has_private_brand() const;
 
   bool private_name_lookup_skips_outer_class() const;
 
@@ -2409,9 +2406,9 @@ class FunctionLiteral final : public Expression {
       HasDuplicateParameters::Next<BailoutReason, 8>;
   using RequiresInstanceMembersInitializer =
       DontOptimizeReasonField::Next<bool, 1>;
-  using RequiresPrivateBrandInitialization =
+  using OuterClassScopeHasPrivateBrandField =
       DontOptimizeReasonField::Next<bool, 1>;
-  using HasBracesField = RequiresPrivateBrandInitialization::Next<bool, 1>;
+  using HasBracesField = OuterClassScopeHasPrivateBrandField::Next<bool, 1>;
   using OneshotIIFEBit = HasBracesField::Next<bool, 1>;
 
   // expected_property_count_ is the sum of instance fields and properties.

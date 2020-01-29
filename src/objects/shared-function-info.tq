@@ -58,7 +58,7 @@ extern class SharedFunctionInfo extends HeapObject {
 }
 
 bitfield struct UncompiledDataFlags extends uint32 {
-  requires_private_brand_initialization: bool : 1 bit;
+  outer_class_scope_has_private_brand: bool : 1 bit;
 }
 
 @abstract

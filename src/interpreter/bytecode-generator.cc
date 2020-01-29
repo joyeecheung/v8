@@ -1236,9 +1236,9 @@ void BytecodeGenerator::GenerateBytecodeBody() {
     std::unique_ptr<char[]> name = literal->GetDebugName();
     PrintF("%s, ", name.get());
     PrintF("FunctionLiteral %s\n",
-           literal->requires_private_brand_initialization() ? "true" : "false");
+           literal->outer_class_scope_has_private_brand() ? "true" : "false");
 
-    if (literal->requires_private_brand_initialization()) {
+    if (literal->outer_class_scope_has_private_brand()) {
       BuildPrivateBrandInitialization(builder()->Receiver());
     }
 
@@ -4911,10 +4911,10 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   std::unique_ptr<char[]> name = info()->literal()->GetDebugName();
   PrintF("%s, ", name.get());
   PrintF("FunctionLiteral %s\n",
-         info()->literal()->requires_private_brand_initialization() ? "true"
-                                                                    : "false");
+         info()->literal()->outer_class_scope_has_private_brand() ? "true"
+                                                                  : "false");
 
-  if (info()->literal()->requires_private_brand_initialization()) {
+  if (info()->literal()->outer_class_scope_has_private_brand()) {
     BuildPrivateBrandInitialization(instance);
   }
 

@@ -158,14 +158,14 @@ std::unique_ptr<ParseInfo> ParseInfo::FromParent(
   result->set_start_position(literal->start_position());
   result->set_end_position(literal->end_position());
   result->set_function_literal_id(literal->function_literal_id());
-  PrintF("\n[Use] ParseInfo::FromParent, ");
-  PrintF("%.*s, ", cloned_function_name->length(),
-         cloned_function_name->raw_data());
-  PrintF(", FunctionLiteral -> ParseInfo %s",
-         literal->requires_private_brand_initialization() ? "true" : "false");
+  // PrintF("\n[Use] ParseInfo::FromParent, ");
+  // PrintF("%.*s, ", cloned_function_name->length(),
+  //        cloned_function_name->raw_data());
+  // PrintF(", FunctionLiteral -> ParseInfo %s",
+  //        literal->outer_class_scope_has_private_brand() ? "true" : "false");
   result->SetFunctionInfo(literal);
-  result->set_requires_private_brand_initialization(
-      literal->requires_private_brand_initialization());
+  // result->set_outer_class_scope_has_private_brand(
+  //     literal->outer_class_scope_has_private_brand());
   return result;
 }
 

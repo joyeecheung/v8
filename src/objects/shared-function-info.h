@@ -97,7 +97,8 @@ class PreparseData
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
 class UncompiledData
-    : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject> {
+    : public TorqueGeneratedUncompiledData<UncompiledData, HeapObject>,
+      public TorqueGeneratedUncompiledDataFlagsFields {
  public:
   inline void Init(
       String inferred_name, int start_position, int end_position,
@@ -107,6 +108,9 @@ class UncompiledData
 
   // [flags] Bit field containing various flags about the function.
   DECL_UINT8_ACCESSORS(flags)
+
+  inline void set_outer_class_scope_has_private_brand(bool value);
+  inline bool outer_class_scope_has_private_brand() const;
 
   using BodyDescriptor =
       FixedBodyDescriptor<kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,

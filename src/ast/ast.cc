@@ -281,7 +281,7 @@ std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
   return result;
 }
 
-bool FunctionLiteral::requires_private_brand_initialization() const {
+bool FunctionLiteral::outer_class_scope_has_private_brand() const {
   // Scope* outer = scope_->outer_scope();
 
   // // If there are no variables declared in the outer scope other than
@@ -289,7 +289,7 @@ bool FunctionLiteral::requires_private_brand_initialization() const {
   // // the function is deserialized after preparsing.
   // if (!outer->is_class_scope()) return false;
 
-  return scope_->requires_private_brand_initialization();
+  return scope_->outer_class_scope_has_private_brand();
 }
 
 bool FunctionLiteral::private_name_lookup_skips_outer_class() const {

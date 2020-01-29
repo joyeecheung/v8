@@ -645,6 +645,14 @@ void UncompiledDataWithPreparseData::Init(
 
 UINT8_ACCESSORS(UncompiledData, flags, kFlagsOffset)
 
+void UncompiledData::set_outer_class_scope_has_private_brand(bool value) {
+  set_flags(OuterClassScopeHasPrivateBrandBit::update(flags(), value));
+}
+
+bool UncompiledData::outer_class_scope_has_private_brand() const {
+  return OuterClassScopeHasPrivateBrandBit::decode(flags());
+}
+
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
   return function_data().IsWasmExportedFunctionData();
 }

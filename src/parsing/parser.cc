@@ -799,6 +799,17 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   } else {
     result = DoParseFunction(isolate, info, info->function_name());
   }
+  PrintF("\n[Use] Parser::ParseFunction");
+  shared_info->Print();
+  if (shared_info->HasUncompiledData()) {
+    Handle<UncompiledData> data(shared_info->uncompiled_data(), isolate);
+    bool brand = data->outer_class_scope_has_private_brand();
+    PrintF("UncompiledData/SharedFunctionInfo -> FunctionLiteral, Scope %s\n",
+           brand ? "true" : "false");
+    result->set_outer_class_scope_has_private_brand(brand);
+    result->scope()->set_outer_class_scope_has_private_brand(brand);
+  }
+
   MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
   if (result != nullptr) {
@@ -945,12 +956,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     if (has_error()) return nullptr;
     result->set_requires_instance_members_initializer(
         info->requires_instance_members_initializer());
-    PrintF("[Set] Parser::DoParseFunction, scope -> FunctionLiteral \n");
-    PrintF("info->requires_private_brand_initialization() %s\n",
-           info->requires_private_brand_initialization() ? "true" : "false");
-    result->scope()->Print(0);
-    // result->set_requires_private_brand_initialization(
-    //     info->literal()->requires_private_brand_initialization());
 
     if (info->is_oneshot_iife()) {
       result->mark_as_oneshot_iife();
@@ -3001,7 +3006,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   if (class_info->requires_brand) {
     class_info->constructor->scope()->set_outer_class_scope_has_private_brand(
         true);
-    class_info->constructor->set_requires_private_brand_initialization(true);
+    class_info->constructor->set_outer_class_scope_has_private_brand(true);
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
