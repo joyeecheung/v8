@@ -4961,6 +4961,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   // All flags default to false or 0, except ConstructAsBuiltinBit just because
   // we're using the kIllegal builtin.
   set_flags(ConstructAsBuiltinBit::encode(true));
+  set_flags2(0);
 
   UpdateFunctionMapIndex();
 
@@ -5355,6 +5356,10 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
                  IsClassConstructor(lit->kind()));
   shared_info->set_requires_instance_members_initializer(
       lit->requires_instance_members_initializer());
+  DCHECK_IMPLIES(lit->outer_class_scope_has_private_brand(),
+                 IsClassConstructor(lit->kind()));
+  shared_info->set_outer_class_scope_has_private_brand(
+      lit->outer_class_scope_has_private_brand());
 
   shared_info->set_is_toplevel(is_toplevel);
   DCHECK(shared_info->outer_scope_info().IsTheHole());
