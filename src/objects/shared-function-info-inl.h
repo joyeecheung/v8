@@ -115,6 +115,7 @@ UINT16_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
 UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                  kFunctionTokenOffsetOffset)
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
+UINT8_ACCESSORS(SharedFunctionInfo, flags2, kFlags2Offset)
 
 bool SharedFunctionInfo::HasSharedName() const {
   Object value = name_or_scope_info();
@@ -183,6 +184,10 @@ int SharedFunctionInfo::function_token_position() const {
     return StartPosition() - offset;
   }
 }
+
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
+                    outer_class_scope_has_private_brand,
+                    SharedFunctionInfo::OuterClassScopeHasPrivateBrandBit)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)
