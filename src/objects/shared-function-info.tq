@@ -67,7 +67,6 @@ extern class UncompiledData extends HeapObject {
   inferred_name: String;
   start_position: int32;
   end_position: int32;
-  padding: uint32;
 }
 
 @generateCppClass
