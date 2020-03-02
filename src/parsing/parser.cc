@@ -2977,7 +2977,9 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
   if (class_info->requires_brand) {
     class_info->constructor->set_class_scope_has_private_brand(true);
   }
-
+  if (class_info->has_static_private_methods) {
+    class_info->constructor->set_class_scope_has_static_private_methods(true);
+  }
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       block_scope, class_info->extends, class_info->constructor,
       class_info->public_members, class_info->private_members,

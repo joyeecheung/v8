@@ -9366,9 +9366,9 @@ bool debug::GetPrivateMembers(Local<Context> context, Local<Object> value,
   if (receiver->IsJSFunction()) {
     i::Handle<i::JSFunction> func(i::JSFunction::cast(*receiver), isolate);
     i::Handle<i::SharedFunctionInfo> shared(func->shared(), isolate);
-    if (shared->is_class_constructor() && shared->scope_info().HasContext()) {
-      // TODO(joyee): have a bit in the scope info denoting whether it contains
-      // any static private methods/accessors and skip here?
+    if (shared->is_class_constructor() &&
+        shared->class_scope_has_static_private_methods()) {
+      has_static_private_methods_or_accessors = true;
       i::Handle<i::Context> context(func->context(), isolate);
       i::Handle<i::ScopeInfo> scope_info(context->scope_info(), isolate);
       int local_count = scope_info->ContextLocalCount();
@@ -9378,7 +9378,6 @@ bool debug::GetPrivateMembers(Local<Context> context, Local<Object> value,
             scope_info->ContextLocalIsStaticFlag(j);
         if (i::IsPrivateMethodOrAccessorVariableMode(mode) &&
             is_static_flag == i::IsStaticFlag::kStatic) {
-          has_static_private_methods_or_accessors = true;
           private_entries_count += local_count;
           break;
         }

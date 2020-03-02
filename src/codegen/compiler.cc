@@ -469,6 +469,8 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
       literal->class_scope_has_private_brand());
   shared_info->set_is_safe_to_skip_arguments_adaptor(
       literal->SafeToSkipArgumentsAdaptor());
+  shared_info->set_class_scope_has_static_private_methods(
+      literal->class_scope_has_static_private_methods());
 }
 
 CompilationJob::Status FinalizeUnoptimizedCompilationJob(

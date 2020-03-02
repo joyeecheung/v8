@@ -188,6 +188,10 @@ int SharedFunctionInfo::function_token_position() const {
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2, class_scope_has_private_brand,
                     SharedFunctionInfo::ClassScopeHasPrivateBrandBit)
 
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags2,
+                    class_scope_has_static_private_methods,
+                    SharedFunctionInfo::ClassScopeHasStaticPrivateMethodsBit)
+
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, syntax_kind,
                     SharedFunctionInfo::FunctionSyntaxKindBits)
 
