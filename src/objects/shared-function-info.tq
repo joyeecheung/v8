@@ -43,7 +43,7 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
 }
 
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {
-  outer_class_scope_has_private_brand: bool: 1 bit;
+  class_scope_has_private_brand: bool: 1 bit;
 }
 
 extern class SharedFunctionInfo extends HeapObject {

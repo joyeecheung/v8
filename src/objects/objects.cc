@@ -5366,10 +5366,10 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
                  IsClassConstructor(lit->kind()));
   shared_info->set_requires_instance_members_initializer(
       lit->requires_instance_members_initializer());
-  DCHECK_IMPLIES(lit->outer_class_scope_has_private_brand(),
+  DCHECK_IMPLIES(lit->class_scope_has_private_brand(),
                  IsClassConstructor(lit->kind()));
-  shared_info->set_outer_class_scope_has_private_brand(
-      lit->outer_class_scope_has_private_brand());
+  shared_info->set_class_scope_has_private_brand(
+      lit->class_scope_has_private_brand());
 
   shared_info->set_is_toplevel(is_toplevel);
   DCHECK(shared_info->outer_scope_info().IsTheHole());

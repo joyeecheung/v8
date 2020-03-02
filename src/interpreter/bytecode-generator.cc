@@ -1331,7 +1331,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // The derived constructor case is handled in VisitCallSuper.
   if (IsBaseConstructor(function_kind())) {
-    if (literal->outer_class_scope_has_private_brand()) {
+    if (literal->class_scope_has_private_brand()) {
       BuildPrivateBrandInitialization(builder()->Receiver());
     }
 
@@ -4998,7 +4998,7 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   Register instance = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(instance);
 
-  if (info()->literal()->outer_class_scope_has_private_brand()) {
+  if (info()->literal()->class_scope_has_private_brand()) {
     BuildPrivateBrandInitialization(instance);
   }
 
