@@ -142,6 +142,13 @@ void Deserializer::DeserializeDeferredObjects() {
       }
     }
   }
+
+  // When the deserialization of maps are deferred, they will be created
+  // as filler maps, and we postpone the post processing until the maps
+  // are also deserialized.
+  for (auto pair : fillers_to_post_process_) {
+    PostProcessNewObject(pair.first, pair.second);
+  }
 }
 
 void Deserializer::LogNewObjectEvents() {
@@ -213,6 +220,12 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
   DisallowHeapAllocation no_gc;
 
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
+    if (obj.IsFiller()) {
+      CHECK_EQ(fillers_to_post_process_.find(obj),
+               fillers_to_post_process_.end());
+      fillers_to_post_process_.insert({obj, space});
+    }
+
     if (obj.IsString()) {
       // Uninitialize hash field as we need to recompute the hash.
       String string = String::cast(obj);
