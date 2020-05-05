@@ -221,8 +221,8 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj,
 
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
     if (obj.IsFiller()) {
-      CHECK_EQ(fillers_to_post_process_.find(obj),
-               fillers_to_post_process_.end());
+      DCHECK_EQ(fillers_to_post_process_.find(obj),
+                fillers_to_post_process_.end());
       fillers_to_post_process_.insert({obj, space});
     }
 

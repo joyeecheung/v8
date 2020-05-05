@@ -2305,9 +2305,8 @@ bool HeapObject::NeedsRehashing() const {
     case TRANSITION_ARRAY_TYPE:
       return TransitionArray::cast(*this).number_of_entries() > 1;
     case ORDERED_HASH_MAP_TYPE:
-      return false;  // We'll rehash from the JSMap referecing it
     case ORDERED_HASH_SET_TYPE:
-      return false;  // We'll rehash from the JSSap referecing it
+      return false;  // We'll rehash from the JSMap or JSSet referecing them
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
