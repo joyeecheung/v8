@@ -3758,6 +3758,12 @@ UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
   i::FLAG_hash_seed = 42;
   i::FLAG_allow_natives_syntax = true;
   DisableEmbeddedBlobRefcounting();
+  size_t recursion = 32;  // Recurse until the components are deferred
+  std::string access_obj = "obj";
+  for (size_t i = 0; i < recursion - 2; ++i) {
+    access_obj += ".obj";
+  }
+
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator;
@@ -3767,14 +3773,29 @@ UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       // Create an object with an ordered hash table.
-      CompileRun(
-          "var m = new Map();"
-          "m.set('a', 1);"
-          "m.set('b', 2);"
-          "var s = new Set();"
-          "s.add(1)");
+      std::string test =
+          "var m = new Map();\n"
+          "m.set('a', 1);\n"
+          "m.set('b', 2);\n"
+          "var obj = {};\n";
+      for (size_t i = 1; i < recursion; ++i) {
+        test += "obj";
+        for (size_t j = 0; j < i; ++j) {
+          test += ".obj";
+        }
+        if (i == recursion - 1) {
+          test += "= new Set(Object.getOwnPropertyNames(globalThis));\n";
+        } else {
+          test += " = {};\n";
+        }
+      }
+      CompileRun(test.c_str());
       ExpectInt32("m.get('b')", 2);
-      ExpectTrue("s.has(1)");
+
+      test = access_obj + ".obj instanceof Set";
+      ExpectTrue(test.c_str());
+      test = access_obj + ".obj.has('Array')";
+      ExpectTrue(test.c_str());
       creator.SetDefaultContext(context);
     }
     blob =
@@ -3797,7 +3818,11 @@ UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
     CHECK(!context.IsEmpty());
     v8::Context::Scope context_scope(context);
     ExpectInt32("m.get('b')", 2);
-    ExpectTrue("s.has(1)");
+
+    std::string test = access_obj + ".obj instanceof Set";
+    ExpectTrue(test.c_str());
+    test = access_obj + ".obj.has('Array')";
+    ExpectTrue(test.c_str());
   }
   isolate->Dispose();
   delete[] blob.data;
