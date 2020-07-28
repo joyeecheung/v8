@@ -844,6 +844,12 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   scanner_.Initialize();
 
   FunctionLiteral* result;
+  FunctionKind kind = flags().function_kind();
+  if (IsClassMembersInitializerFunction(kind)) {
+    // TODO(joyee): parse it differently, as a list of property definitions
+    // and create an initializer function
+    shared_info->Print();
+  }
   if (V8_UNLIKELY(shared_info->private_name_lookup_skips_outer_class() &&
                   original_scope_->is_class_scope())) {
     // If the function skips the outer class and the outer scope is a class, the
