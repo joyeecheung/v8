@@ -2489,6 +2489,24 @@ Maybe<bool> Module::SetSyntheticModuleExport(Isolate* v8_isolate,
   return Just(true);
 }
 
+// static
+Local<Message> Module::GetStalledTopLevelAwaitMessage(Isolate* isolate,
+                                                      Local<Module> module) {
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::Module> self = Utils::OpenHandle(*module);
+  Utils::ApiCheck(self->IsSourceTextModule(),
+                  "v8::Module::GetStalledTopLevelAwaitMessage",
+                  "v8::Module::GetStalledTopLevelAwaitMessage must only be "
+                  "called on a SourceTextModule");
+  i::Handle<i::JSMessageObject> message;
+  if (!i::SourceTextModule::GetStalledTopLevelAwaitMessage(
+           i_isolate, i::Handle<i::SourceTextModule>::cast(self))
+           .ToHandle(&message)) {
+    return Local<Message>();
+  }
+  return ToApiHandle<Message>(message);
+}
+
 namespace {
 
 i::ScriptDetails GetScriptDetails(

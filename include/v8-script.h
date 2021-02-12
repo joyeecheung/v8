@@ -20,6 +20,7 @@
 namespace v8 {
 
 class Function;
+class Message;
 class Object;
 class PrimitiveArray;
 class Script;
@@ -285,6 +286,14 @@ class V8_EXPORT Module : public Data {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetSyntheticModuleExport(
       Isolate* isolate, Local<String> export_name, Local<Value> export_value);
+
+  /**
+   * Get an error message for an occurance of top-level await which has not yet
+   * resolved. An embedder may call this before exiting to improve error
+   * messages.
+   */
+  static Local<Message> GetStalledTopLevelAwaitMessage(Isolate* isolate,
+                                                       Local<Module> module);
 
   V8_INLINE static Module* Cast(Data* data);
 

@@ -47,6 +47,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/execution/v8threads.h"
+#include "src/execution/microtask-queue.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/maybe-handles.h"
@@ -1459,7 +1460,10 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
   // Loop until module execution finishes
   Local<Promise> result_promise(result.As<Promise>());
-  while (result_promise->State() == Promise::kPending) {
+  while (result_promise->State() == Promise::kPending &&
+          reinterpret_cast<i::Isolate*>(isolate)
+                  ->default_microtask_queue()
+                  ->size() > 0) {
     Shell::CompleteMessageLoop(isolate);
   }
 
@@ -1474,6 +1478,13 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
       DCHECK_EQ(try_catch.Exception(), result_promise->Result());
     }
     ReportException(isolate, &try_catch);
+    return false;
+  }
+
+  Local<Message> stalled =
+      Module::GetStalledTopLevelAwaitMessage(isolate, root_module);
+  if (!stalled.IsEmpty()) {
+    ReportException(isolate, stalled, Local<Object>());
     return false;
   }
 

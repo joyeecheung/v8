@@ -24435,6 +24435,62 @@ TEST(ImportFromSyntheticModuleThrow) {
   CHECK(try_catch.HasCaught());
 }
 
+namespace {
+
+v8::MaybeLocal<Module> StalledTLADetectionResolve(Local<Context>, Local<String>,
+                                                  Local<FixedArray> assertions,
+                                                  Local<Module>) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::ScriptOrigin origin(isolate, v8_str("dep.mjs"), 0, 0, false, -1,
+                          Local<Value>(), false, false, true);
+  v8::ScriptCompiler::Source source(v8_str("const a = true;\n"
+                                           "if (a) {\n"
+                                           "  await new Promise(() => {});\n"
+                                           "}\n"),
+                                    origin);
+  return v8::ScriptCompiler::CompileModule(isolate, &source);
+}
+
+}  // namespace
+
+TEST(StalledTLADetection) {
+  i::FLAG_harmony_top_level_await = true;
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate::Scope iscope(isolate);
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope cscope(context);
+
+  v8::ScriptOrigin origin(isolate, v8_str("root.mjs"), 0, 0, false, -1,
+                          Local<Value>(), false, false, true);
+  v8::ScriptCompiler::Source source(v8_str("import 'dep';"), origin);
+  Local<Module> root =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+
+  CHECK(root->InstantiateModule(context, StalledTLADetectionResolve)
+            .FromMaybe(false));
+
+  Local<v8::Promise> promise =
+      root->Evaluate(context).ToLocalChecked().As<v8::Promise>();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kPending);
+  isolate->PerformMicrotaskCheckpoint();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kPending);
+
+  Local<Message> message =
+      Module::GetStalledTopLevelAwaitMessage(isolate, root);
+
+  CHECK(message->Get()->StrictEquals(
+      v8_str("Top-level await promise never resolved")));
+  CHECK(message->GetScriptResourceName()->StrictEquals(v8_str("dep.mjs")));
+  CHECK(message->GetSourceLine(context).ToLocalChecked()->StrictEquals(
+      v8_str("  await new Promise(() => {});")));
+  CHECK_EQ(message->GetLineNumber(context).ToChecked(), 3);
+  CHECK_EQ(message->GetStartColumn(context).ToChecked(), 2);
+  CHECK_EQ(message->GetEndColumn(context).ToChecked(), 3);
+}
+
 // Tests that the code cache does not confuse the same source code compiled as a
 // script and as a module.
 TEST(CodeCacheModuleScriptMismatch) {

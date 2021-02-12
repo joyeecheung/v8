@@ -1186,5 +1186,56 @@ void SourceTextModule::Reset(Isolate* isolate,
   module->set_dfs_ancestor_index(-1);
 }
 
+MaybeHandle<JSMessageObject> SourceTextModule::GetStalledTopLevelAwaitMessage(
+    Isolate* isolate, Handle<SourceTextModule> module) {
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  UnorderedModuleSet visited(&zone);
+  Handle<SourceTextModule> found;
+  if (!InnerGetStalledTopLevelAwaitModule(isolate, module, &visited)
+           .ToHandle(&found)) {
+    return {};
+  }
+  CHECK(found->code().IsJSGeneratorObject());
+  Handle<JSGeneratorObject> code(JSGeneratorObject::cast(found->code()),
+                                 isolate);
+  CHECK(code->input_or_debug_pos().IsSmi());
+  int pos = Smi::ToInt(code->input_or_debug_pos());
+  Handle<SharedFunctionInfo> shared(found->GetSharedFunctionInfo(), isolate);
+  Handle<Object> script(shared->script(), isolate);
+  MessageLocation location =
+      MessageLocation(Handle<Script>::cast(script), shared, pos);
+  return MessageHandler::MakeMessageObject(
+      isolate, MessageTemplate::kTopLevelAwaitStalled, &location,
+      isolate->factory()->null_value(), Handle<FixedArray>());
+}
+
+// static
+MaybeHandle<SourceTextModule>
+SourceTextModule::InnerGetStalledTopLevelAwaitModule(
+    Isolate* isolate, Handle<SourceTextModule> module,
+    UnorderedModuleSet* visited) {
+  if (!visited->insert(module).second) {
+    return {};
+  }
+  if (!module->HasPendingAsyncDependencies() && module->async_evaluating()) {
+    return module;
+  }
+  Handle<FixedArray> requested_modules(module->requested_modules(), isolate);
+  for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+    Handle<Module> requested_module(Module::cast(requested_modules->get(i)),
+                                    isolate);
+    if (requested_module->IsSourceTextModule()) {
+      Handle<SourceTextModule> required_module(
+          SourceTextModule::cast(*requested_module), isolate);
+      Handle<SourceTextModule> found;
+      if (InnerGetStalledTopLevelAwaitModule(isolate, required_module, visited)
+              .ToHandle(&found)) {
+        return found;
+      }
+    }
+  }
+  return {};
+}
+
 }  // namespace internal
 }  // namespace v8

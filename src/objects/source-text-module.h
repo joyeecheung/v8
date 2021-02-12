@@ -83,6 +83,10 @@ class SourceTextModule
     kContextLength,
   };
 
+  V8_EXPORT_PRIVATE static MaybeHandle<JSMessageObject>
+  GetStalledTopLevelAwaitMessage(Isolate* isolate,
+                                 Handle<SourceTextModule> module);
+
  private:
   friend class Factory;
   friend class Module;
@@ -212,6 +216,11 @@ class SourceTextModule
                                  Handle<SourceTextModule> module);
 
   static void Reset(Isolate* isolate, Handle<SourceTextModule> module);
+
+  V8_EXPORT_PRIVATE static MaybeHandle<SourceTextModule>
+  InnerGetStalledTopLevelAwaitModule(Isolate* isolate,
+                                     Handle<SourceTextModule> module,
+                                     UnorderedModuleSet* visited);
 
   TQ_OBJECT_CONSTRUCTORS(SourceTextModule)
 };
