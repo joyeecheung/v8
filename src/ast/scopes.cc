@@ -1702,6 +1702,7 @@ namespace {
 const char* Header(ScopeType scope_type, FunctionKind function_kind,
                    bool is_declaration_scope) {
   switch (scope_type) {
+    case EMPTY_SCOPE: return "empty";
     case EVAL_SCOPE: return "eval";
     case FUNCTION_SCOPE:
       if (IsGeneratorFunction(function_kind)) return "function*";
