@@ -859,11 +859,13 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     // function is in heritage position. Otherwise the function scope's skip bit
     // will be correctly inherited from the outer scope.
     ClassScope::HeritageParsingScope heritage(original_scope_->AsClassScope());
-    result = DoParseFunction(isolate, info, start_position, end_position,
-                             function_literal_id, info->function_name());
+    result = DoParseDeserializedFunction(
+        isolate, shared_info, info, start_position, end_position,
+        function_literal_id, info->function_name());
   } else {
-    result = DoParseFunction(isolate, info, start_position, end_position,
-                             function_literal_id, info->function_name());
+    result = DoParseDeserializedFunction(
+        isolate, shared_info, info, start_position, end_position,
+        function_literal_id, info->function_name());
   }
   MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);
@@ -1025,6 +1027,48 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
   return result;
+}
+
+FunctionLiteral* Parser::DoParseDeserializedFunction(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info, ParseInfo* info,
+    int start_position, int end_position, int function_literal_id,
+    const AstRawString* raw_name) {
+  bool is_constructor_with_instance_initializtion =
+      IsClassConstructor(flags().function_kind()) &&
+      shared_info->requires_instance_members_initializer();
+  if (!is_constructor_with_instance_initializtion) {
+    return DoParseFunction(isolate, info, start_position, end_position,
+                           function_literal_id, raw_name);
+  }
+  // Scanner::BookmarkScope constructor_bookmark(scanner());
+  // constructor_bookmark.Set(start_position);
+
+  // TODO(joyee): reparse the outer class while skipping the non-fields to
+  // get a list of ClassLiteralProperty and create a
+  // InitializeClassMembersStatement and insert it into the body of the
+  // constructorl later. We need to also do something about the new.target so
+  // that they are invalid in the initializers, as well as make sure that the
+  // intializers run in a dedicated DeclarationScope
+  DCHECK(shared_info->HasOuterScopeInfo());
+  Handle<ScopeInfo> outer_scope_info =
+      handle(shared_info->GetOuterScopeInfo(), isolate);
+  int class_start = outer_scope_info->StartPosition();
+  int class_end = outer_scope_info->EndPosition();
+
+  {
+    Handle<String> source = handle(
+        String::cast(Script::cast(shared_info->script()).source()), isolate);
+    std::unique_ptr<char[]> source_string =
+        source->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, class_start,
+                          class_end - class_start, nullptr);  printf("shared_info:\n");
+    shared_info->Print();
+    printf("shared_info->GetOuterScopeInfo():\n");
+    shared_info->GetOuterScopeInfo().Print();
+    printf("Class source:\n%s\n", source_string.get());
+  }
+
+  return DoParseFunction(isolate, info, start_position, end_position,
+                          function_literal_id, raw_name);
 }
 
 Statement* Parser::ParseModuleItem() {
@@ -3161,10 +3205,15 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
 
   FunctionLiteral* instance_members_initializer_function = nullptr;
   if (class_info->has_instance_members) {
-    instance_members_initializer_function = CreateInitializerFunction(
-        "<instance_members_initializer>", class_info->instance_members_scope,
+    // instance_members_initializer_function = CreateInitializerFunction(
+    //     "<instance_members_initializer>", class_info->instance_members_scope,
+    //     factory()->NewInitializeClassMembersStatement(
+    //         class_info->instance_fields, kNoSourcePosition));
+    InitializeClassMembersStatement* stmt =
         factory()->NewInitializeClassMembersStatement(
-            class_info->instance_fields, kNoSourcePosition));
+            class_info->instance_fields,
+            kNoSourcePosition);
+    class_info->constructor->body()->InsertAt(0, stmt, zone());
     class_info->constructor->set_requires_instance_members_initializer(true);
     class_info->constructor->add_expected_properties(
         class_info->instance_fields->length());
