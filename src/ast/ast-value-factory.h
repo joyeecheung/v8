@@ -67,6 +67,8 @@ class AstRawString final : public ZoneObject {
 
   template <typename IsolateT>
   void Internalize(IsolateT* isolate);
+  template <typename IsolateT>
+  Handle<String> GetInternalized(IsolateT* isolate) const;
 
   // Access the physical representation:
   bool is_one_byte() const { return is_one_byte_; }
@@ -140,6 +142,11 @@ extern template EXPORT_TEMPLATE_DECLARE(
     V8_EXPORT_PRIVATE) void AstRawString::Internalize(Isolate* isolate);
 extern template EXPORT_TEMPLATE_DECLARE(
     V8_EXPORT_PRIVATE) void AstRawString::Internalize(LocalIsolate* isolate);
+
+extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    Handle<String> AstRawString::GetInternalized(Isolate* isolate) const;
+extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+    Handle<String> AstRawString::GetInternalized(LocalIsolate* isolate) const;
 
 class AstConsString final : public ZoneObject {
  public:

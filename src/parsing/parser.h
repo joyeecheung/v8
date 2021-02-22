@@ -231,6 +231,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                    int function_literal_id,
                                    const AstRawString* raw_name);
 
+  FunctionLiteral* DoParseDeserializedFunction(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared_info, ParseInfo* info,
+      int start_position, int end_position, int function_literal_id,
+      const AstRawString* raw_name);
+  FunctionLiteral* ParseAndRewriteClassConstructor(Isolate* isolate,
+                                                   ClassScope* scope,
+                                                   int constructor_pos,
+                                                   int constructor_id);
+
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
 
@@ -416,8 +425,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                int var_end_pos = kNoSourcePosition);
 
   // Factory methods.
-  FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
-                                      int pos, int end_pos);
+  ClassConstructor* DefaultConstructor(const AstRawString* name,
+                                       bool call_super, int pos, int end_pos);
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.

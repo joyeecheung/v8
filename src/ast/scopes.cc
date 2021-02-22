@@ -192,6 +192,10 @@ ClassScope::ClassScope(Isolate* isolate, Zone* zone,
     : Scope(zone, CLASS_SCOPE, ast_value_factory, scope_info),
       rare_data_and_is_parsing_heritage_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
+  if (scope_info->HasPositionInfo()) {
+    set_start_position(scope_info->StartPosition());
+    set_end_position(scope_info->EndPosition());
+  }
   if (scope_info->HasClassBrand()) {
     Variable* brand =
         LookupInScopeInfo(ast_value_factory->dot_brand_string(), this);
@@ -621,12 +625,12 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   }
 }
 
-bool DeclarationScope::Analyze(ParseInfo* info) {
+bool DeclarationScope::Analyze(ParseInfo* info, DeclarationScope* additional) {
   RCS_SCOPE(info->runtime_call_stats(),
             RuntimeCallCounterId::kCompileScopeAnalysis,
             RuntimeCallStats::kThreadSpecific);
   DCHECK_NOT_NULL(info->literal());
-  DeclarationScope* scope = info->literal()->scope();
+  DeclarationScope* scope = additional ? additional : info->literal()->scope();
 
   base::Optional<AllowHandleDereference> allow_deref;
 #ifdef DEBUG
@@ -644,8 +648,10 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // 1) top-level code,
   // 2) a function/eval/module on the top-level
   // 3) a function/eval in a scope that was already resolved.
+  // 4): a constructor in a class scope that's not yet resolved.
   DCHECK(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
-         scope->outer_scope()->already_resolved_);
+         scope->outer_scope()->already_resolved_ ||
+         scope->outer_scope()->IsReparsedClassScope());
 
   // The outer scope is never lazy.
   scope->set_should_eager_compile();
@@ -668,7 +674,10 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   scope->CheckScopePositions();
   scope->CheckZones();
 #endif
-
+  if (additional == nullptr && scope->outer_scope() != nullptr &&
+      scope->outer_scope()->IsReparsedClassScope()) {
+    scope->outer_scope()->AsClassScope()->DoneReparseFromConstructor(info);
+  }
   return true;
 }
 
@@ -883,6 +892,11 @@ void Scope::ReplaceOuterScope(Scope* outer) {
 }
 
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
+  return LookupInScopeInfo(name, name->string(), cache);
+}
+
+Variable* Scope::LookupInScopeInfo(const AstRawString* name,
+                                   Handle<String> name_string, Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK(this->IsOuterScopeOf(cache));
   DCHECK(!cache->deserialized_scope_uses_external_cache());
@@ -894,7 +908,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowGarbageCollection no_gc;
 
-  String name_handle = *name->string();
+  String name_handle = *name_string;
   ScopeInfo scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
@@ -1433,6 +1447,21 @@ DeclarationScope* Scope::GetReceiverScope() {
   return scope->AsDeclarationScope();
 }
 
+ClassScope* Scope::GetInitializerClassScope() {
+  Scope* scope = this;
+  while (scope != nullptr) {
+    if (scope->private_name_lookup_skips_outer_class()) {
+      DCHECK(scope->outer_scope()->is_class_scope());
+      scope = scope->outer_scope()->outer_scope();
+    } else if (scope->is_class_scope()) {
+      return scope->AsClassScope();
+    } else {
+      scope = scope->outer_scope();
+    }
+  }
+  return nullptr;
+}
+
 Scope* Scope::GetHomeObjectScope() {
   Scope* scope = this;
   while (scope != nullptr && !scope->is_home_object_scope()) {
@@ -1706,6 +1735,8 @@ namespace {
 const char* Header(ScopeType scope_type, FunctionKind function_kind,
                    bool is_declaration_scope) {
   switch (scope_type) {
+    case EMPTY_SCOPE:
+      return "empty";
     case EVAL_SCOPE: return "eval";
     case FUNCTION_SCOPE:
       if (IsGeneratorFunction(function_kind)) return "function*";
@@ -1872,6 +1903,8 @@ void Scope::Print(int n) {
     if (scope->needs_private_name_context_chain_recalc()) {
       Indent(n1, "// needs #-name context chain recalc\n");
     }
+    Indent(n1, "// ");
+    PrintF("%s\n", FunctionKind2String(scope->function_kind()));
   }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
@@ -1963,6 +1996,18 @@ void Scope::CheckZones() {
   });
 }
 #endif  // DEBUG
+
+bool Scope::IsReparsedClassScope() const {
+  return is_class_scope() &&
+         AsClassScope()->is_being_reparsed_from_constructor();
+}
+
+DeclarationScope* Scope::GetClassInitializerScope() const {
+  if (!is_class_scope()) {
+    return nullptr;
+  }
+  return AsClassScope()->initializer_scope();
+}
 
 Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Declare a new non-local.
@@ -2514,7 +2559,9 @@ void Scope::AllocateVariablesRecursively() {
         (scope->is_function_scope() &&
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
         (scope->is_block_scope() && scope->is_declaration_scope() &&
-         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
+         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
+        (scope->GetClassInitializerScope() != nullptr);
+    // TODO(joyee): do this only when the class constructor needs initializers
 
     // If we didn't allocate any locals in the local context, then we only
     // need the minimal number of slots if we must have a context.
@@ -2617,7 +2664,22 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, IsolateT* isolate) {
   if (scope->needs_private_name_context_chain_recalc()) {
     scope->RecalcPrivateNameContextChain();
   }
+
   scope->AllocateScopeInfosRecursively(isolate, outer_scope);
+
+  // Make sure the ClassMembersInitializerFunction has the scope info.
+  // TODO(joyee): should we visit the inner scopes?
+  if (scope->is_declaration_scope() &&
+      IsClassConstructor(scope->AsDeclarationScope()->function_kind())) {
+    DCHECK_NOT_NULL(scope->outer_scope());
+    DCHECK(scope->outer_scope()->is_class_scope());
+    ClassScope* class_scope = scope->outer_scope()->AsClassScope();
+    DeclarationScope* initializer_scope = class_scope->initializer_scope();
+    if (initializer_scope != nullptr) {
+      initializer_scope->AllocateScopeInfosRecursively(
+          isolate, class_scope->scope_info());
+    }
+  }
 
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure
@@ -2659,6 +2721,39 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
     default:
       return false;
   }
+}
+
+void ClassScope::PrepareForReparseFromConstructor() {
+#ifdef DEBUG
+  already_resolved_ = false;
+#endif
+  is_being_reparsed_from_constructor_ = true;
+}
+
+void ClassScope::DoneReparseFromConstructor(ParseInfo* info) {
+#ifdef DEBUG
+  already_resolved_ = true;
+#endif
+  is_being_reparsed_from_constructor_ = false;
+
+  Scope* class_scope = this;
+  // Resolve all unresolved variables in the inner scopes
+  this->ForEach([class_scope, info](Scope* scope) {
+    if (scope == class_scope) {
+      return Iteration::kDescend;
+    }
+
+    // Only analyze initializer scopes, the constructor would be analyzed
+    // normally by the parser.
+    if (scope->outer_scope() == class_scope && scope->is_declaration_scope() &&
+        scope->AsDeclarationScope()->function_kind() ==
+            FunctionKind::kClassMembersInitializerFunction) {
+      bool resolved =
+          DeclarationScope::Analyze(info, scope->AsDeclarationScope());
+      CHECK(resolved);
+    }
+    return Iteration::kContinue;
+  });
 }
 
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
@@ -2745,15 +2840,15 @@ void ClassScope::MigrateUnresolvedPrivateNameTail(
   rare_data->unresolved_private_names.Append(std::move(migrated_names));
 }
 
-Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
+Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name,
+                                                   Handle<String> name_string) {
   DCHECK(!scope_info_.is_null());
   DCHECK_NULL(LookupLocalPrivateName(name));
   DisallowGarbageCollection no_gc;
 
-  String name_handle = *name->string();
   VariableLookupResult lookup_result;
   int index =
-      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &lookup_result);
+      ScopeInfo::ContextSlotIndex(*scope_info_, *name_string, &lookup_result);
   if (index < 0) {
     return nullptr;
   }
@@ -2772,6 +2867,25 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   return var;
 }
 
+Variable* ClassScope::LookupLocalVariable(Isolate* isolate,
+                                          const AstRawString* name) {
+  Variable* var = nullptr;
+  if (name->IsPrivateName()) {
+    var = LookupLocalPrivateName(name);
+    if (var == nullptr && !scope_info_.is_null()) {
+      Handle<String> name_string = name->GetInternalized(isolate);
+      var = LookupPrivateNameInScopeInfo(name, name_string);
+    }
+  } else {
+    var = LookupLocal(name);
+    if (var == nullptr && !scope_info_.is_null()) {
+      Handle<String> name_string = name->GetInternalized(isolate);
+      var = LookupInScopeInfo(name, name_string, this);
+    }
+  }
+  return var;
+}
+
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
 
@@ -2782,7 +2896,8 @@ Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
     // try the deseralized scope info.
     Variable* var = scope->LookupLocalPrivateName(proxy->raw_name());
     if (var == nullptr && !scope->scope_info_.is_null()) {
-      var = scope->LookupPrivateNameInScopeInfo(proxy->raw_name());
+      var = scope->LookupPrivateNameInScopeInfo(proxy->raw_name(),
+                                                proxy->raw_name()->string());
     }
     if (var != nullptr) {
       return var;

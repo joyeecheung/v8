@@ -686,6 +686,18 @@ class PreParserFactory {
     DCHECK_NULL(produced_preparse_data);
     return PreParserExpression::Default();
   }
+  PreParserExpression NewClassConstructor(
+      const PreParserIdentifier& name, Scope* scope,
+      const PreParserScopedStatementList& body, int expected_property_count,
+      int parameter_count, int function_length,
+      FunctionLiteral::ParameterFlag has_duplicate_parameters,
+      FunctionSyntaxKind function_syntax_kind,
+      FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
+      bool has_braces, int function_literal_id,
+      ProducedPreparseData* produced_preparse_data = nullptr) {
+    DCHECK_NULL(produced_preparse_data);
+    return PreParserExpression::Default();
+  }
 
   PreParserExpression NewSpread(const PreParserExpression& expression, int pos,
                                 int expr_pos) {
@@ -1262,6 +1274,7 @@ class PreParser : public ParserBase<PreParser> {
     }
     if (class_info->has_instance_members) {
       GetNextFunctionLiteralId();
+      scope->set_initializer_scope(class_info->instance_members_scope);
     }
     return PreParserExpression::Default();
   }

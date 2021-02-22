@@ -206,6 +206,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   Variable* LookupInScopeInfo(const AstRawString* name, Scope* cache);
+  Variable* LookupInScopeInfo(const AstRawString* name,
+                              Handle<String> name_string, Scope* cache);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
@@ -413,13 +415,17 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return (language_mode() > outer_scope_->language_mode());
   }
 
+  // Only returns a pointer if it's a class scope and has initializers,
+  // otherwise returns now.
+  DeclarationScope* GetClassInitializerScope() const;
+
   // Whether this needs to be represented by a runtime context.
   bool NeedsContext() const {
     // Catch scopes always have heap slots.
     DCHECK_IMPLIES(is_catch_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(is_with_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(ForceContextForLanguageMode(), num_heap_slots() > 0);
-    return num_heap_slots() > 0;
+    return num_heap_slots() > 0 || GetClassInitializerScope() != nullptr;
   }
 
   // Use Scope::ForEach for depth first traversal of scopes.
@@ -544,6 +550,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
 
+  // Find the first class scope in the outer scopes for the initializer.
+  // If there isn't one, return nullptr.
+  ClassScope* GetInitializerClassScope();
+
   // Find the first class scope or object literal block scope. This is where
   // 'super' is bound.
   Scope* GetHomeObjectScope();
@@ -557,6 +567,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Analyze() must have been called once to create the ScopeInfo.
   Handle<ScopeInfo> scope_info() const {
+    if (scope_info_.is_null()) {
+      const_cast<Scope*>(this)->Print(2);
+    }
     DCHECK(!scope_info_.is_null());
     return scope_info_;
   }
@@ -575,6 +588,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Check that all Scopes in the scope tree use the same Zone.
   void CheckZones();
 #endif
+
+  bool IsReparsedClassScope() const;
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
   bool HasSimpleParameters();
@@ -1139,7 +1154,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // ParseInfo's pending_error_handler will be populated with an
   // error. Otherwise, returns true.
   V8_WARN_UNUSED_RESULT
-  static bool Analyze(ParseInfo* info);
+  static bool Analyze(ParseInfo* info, DeclarationScope* additional = nullptr);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope contents for lazily compiled functions. In particular,
@@ -1472,6 +1487,24 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
+  // Find the variable declared in the local map first, if it cannot
+  // be found there, try scope info if there is any.
+  // Returns nullptr if it cannot be found. Used by the parser to
+  // bind the computed name and private name variables when reparsing
+  // the class for the constructor.
+  Variable* LookupLocalVariable(Isolate* isolate, const AstRawString* name);
+
+  DeclarationScope* initializer_scope() const { return initializer_scope_; }
+  void set_initializer_scope(DeclarationScope* scope) {
+    initializer_scope_ = scope;
+  }
+
+  void PrepareForReparseFromConstructor();
+  void DoneReparseFromConstructor(ParseInfo* info);
+  bool is_being_reparsed_from_constructor() const {
+    return is_being_reparsed_from_constructor_;
+  }
+
  private:
   friend class Scope;
   friend class PrivateNameScopeIterator;
@@ -1484,7 +1517,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // scope.
   Variable* LookupLocalPrivateName(const AstRawString* name);
   // Lookup a private name from the scope info of the current scope.
-  Variable* LookupPrivateNameInScopeInfo(const AstRawString* name);
+  Variable* LookupPrivateNameInScopeInfo(const AstRawString* name,
+                                         Handle<String> name_string);
 
   struct RareData : public ZoneObject {
     explicit RareData(Zone* zone) : private_name_map(zone) {}
@@ -1517,6 +1551,10 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // This is only maintained during reparsing, restored from the
   // preparsed data.
   bool should_save_class_variable_index_ = false;
+  // This is only maintained during reparsing, when the constructor
+  // inlines member initialization.
+  bool is_being_reparsed_from_constructor_ = false;
+  DeclarationScope* initializer_scope_ = nullptr;
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the
