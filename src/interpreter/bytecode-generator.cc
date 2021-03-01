@@ -1445,10 +1445,10 @@ void BytecodeGenerator::GenerateBytecodeBody() {
       BuildPrivateBrandInitialization(builder()->Receiver());
     }
 
-    if (literal->requires_instance_members_initializer()) {
-      BuildInstanceMemberInitialization(Register::function_closure(),
-                                        builder()->Receiver());
-    }
+    // if (literal->requires_instance_members_initializer()) {
+    //   BuildInstanceMemberInitialization(Register::function_closure(),
+    //                                     builder()->Receiver());
+    // }
   }
 
   // Visit statements in the function body.
@@ -2431,14 +2431,14 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
   }
 
   if (expr->instance_members_initializer_function() != nullptr) {
-    Register initializer =
-        VisitForRegisterValue(expr->instance_members_initializer_function());
+    // Register initializer =
+    //     VisitForRegisterValue(expr->instance_members_initializer_function());
 
-    FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
-    builder()
-        ->LoadAccumulatorWithRegister(initializer)
-        .StoreClassFieldsInitializer(class_constructor, feedback_index(slot))
-        .LoadAccumulatorWithRegister(class_constructor);
+    // FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+    // builder()
+    //     ->LoadAccumulatorWithRegister(initializer)
+    //     .StoreClassFieldsInitializer(class_constructor, feedback_index(slot))
+    //     .LoadAccumulatorWithRegister(class_constructor);
   }
 
   if (expr->static_initializer() != nullptr) {
@@ -5287,10 +5287,10 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   // TODO(gsathya): In the future, we could tag nested arrow functions
   // or eval with the correct bit so that we do the load conditionally
   // if required.
-  if (info()->literal()->requires_instance_members_initializer() ||
-      !IsDerivedConstructor(info()->literal()->kind())) {
-    BuildInstanceMemberInitialization(this_function, instance);
-  }
+  // if (info()->literal()->requires_instance_members_initializer() ||
+  //     !IsDerivedConstructor(info()->literal()->kind())) {
+  //   BuildInstanceMemberInitialization(this_function, instance);
+  // }
 
   builder()->LoadAccumulatorWithRegister(instance);
 }

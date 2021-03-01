@@ -846,10 +846,12 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
 
   FunctionLiteral* result;
   FunctionKind kind = flags().function_kind();
-  if (IsClassMembersInitializerFunction(kind)) {
-    // TODO(joyee): parse it differently, as a list of property definitions
-    // and create an initializer function
+  if (IsClassConstructor(kind) && shared_info->requires_instance_members_initializer() ) {
+    // TODO(joyee): reparse the outer class while skipping the non-fields to
+    // get a list of ClassLiteralProperty and create a InitializeClassMembersStatement
+    // and insert it into the body of the constructorl later.
     shared_info->Print();
+    shared_info->GetOuterScopeInfo().Print();
   }
   if (V8_UNLIKELY(shared_info->private_name_lookup_skips_outer_class() &&
                   original_scope_->is_class_scope())) {
@@ -3159,10 +3161,15 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
 
   FunctionLiteral* instance_members_initializer_function = nullptr;
   if (class_info->has_instance_members) {
-    instance_members_initializer_function = CreateInitializerFunction(
-        "<instance_members_initializer>", class_info->instance_members_scope,
+    // instance_members_initializer_function = CreateInitializerFunction(
+    //     "<instance_members_initializer>", class_info->instance_members_scope,
+    //     factory()->NewInitializeClassMembersStatement(
+    //         class_info->instance_fields, kNoSourcePosition));
+    InitializeClassMembersStatement* stmt =
         factory()->NewInitializeClassMembersStatement(
-            class_info->instance_fields, kNoSourcePosition));
+            class_info->instance_fields,
+            kNoSourcePosition);
+    class_info->constructor->body()->InsertAt(0, stmt, zone());
     class_info->constructor->set_requires_instance_members_initializer(true);
     class_info->constructor->add_expected_properties(
         class_info->instance_fields->length());
