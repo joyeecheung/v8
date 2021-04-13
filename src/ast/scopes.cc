@@ -192,6 +192,10 @@ ClassScope::ClassScope(Isolate* isolate, Zone* zone,
     : Scope(zone, CLASS_SCOPE, ast_value_factory, scope_info),
       rare_data_and_is_parsing_heritage_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
+  if (scope_info->HasPositionInfo()) {
+    set_start_position(scope_info->StartPosition());
+    set_end_position(scope_info->EndPosition());
+  }
   if (scope_info->HasClassBrand()) {
     Variable* brand =
         LookupInScopeInfo(ast_value_factory->dot_brand_string(), this);
@@ -1702,7 +1706,8 @@ namespace {
 const char* Header(ScopeType scope_type, FunctionKind function_kind,
                    bool is_declaration_scope) {
   switch (scope_type) {
-    case EMPTY_SCOPE: return "empty";
+    case EMPTY_SCOPE:
+      return "empty";
     case EVAL_SCOPE: return "eval";
     case FUNCTION_SCOPE:
       if (IsGeneratorFunction(function_kind)) return "function*";

@@ -2797,6 +2797,7 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
 
 void BytecodeGenerator::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* stmt) {
+  // TODO(joyee): make the new.target undefined until initialization is done.
   for (int i = 0; i < stmt->fields()->length(); i++) {
     BuildClassProperty(stmt->fields()->at(i));
   }

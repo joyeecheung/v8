@@ -1217,6 +1217,7 @@ class ParserBase {
   ExpressionT ParseArrowFunctionLiteral(const FormalParametersT& parameters);
   void ParseAsyncFunctionBody(Scope* scope, StatementListT* body);
   ExpressionT ParseAsyncFunctionLiteral();
+
   ExpressionT ParseClassLiteral(IdentifierT name,
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved,
