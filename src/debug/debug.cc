@@ -1643,6 +1643,8 @@ Handle<SharedFunctionInfo> Debug::FindClosestSharedFunctionInfoFromPosition(
   for (auto candidate : candidates) {
     CHECK(candidate->HasBreakInfo());
     Handle<DebugInfo> debug_info(candidate->GetDebugInfo(), isolate_);
+    // TODO(joyee): make sure we can debug class field initiliazers
+    // which share the SFI with the constructor
     const int candidate_position = FindBreakablePosition(debug_info, position);
     if (candidate_position >= position &&
         candidate_position < closest_position) {
@@ -1666,6 +1668,8 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     {
       DisallowGarbageCollection no_gc;
       SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
+      // TODO(joyee): make sure that we locate the constructor SFI when
+      // the postion lies in one of the field initializers
       for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
            info = iterator.Next()) {
         if (info.EndPosition() < start_position ||

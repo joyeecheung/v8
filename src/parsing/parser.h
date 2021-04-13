@@ -233,6 +233,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info, ParseInfo* info,
       int start_position, int end_position, int function_literal_id,
       const AstRawString* raw_name);
+  FunctionLiteral* ParseAndRewriteClassConstructor(ClassScope* scope,
+                                                   int constructor_pos,
+                                                   int constructor_id);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
