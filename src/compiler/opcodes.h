@@ -175,6 +175,7 @@
   V(JSLoadNamedFromSuper)         \
   V(JSLoadGlobal)                 \
   V(JSStoreProperty)              \
+  V(JSDefineProperty)             \
   V(JSStoreNamed)                 \
   V(JSStoreNamedOwn)              \
   V(JSStoreGlobal)                \
@@ -1136,6 +1137,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSStoreNamed:
       case kJSStoreNamedOwn:
       case kJSStoreProperty:
+      case kJSDefineProperty:
         return true;
       default:
         return false;

@@ -1218,7 +1218,8 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kStoreKeyedStrict:
     case FeedbackSlotKind::kStoreNamedSloppy:
     case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreOwnNamed: {
+    case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kDefineOwnKeyed: {
       os << InlineCacheState2String(ic_state());
       break;
     }

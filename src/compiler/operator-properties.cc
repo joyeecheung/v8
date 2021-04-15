@@ -90,6 +90,7 @@ bool OperatorProperties::NeedsExactContext(const Operator* op) {
     case IrOpcode::kJSStoreNamed:
     case IrOpcode::kJSStoreNamedOwn:
     case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSDefineProperty:
       return true;
 
     case IrOpcode::kJSAsyncFunctionEnter:
@@ -204,6 +205,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSStoreNamed:
     case IrOpcode::kJSStoreNamedOwn:
     case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSDefineProperty:
 
     // Conversions
     case IrOpcode::kJSToLength:

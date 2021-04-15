@@ -164,6 +164,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "StoreNamedStrict";
     case FeedbackSlotKind::kStoreOwnNamed:
       return "StoreOwnNamed";
+    case FeedbackSlotKind::kDefineOwnKeyed:
+      return "DefineOwnKeyed";
     case FeedbackSlotKind::kStoreGlobalSloppy:
       return "StoreGlobalSloppy";
     case FeedbackSlotKind::kStoreGlobalStrict:
@@ -304,6 +306,7 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kStoreNamedSloppy:
       case FeedbackSlotKind::kStoreNamedStrict:
       case FeedbackSlotKind::kStoreOwnNamed:
+      case FeedbackSlotKind::kDefineOwnKeyed:
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
       case FeedbackSlotKind::kStoreInArrayLiteral:
@@ -608,6 +611,7 @@ void FeedbackNexus::ConfigureUninitialized() {
     case FeedbackSlotKind::kStoreKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kDefineOwnKeyed:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
@@ -646,6 +650,7 @@ bool FeedbackNexus::Clear() {
     case FeedbackSlotKind::kStoreKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kDefineOwnKeyed:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed:
@@ -742,6 +747,7 @@ InlineCacheState FeedbackNexus::ic_state() const {
     case FeedbackSlotKind::kStoreKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kDefineOwnKeyed:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kHasKeyed: {

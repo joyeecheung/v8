@@ -78,6 +78,8 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
       return os << "StoreInLiteral";
     case AccessMode::kHas:
       return os << "Has";
+    case AccessMode::kDefine:
+      return os << "Define";
   }
   UNREACHABLE();
 }
@@ -321,7 +323,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
           break;
         }
         case AccessMode::kStore:
-        case AccessMode::kStoreInLiteral: {
+        case AccessMode::kStoreInLiteral:
+        case AccessMode::kDefine: {
           // For stores, the field map and field representation information
           // must match exactly, otherwise we cannot merge the stores. We
           // also need to make sure that in case of transitioning stores,
