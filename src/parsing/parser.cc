@@ -1042,20 +1042,18 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
     return DoParseFunction(isolate, info, start_position, end_position,
                            function_literal_id, raw_name);
   }
-  // Scanner::BookmarkScope constructor_bookmark(scanner());
-  // constructor_bookmark.Set(start_position);
-
-  DCHECK(original_scope_->is_class_scope());
-  DCHECK(shared_info->HasOuterScopeInfo());
-  Handle<ScopeInfo> outer_scope_info =
-      handle(shared_info->GetOuterScopeInfo(), isolate);
-  int class_start = outer_scope_info->StartPosition();
-  int class_end = outer_scope_info->EndPosition();
 
   // Reparse the outer class while skipping the non-fields to get a list of
   // ClassLiteralProperty and create a InitializeClassMembersStatement and
   // insert it into the body of the constructorl later.
   {
+    DCHECK(original_scope_->is_class_scope());
+    DCHECK(shared_info->HasOuterScopeInfo());
+    Handle<ScopeInfo> outer_scope_info =
+        handle(shared_info->GetOuterScopeInfo(), isolate);
+    int class_start = outer_scope_info->StartPosition();
+    int class_end = outer_scope_info->EndPosition();
+
     Handle<String> source = handle(
         String::cast(Script::cast(shared_info->script()).source()), isolate);
     std::unique_ptr<char[]> source_string =
@@ -1066,6 +1064,8 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
     printf("shared_info->GetOuterScopeInfo():\n");
     shared_info->GetOuterScopeInfo().Print();
     printf("Class source:\n%s\n", source_string.get());
+    printf("original scope\n");
+    original_scope_->Print(2);
   }
 
   // TODO(joyee): check the reparsed constructor is in sync with flags()
@@ -1083,6 +1083,8 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
                                  ? nullptr
                                  : class_scope->class_variable()->raw_name();
   bool is_anonymous = name == nullptr || name->IsEmpty();
+
+  // TODO(joyee): insert a FunctionState with the closest outer Declaration scope
   BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
   ResetFunctionLiteralId();
