@@ -1668,16 +1668,23 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
     {
       DisallowGarbageCollection no_gc;
       SharedFunctionInfo::ScriptIterator iterator(isolate_, *script);
-      // TODO(joyee): make sure that we locate the constructor SFI when
-      // the postion lies in one of the field initializers
       for (SharedFunctionInfo info = iterator.Next(); !info.is_null();
            info = iterator.Next()) {
-        if (info.EndPosition() < start_position ||
-            info.StartPosition() >= end_position) {
+        // Make sure that we locate the constructor SFI when the postion
+        // lies in one of the field initializers
+        int effective_start_position = info.StartPosition();
+        int effective_end_position = info.EndPosition();
+        if (info.is_class_constructor() && info.requires_instance_members_initializer() && info.HasOuterScopeInfo()) {
+          Handle<ScopeInfo> class_scope = handle(info.GetOuterScopeInfo(), isolate_);
+          effective_start_position = class_scope->StartPosition();
+          effective_end_position = class_scope->EndPosition();
+        }
+        if (effective_start_position < start_position ||
+            effective_end_position >= end_position) {
           continue;
         }
-        candidateSubsumesRange |= info.StartPosition() <= start_position &&
-                                  info.EndPosition() >= end_position;
+        candidateSubsumesRange |= effective_start_position <= start_position &&
+                                  effective_end_position >= end_position;
         if (!info.IsSubjectToDebugging()) continue;
         if (!info.is_compiled() && !info.allows_lazy_compilation()) continue;
         candidates.push_back(i::handle(info, isolate_));
