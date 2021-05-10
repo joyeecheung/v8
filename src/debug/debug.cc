@@ -1674,8 +1674,11 @@ bool Debug::FindSharedFunctionInfosIntersectingRange(
         // lies in one of the field initializers
         int effective_start_position = info.StartPosition();
         int effective_end_position = info.EndPosition();
-        if (info.is_class_constructor() && info.requires_instance_members_initializer() && info.HasOuterScopeInfo()) {
-          Handle<ScopeInfo> class_scope = handle(info.GetOuterScopeInfo(), isolate_);
+        if (info.is_class_constructor() &&
+            info.requires_instance_members_initializer() &&
+            info.HasOuterScopeInfo()) {
+          Handle<ScopeInfo> class_scope =
+              handle(info.GetOuterScopeInfo(), isolate_);
           effective_start_position = class_scope->StartPosition();
           effective_end_position = class_scope->EndPosition();
         }

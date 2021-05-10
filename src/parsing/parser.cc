@@ -1066,9 +1066,15 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
     original_scope_->Print(2);
   }
 
-  // TODO(joyee): check the reparsed constructor is in sync with flags()
-  return ParseAndRewriteClassConstructor(original_scope_->AsClassScope(),
-                                         start_position, function_literal_id);
+  // Check the reparsed constructor is in sync with flags()
+  FunctionLiteral* result = ParseAndRewriteClassConstructor(
+      original_scope_->AsClassScope(), start_position, function_literal_id);
+  DCHECK(result->requires_instance_members_initializer());
+  DCHECK_EQ(result->class_scope_has_private_brand(),
+            flags().class_scope_has_private_brand());
+  // The private_name_lookup_skips_outer_class bit should be set by
+  // PostProcessParseResult() during scope analysis later
+  return result;
 }
 
 FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
@@ -1082,7 +1088,19 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
                                  : class_scope->class_variable()->raw_name();
   bool is_anonymous = name == nullptr || name->IsEmpty();
 
-  // TODO(joyee): insert a FunctionState with the closest outer Declaration scope
+  // Insert a FunctionState with the closest outer Declaration scope
+  DeclarationScope* nearest_decl_scope = nullptr;
+  Scope* scope = class_scope;
+  while (nearest_decl_scope == nullptr && scope->outer_scope() != nullptr) {
+    if (scope->outer_scope()->is_declaration_scope()) {
+      nearest_decl_scope = scope->outer_scope()->AsDeclarationScope();
+    } else {
+      scope = scope->outer_scope();
+    }
+  }
+  DCHECK_NOT_NULL(nearest_decl_scope);
+  FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
+
   BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
   ResetFunctionLiteralId();
@@ -1092,15 +1110,14 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
 
-  scope()->set_start_position(end_position());
-  if (Check(Token::EXTENDS)) {
-    // TODO(joyee): we should not actually parse the expression
-    ClassScope::HeritageParsingScope heritage(class_scope);
-    FuncNameInferrerState fni_state(&fni_);
-    ExpressionParsingScope scope(impl());
-    class_info.extends = ParseLeftHandSideExpression();
-    scope.ValidateExpression();
-  }
+  // if (Check(Token::EXTENDS)) {
+  //   // TODO(joyee): we should not actually parse the expression
+  //   ClassScope::HeritageParsingScope heritage(class_scope);
+  //   FuncNameInferrerState fni_state(&fni_);
+  //   ExpressionParsingScope scope(impl());
+  //   class_info.extends = ParseLeftHandSideExpression();
+  //   scope.ValidateExpression();
+  // }
 
   Expect(Token::LBRACE);
 
@@ -1111,9 +1128,8 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     // Either we're parsing a `static { }` initialization block or a property.
     if (FLAG_harmony_class_static_blocks && peek() == Token::STATIC &&
         PeekAhead() == Token::LBRACE) {
-      // TODO(joyee): we should not actually parse the block
+      // TODO(joyee): we should preparse the block
       ParseClassStaticBlock(&class_info);
-      // AddClassStaticBlock(static_block, &class_info);
       continue;
     }
 
@@ -1124,8 +1140,8 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     ParsePropertyInfo prop_info(this);
     prop_info.position = PropertyPosition::kClassLiteral;
 
-    // TODO(joyee): we should skip the property if it's not the constructor
-    // nor the field
+    // TODO(joyee): we should preparse the property if it's not the
+    // constructor nor the field
     ClassLiteralPropertyT property =
         ParseClassPropertyDefinition(&class_info, &prop_info, has_extends);
 

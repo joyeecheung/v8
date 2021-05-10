@@ -5583,10 +5583,15 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   // TODO(gsathya): In the future, we could tag nested arrow functions
   // or eval with the correct bit so that we do the load conditionally
   // if required.
-  // if (info()->literal()->requires_instance_members_initializer() ||
-  //     !IsDerivedConstructor(info()->literal()->kind())) {
-  //   BuildInstanceMemberInitialization(this_function, instance);
-  // }
+  if (info()->literal()->requires_instance_members_initializer() ||
+      !IsDerivedConstructor(info()->literal()->kind())) {
+    // TODO(joyee): Add a new ClassConstructor AST node type inheriting
+    // from FunctionLiteral
+    DCHECK_GE(info()->literal()->body()->length(), 1);
+    Statement* stmt = info()->literal()->body()->at(0);
+    DCHECK(stmt->IsInitializeClassMembersStatement());
+    //   BuildInstanceMemberInitialization(this_function, instance);
+  }
 
   builder()->LoadAccumulatorWithRegister(instance);
 }
