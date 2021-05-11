@@ -883,6 +883,11 @@ void Scope::ReplaceOuterScope(Scope* outer) {
 }
 
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
+  return LookupInScopeInfo(name, name->string(), cache);
+}
+
+Variable* Scope::LookupInScopeInfo(const AstRawString* name,
+                                   Handle<String> name_string, Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK(this->IsOuterScopeOf(cache));
   DCHECK(!cache->deserialized_scope_uses_external_cache());
@@ -894,7 +899,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowGarbageCollection no_gc;
 
-  String name_handle = *name->string();
+  String name_handle = *name_string;
   ScopeInfo scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
@@ -2747,15 +2752,15 @@ void ClassScope::MigrateUnresolvedPrivateNameTail(
   rare_data->unresolved_private_names.Append(std::move(migrated_names));
 }
 
-Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
+Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name,
+                                                   Handle<String> name_string) {
   DCHECK(!scope_info_.is_null());
   DCHECK_NULL(LookupLocalPrivateName(name));
   DisallowGarbageCollection no_gc;
 
-  String name_handle = *name->string();
   VariableLookupResult lookup_result;
   int index =
-      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &lookup_result);
+      ScopeInfo::ContextSlotIndex(*scope_info_, *name_string, &lookup_result);
   if (index < 0) {
     return nullptr;
   }
@@ -2774,6 +2779,25 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   return var;
 }
 
+Variable* ClassScope::LookupLocalVariable(Isolate* isolate,
+                                          const AstRawString* name) {
+  Variable* var = nullptr;
+  if (name->IsPrivateName()) {
+    var = LookupLocalPrivateName(name);
+    if (var == nullptr && !scope_info_.is_null()) {
+      Handle<String> name_string = name->GetInternalized(isolate);
+      var = LookupPrivateNameInScopeInfo(name, name_string);
+    }
+  } else {
+    var = LookupLocal(name);
+    if (var == nullptr && !scope_info_.is_null()) {
+      Handle<String> name_string = name->GetInternalized(isolate);
+      var = LookupInScopeInfo(name, name_string, this);
+    }
+  }
+  return var;
+}
+
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
 
@@ -2784,7 +2808,8 @@ Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
     // try the deseralized scope info.
     Variable* var = scope->LookupLocalPrivateName(proxy->raw_name());
     if (var == nullptr && !scope->scope_info_.is_null()) {
-      var = scope->LookupPrivateNameInScopeInfo(proxy->raw_name());
+      var = scope->LookupPrivateNameInScopeInfo(proxy->raw_name(),
+                                                proxy->raw_name()->string());
     }
     if (var != nullptr) {
       return var;

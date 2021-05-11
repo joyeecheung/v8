@@ -1047,6 +1047,12 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
   // ClassLiteralProperty and create a InitializeClassMembersStatement and
   // insert it into the body of the constructorl later.
   {
+    printf("original scope\n");
+    original_scope_->Print(2);
+    printf("shared_info:\n");
+    shared_info->Print();
+    printf("shared_info->GetOuterScopeInfo():\n");
+    shared_info->GetOuterScopeInfo().Print();
     DCHECK(original_scope_->is_class_scope());
     DCHECK(shared_info->HasOuterScopeInfo());
     Handle<ScopeInfo> outer_scope_info =
@@ -1059,18 +1065,13 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
     std::unique_ptr<char[]> source_string =
         source->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, class_start,
                           class_end - class_start, nullptr);
-    printf("shared_info:\n");
-    shared_info->Print();
-    printf("shared_info->GetOuterScopeInfo():\n");
-    shared_info->GetOuterScopeInfo().Print();
     printf("Class source:\n%s\n", source_string.get());
-    printf("original scope\n");
-    original_scope_->Print(2);
   }
 
   // Check the reparsed constructor is in sync with flags()
-  FunctionLiteral* result = ParseAndRewriteClassConstructor(
-      original_scope_->AsClassScope(), start_position, function_literal_id);
+  FunctionLiteral* result =
+      ParseAndRewriteClassConstructor(isolate, original_scope_->AsClassScope(),
+                                      start_position, function_literal_id);
   DCHECK(result->requires_instance_members_initializer());
   DCHECK_EQ(result->class_scope_has_private_brand(),
             flags().class_scope_has_private_brand());
@@ -1080,7 +1081,8 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
 }
 
 FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
-    ClassScope* class_scope, int constructor_pos, int constructor_id) {
+    Isolate* isolate, ClassScope* class_scope, int constructor_pos,
+    int constructor_id) {
   int class_token_pos =
       class_scope->start_position();  // calculate based on current position?
   // TODO(joyee): make sure that class variable is always saved here for
@@ -1089,6 +1091,10 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
                                  ? nullptr
                                  : class_scope->class_variable()->raw_name();
   bool is_anonymous = name == nullptr || name->IsEmpty();
+
+  Scanner::BookmarkScope bookmark(scanner());
+  bookmark.Set(class_scope->start_position());
+  bookmark.Apply();
 
   // Insert a FunctionState with the closest outer Declaration scope
   DeclarationScope* nearest_decl_scope = nullptr;
@@ -1121,6 +1127,7 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   //   scope.ValidateExpression();
   // }
 
+  DCHECK_EQ(peek(), Token::LBRACE);
   Expect(Token::LBRACE);
 
   const bool has_extends = !IsNull(class_info.extends);
@@ -1161,6 +1168,23 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
 
     // Deal with field initializers and constructors
     if (V8_UNLIKELY(!prop_info.is_static && is_field)) {
+      // TODO(joyee): we need to internalize the strings
+      if (prop_info.is_computed_name) {
+        class_info.computed_field_count++;
+        const AstRawString* name = ClassFieldVariableName(
+            ast_value_factory(), class_info.computed_field_count);
+        Variable* computed_name_var =
+            class_scope->LookupLocalVariable(isolate, name);
+        DCHECK_NOT_NULL(computed_name_var);
+        property->set_computed_name_var(computed_name_var);
+      }
+      if (prop_info.is_private) {
+        const AstRawString* name = prop_info.name;
+        Variable* private_name_var =
+            class_scope->LookupLocalVariable(isolate, name);
+        DCHECK_NOT_NULL(private_name_var);
+        property->set_private_name_var(private_name_var);
+      }
       // class_info.requires_brand |= (!is_field && !prop_info.is_static);
       // bool is_method = property_kind == ClassLiteralProperty::METHOD;
       // class_info.has_private_methods |= is_method;
