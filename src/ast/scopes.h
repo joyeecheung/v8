@@ -206,6 +206,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
   Variable* LookupInScopeInfo(const AstRawString* name, Scope* cache);
+  Variable* LookupInScopeInfo(const AstRawString* name,
+                              Handle<String> name_string, Scope* cache);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
@@ -1472,6 +1474,13 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
+  // Find the variable declared in the local map first, if it cannot
+  // be found there, try scope info if there is any.
+  // Returns nullptr if it cannot be found. Used by the parser to
+  // bind the computed name and private name variables when reparsing
+  // the class for the constructor.
+  Variable* LookupLocalVariable(Isolate* isolate, const AstRawString* name);
+
  private:
   friend class Scope;
   friend class PrivateNameScopeIterator;
@@ -1484,7 +1493,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // scope.
   Variable* LookupLocalPrivateName(const AstRawString* name);
   // Lookup a private name from the scope info of the current scope.
-  Variable* LookupPrivateNameInScopeInfo(const AstRawString* name);
+  Variable* LookupPrivateNameInScopeInfo(const AstRawString* name,
+                                         Handle<String> name_string);
 
   struct RareData : public ZoneObject {
     explicit RareData(Zone* zone) : private_name_map(zone) {}
