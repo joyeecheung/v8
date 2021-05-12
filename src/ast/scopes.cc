@@ -645,6 +645,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // 1) top-level code,
   // 2) a function/eval/module on the top-level
   // 3) a function/eval in a scope that was already resolved.
+  // TODO(joyee): a constructor in a class scope that's not yet resolved.
   DCHECK(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
          scope->outer_scope()->already_resolved_);
 
@@ -2688,6 +2689,11 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
   }
   result->ForceContextAllocation();
   return result;
+}
+
+void ClassScope::PrepareForReparseFromConstructor() {
+  // Reset already_resolved_ so that the scope can be reused in parsing.
+  already_resolved_ = false;
 }
 
 Variable* ClassScope::LookupLocalPrivateName(const AstRawString* name) {
