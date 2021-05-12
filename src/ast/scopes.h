@@ -1480,6 +1480,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // bind the computed name and private name variables when reparsing
   // the class for the constructor.
   Variable* LookupLocalVariable(Isolate* isolate, const AstRawString* name);
+  void PrepareForReparseFromConstructor();
 
  private:
   friend class Scope;

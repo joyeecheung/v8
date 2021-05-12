@@ -78,9 +78,22 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
   Handle<Script> script(Script::cast(shared_info->script()), isolate);
   Handle<String> source(String::cast(script->source()), isolate);
   isolate->counters()->total_parse_size()->Increment(source->length());
+
+  bool is_constructor_with_instance_initializtion =
+      IsClassConstructor(info->flags().function_kind()) &&
+      shared_info->requires_instance_members_initializer();
+  int start_position = shared_info->StartPosition();
+  int end_position = shared_info->EndPosition();
+  if (is_constructor_with_instance_initializtion) {
+    DCHECK(shared_info->HasOuterScopeInfo());
+    Handle<ScopeInfo> outer_scope_info =
+        handle(shared_info->GetOuterScopeInfo(), isolate);
+    start_position = outer_scope_info->StartPosition();
+    end_position = outer_scope_info->EndPosition();
+  }
+
   std::unique_ptr<Utf16CharacterStream> stream(
-      ScannerStream::For(isolate, source, shared_info->StartPosition(),
-                         shared_info->EndPosition()));
+      ScannerStream::For(isolate, source, start_position, end_position));
   info->set_character_stream(std::move(stream));
 
   Parser parser(info);

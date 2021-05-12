@@ -1054,6 +1054,8 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
     printf("shared_info->GetOuterScopeInfo():\n");
     shared_info->GetOuterScopeInfo().Print();
     DCHECK(original_scope_->is_class_scope());
+    // TODO(joyee): make sure that classes with only public fields
+    // also has the class scope info
     DCHECK(shared_info->HasOuterScopeInfo());
     Handle<ScopeInfo> outer_scope_info =
         handle(shared_info->GetOuterScopeInfo(), isolate);
@@ -1083,18 +1085,9 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
 FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     Isolate* isolate, ClassScope* class_scope, int constructor_pos,
     int constructor_id) {
+  class_scope->PrepareForReparseFromConstructor();
   int class_token_pos =
       class_scope->start_position();  // calculate based on current position?
-  // TODO(joyee): make sure that class variable is always saved here for
-  // non-anonymous classes
-  const AstRawString* name = class_scope->class_variable() == nullptr
-                                 ? nullptr
-                                 : class_scope->class_variable()->raw_name();
-  bool is_anonymous = name == nullptr || name->IsEmpty();
-
-  Scanner::BookmarkScope bookmark(scanner());
-  bookmark.Set(class_scope->start_position());
-  bookmark.Apply();
 
   // Insert a FunctionState with the closest outer Declaration scope
   DeclarationScope* nearest_decl_scope = nullptr;
@@ -1108,24 +1101,44 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   }
   DCHECK_NOT_NULL(nearest_decl_scope);
   FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
-
   BlockState block_state(&scope_, class_scope);
+
   RaiseLanguageMode(LanguageMode::kStrict);
   ResetFunctionLiteralId();
 
   BlockState object_literal_scope_state(&object_literal_scope_, nullptr);
 
+  Scanner::BookmarkScope bookmark(scanner());
+  bookmark.Set(class_scope->start_position());
+  bookmark.Apply();
+
+  ExpressionParsingScope no_expression_scope(impl());
+  DCHECK_EQ(peek(), Token::CLASS);
+  Expect(Token::CLASS);
+
+  const AstRawString* name = NullIdentifier();
+  const AstRawString* variable_name = NullIdentifier();
+  // It's a reparse so we don't need to check for default export and
+  // whether the names are reserved
+  if (peek() == Token::EXTENDS || peek() == Token::LBRACE) {
+    GetDefaultStrings(&name, &variable_name);
+  } else {
+    name = ParseIdentifier();
+    variable_name = name;
+  }
+  bool is_anonymous = name == nullptr || name->IsEmpty();
+
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
 
-  // if (Check(Token::EXTENDS)) {
-  //   // TODO(joyee): we should not actually parse the expression
-  //   ClassScope::HeritageParsingScope heritage(class_scope);
-  //   FuncNameInferrerState fni_state(&fni_);
-  //   ExpressionParsingScope scope(impl());
-  //   class_info.extends = ParseLeftHandSideExpression();
-  //   scope.ValidateExpression();
-  // }
+  if (Check(Token::EXTENDS)) {
+    // TODO(joyee): we should not actually parse the expression
+    ClassScope::HeritageParsingScope heritage(class_scope);
+    FuncNameInferrerState fni_state(&fni_);
+    ExpressionParsingScope scope(impl());
+    class_info.extends = ParseLeftHandSideExpression();
+    scope.ValidateExpression();
+  }
 
   DCHECK_EQ(peek(), Token::LBRACE);
   Expect(Token::LBRACE);
@@ -1154,7 +1167,7 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     ClassLiteralPropertyT property =
         ParseClassPropertyDefinition(&class_info, &prop_info, has_extends);
 
-    // if (has_error()) return FailureExpression();
+    if (has_error()) return nullptr;
 
     ClassLiteralProperty::Kind property_kind =
         ClassPropertyKindFor(prop_info.kind);
@@ -1212,10 +1225,10 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
         DefaultConstructor(name, has_extends, class_token_pos, end_pos);
   }
 
-  if (name != nullptr) {
-    DCHECK_NOT_NULL(class_scope->class_variable());
-    class_scope->class_variable()->set_initializer_position(end_pos);
-  }
+  // if (name != nullptr) {
+  //   DCHECK_NOT_NULL(class_scope->class_variable());
+  //   class_scope->class_variable()->set_initializer_position(end_pos);
+  // }
 
   if (class_info.has_instance_members) {
     InitializeClassMembersStatement* stmt =
@@ -1240,6 +1253,8 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
       stack_limit_,
       constructor_id - class_info.constructor->function_literal_id());
   reindexer.Reindex(class_info.constructor);
+
+  no_expression_scope.ValidateExpression();
 
   return class_info.constructor;
 }
