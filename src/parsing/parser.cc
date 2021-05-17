@@ -1085,7 +1085,9 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
 FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     Isolate* isolate, ClassScope* class_scope, int constructor_pos,
     int constructor_id) {
+#ifdef DEBUG
   class_scope->PrepareForReparseFromConstructor();
+#endif
   int class_token_pos =
       class_scope->start_position();  // calculate based on current position?
 

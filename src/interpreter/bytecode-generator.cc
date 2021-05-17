@@ -2798,24 +2798,24 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
 void BytecodeGenerator::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* stmt) {
   // Make the new.target undefined until initialization is done.
-  Variable* new_target = closure_scope()->new_target_var();
-  Register initializer;
-  if (new_target != nullptr) {
-    initializer = register_allocator()->NewRegister();
-    BuildVariableLoad(new_target, HoleCheckMode::kElided);
-    builder()->StoreAccumulatorInRegister(initializer).LoadUndefined();
-    BuildVariableAssignment(new_target, Token::INIT, HoleCheckMode::kElided);
-  }
+  // Variable* new_target = closure_scope()->new_target_var();
+  // Register initializer;
+  // if (new_target != nullptr) {
+  //   initializer = register_allocator()->NewRegister();
+  //   BuildVariableLoad(new_target, HoleCheckMode::kElided);
+  //   builder()->StoreAccumulatorInRegister(initializer).LoadUndefined();
+  //   BuildVariableAssignment(new_target, Token::INIT, HoleCheckMode::kElided);
+  // }
 
   for (int i = 0; i < stmt->fields()->length(); i++) {
     BuildClassProperty(stmt->fields()->at(i));
   }
 
-  if (new_target != nullptr) {
-    // Restore the new.target register
-    builder()->LoadAccumulatorWithRegister(initializer);
-    BuildVariableAssignment(new_target, Token::INIT, HoleCheckMode::kElided);
-  }
+  // if (new_target != nullptr) {
+  //   // Restore the new.target register
+  //   builder()->LoadAccumulatorWithRegister(initializer);
+  //   BuildVariableAssignment(new_target, Token::INIT, HoleCheckMode::kElided);
+  // }
 }
 
 void BytecodeGenerator::VisitInitializeClassStaticElementsStatement(
