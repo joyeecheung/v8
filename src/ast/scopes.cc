@@ -647,7 +647,8 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // 3) a function/eval in a scope that was already resolved.
   // TODO(joyee): a constructor in a class scope that's not yet resolved.
   DCHECK(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
-         scope->outer_scope()->already_resolved_);
+         scope->outer_scope()->already_resolved_ ||
+         scope->outer_scope()->IsReparsedClassScope());
 
   // The outer scope is never lazy.
   scope->set_should_eager_compile();
@@ -669,8 +670,12 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   }
   scope->CheckScopePositions();
   scope->CheckZones();
-#endif
 
+  if (scope->outer_scope() != nullptr &&
+      scope->outer_scope()->IsReparsedClassScope()) {
+    scope->outer_scope()->AsClassScope()->DoneReparseFromConstructor();
+  }
+#endif
   return true;
 }
 
@@ -1970,6 +1975,11 @@ void Scope::CheckZones() {
     return Iteration::kDescend;
   });
 }
+
+bool Scope::IsReparsedClassScope() const {
+  return is_class_scope() &&
+         AsClassScope()->is_being_reparsed_from_constructor();
+}
 #endif  // DEBUG
 
 Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
@@ -2689,11 +2699,6 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
   }
   result->ForceContextAllocation();
   return result;
-}
-
-void ClassScope::PrepareForReparseFromConstructor() {
-  // Reset already_resolved_ so that the scope can be reused in parsing.
-  already_resolved_ = false;
 }
 
 Variable* ClassScope::LookupLocalPrivateName(const AstRawString* name) {

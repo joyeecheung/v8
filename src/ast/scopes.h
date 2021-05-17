@@ -576,6 +576,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Check that all Scopes in the scope tree use the same Zone.
   void CheckZones();
+
+  bool IsReparsedClassScope() const;
 #endif
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
@@ -1480,7 +1482,20 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // bind the computed name and private name variables when reparsing
   // the class for the constructor.
   Variable* LookupLocalVariable(Isolate* isolate, const AstRawString* name);
-  void PrepareForReparseFromConstructor();
+
+#ifdef DEBUG
+  void PrepareForReparseFromConstructor() {
+    already_resolved_ = false;
+    is_being_reparsed_from_constructor_ = true;
+  }
+  void DoneReparseFromConstructor() {
+    already_resolved_ = true;
+    is_being_reparsed_from_constructor_ = false;
+  }
+  bool is_being_reparsed_from_constructor() const {
+    return is_being_reparsed_from_constructor_;
+  }
+#endif
 
  private:
   friend class Scope;
@@ -1528,6 +1543,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // This is only maintained during reparsing, restored from the
   // preparsed data.
   bool should_save_class_variable_index_ = false;
+  bool is_being_reparsed_from_constructor_ = false;
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the
