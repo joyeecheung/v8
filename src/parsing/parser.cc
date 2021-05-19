@@ -1041,9 +1041,7 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
                            function_literal_id, raw_name);
   }
 
-  // Reparse the outer class while skipping the non-fields to get a list of
-  // ClassLiteralProperty and create a InitializeClassMembersStatement and
-  // insert it into the body of the constructorl later.
+#ifdef DEBUG
   {
     printf("original scope\n");
     original_scope_->Print(2);
@@ -1067,11 +1065,15 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
                           class_end - class_start, nullptr);
     printf("Class source:\n%s\n", source_string.get());
   }
+#endif
 
-  // Check the reparsed constructor is in sync with flags()
+  // Reparse the outer class while skipping the non-fields to get a list of
+  // ClassLiteralProperty and create a InitializeClassMembersStatement and
+  // insert it into the body of the constructorl later.
   FunctionLiteral* result =
       ParseAndRewriteClassConstructor(isolate, original_scope_->AsClassScope(),
                                       start_position, function_literal_id);
+  // Check the reparsed constructor is in sync with flags()
   DCHECK(result->requires_instance_members_initializer());
   DCHECK_EQ(result->class_scope_has_private_brand(),
             flags().class_scope_has_private_brand());
@@ -1083,9 +1085,7 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
 FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     Isolate* isolate, ClassScope* class_scope, int constructor_pos,
     int constructor_id) {
-#ifdef DEBUG
   class_scope->PrepareForReparseFromConstructor();
-#endif
   int class_token_pos =
       class_scope->start_position();  // calculate based on current position?
 

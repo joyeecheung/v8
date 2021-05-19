@@ -622,12 +622,12 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   }
 }
 
-bool DeclarationScope::Analyze(ParseInfo* info) {
+bool DeclarationScope::Analyze(ParseInfo* info, DeclarationScope* additional) {
   RCS_SCOPE(info->runtime_call_stats(),
             RuntimeCallCounterId::kCompileScopeAnalysis,
             RuntimeCallStats::kThreadSpecific);
   DCHECK_NOT_NULL(info->literal());
-  DeclarationScope* scope = info->literal()->scope();
+  DeclarationScope* scope = additional ? additional : info->literal()->scope();
 
   base::Optional<AllowHandleDereference> allow_deref;
 #ifdef DEBUG
@@ -670,12 +670,12 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   }
   scope->CheckScopePositions();
   scope->CheckZones();
-
-  if (scope->outer_scope() != nullptr &&
-      scope->outer_scope()->IsReparsedClassScope()) {
-    scope->outer_scope()->AsClassScope()->DoneReparseFromConstructor();
-  }
 #endif
+  if (additional == nullptr &&
+      scope->outer_scope() != nullptr &&
+      scope->outer_scope()->IsReparsedClassScope()) {
+    scope->outer_scope()->AsClassScope()->DoneReparseFromConstructor(info);
+  }
   return true;
 }
 
@@ -1975,12 +1975,12 @@ void Scope::CheckZones() {
     return Iteration::kDescend;
   });
 }
+#endif  // DEBUG
 
 bool Scope::IsReparsedClassScope() const {
   return is_class_scope() &&
          AsClassScope()->is_being_reparsed_from_constructor();
 }
-#endif  // DEBUG
 
 Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Declare a new non-local.
@@ -2677,6 +2677,49 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
     default:
       return false;
   }
+}
+
+
+void ClassScope::PrepareForReparseFromConstructor() {
+#ifdef DEBUG
+  already_resolved_ = false;
+#endif
+  is_being_reparsed_from_constructor_ = true;
+}
+
+void ClassScope::DoneReparseFromConstructor(ParseInfo* info) {
+#ifdef DEBUG
+  already_resolved_ = true;
+#endif
+  is_being_reparsed_from_constructor_ = false;
+
+  Scope* class_scope = this;
+  // Resolve all unresolved variables in the inner scopes
+  this->ForEach([class_scope, info](Scope* scope) {
+    if (scope == class_scope) {
+#ifdef DEBUG
+      printf("Class scope\n");
+      scope->Print();
+#endif
+      return Iteration::kDescend;
+    }
+    if (scope->outer_scope() == class_scope && scope->is_declaration_scope()) {
+#ifdef DEBUG
+      printf("immediate delcaration inner scope %s\n",
+             FunctionKind2String(scope->AsDeclarationScope()->function_kind()));
+      scope->Print();
+#endif
+      bool resolved = DeclarationScope::Analyze(info, scope->AsDeclarationScope());
+      CHECK(resolved);
+      return Iteration::kDescend;
+    } else {
+#ifdef DEBUG
+      printf("not immediate delcaration inner scope\n\n");
+      scope->Print();
+#endif
+      return Iteration::kContinue;
+    }
+  });
 }
 
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,

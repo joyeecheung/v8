@@ -421,7 +421,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     DCHECK_IMPLIES(is_catch_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(is_with_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(ForceContextForLanguageMode(), num_heap_slots() > 0);
-    return num_heap_slots() > 0;
+    // TODO(joyee): make it if class scope AND contains initializers.
+    return num_heap_slots() > 0 || is_class_scope();
   }
 
   // Use Scope::ForEach for depth first traversal of scopes.
@@ -576,9 +577,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Check that all Scopes in the scope tree use the same Zone.
   void CheckZones();
+#endif
 
   bool IsReparsedClassScope() const;
-#endif
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
   bool HasSimpleParameters();
@@ -1143,7 +1144,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // ParseInfo's pending_error_handler will be populated with an
   // error. Otherwise, returns true.
   V8_WARN_UNUSED_RESULT
-  static bool Analyze(ParseInfo* info);
+  static bool Analyze(ParseInfo* info, DeclarationScope* additional = nullptr);
 
   // To be called during parsing. Do just enough scope analysis that we can
   // discard the Scope contents for lazily compiled functions. In particular,
@@ -1483,19 +1484,11 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // the class for the constructor.
   Variable* LookupLocalVariable(Isolate* isolate, const AstRawString* name);
 
-#ifdef DEBUG
-  void PrepareForReparseFromConstructor() {
-    already_resolved_ = false;
-    is_being_reparsed_from_constructor_ = true;
-  }
-  void DoneReparseFromConstructor() {
-    already_resolved_ = true;
-    is_being_reparsed_from_constructor_ = false;
-  }
+  void PrepareForReparseFromConstructor();
+  void DoneReparseFromConstructor(ParseInfo* info);
   bool is_being_reparsed_from_constructor() const {
     return is_being_reparsed_from_constructor_;
   }
-#endif
 
  private:
   friend class Scope;
