@@ -5587,10 +5587,13 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   if (info()->literal()->requires_instance_members_initializer() ||
       !IsDerivedConstructor(info()->literal()->kind())) {
     // TODO(joyee): Add a new ClassConstructor AST node type inheriting
-    // from FunctionLiteral
+    // from FunctionLiteral and use the initialize statement there to
+    // initialize the class.
+#ifdef DEBUG
     DCHECK_GE(info()->literal()->body()->length(), 1);
     Statement* stmt = info()->literal()->body()->at(0);
     DCHECK(stmt->IsInitializeClassMembersStatement());
+#endif
     //   BuildInstanceMemberInitialization(this_function, instance);
   }
 
