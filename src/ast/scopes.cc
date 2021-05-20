@@ -1885,6 +1885,8 @@ void Scope::Print(int n) {
     if (scope->needs_private_name_context_chain_recalc()) {
       Indent(n1, "// needs #-name context chain recalc\n");
     }
+    Indent(n1, "// ");
+    PrintF("%s\n", FunctionKind2String(scope->function_kind()));
   }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
@@ -2504,6 +2506,11 @@ void ModuleScope::AllocateModuleVariables() {
 void Scope::AllocateVariablesRecursively() {
   this->ForEach([](Scope* scope) -> Iteration {
     DCHECK(!scope->already_resolved_);
+#ifdef DEBUG
+    printf("AllocateVariablesRecursively\n");
+    scope->Print(2);
+    printf("%s\n\n", WasLazilyParsed(scope) ? "WasLazilyParsed" : "Not WasLazilyParsed");
+#endif
     if (WasLazilyParsed(scope)) return Iteration::kContinue;
     DCHECK_EQ(scope->ContextHeaderLength(), scope->num_heap_slots_);
 
