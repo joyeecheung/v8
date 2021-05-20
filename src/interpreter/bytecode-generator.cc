@@ -1452,10 +1452,13 @@ void BytecodeGenerator::GenerateBytecodeBody() {
       BuildPrivateBrandInitialization(builder()->Receiver());
     }
 
-    // if (literal->requires_instance_members_initializer()) {
-    //   BuildInstanceMemberInitialization(Register::function_closure(),
-    //                                     builder()->Receiver());
-    // }
+    if (literal->requires_instance_members_initializer()) {
+      InitializeClassMembersStatement* stmt =
+          literal->AsClassConstructor()->initialize_member_stmt();
+      VisitInitializeClassMembersStatement(stmt);
+      // BuildInstanceMemberInitialization(Register::function_closure(),
+      // builder()->Receiver());
+    }
   }
 
   // Visit statements in the function body.
@@ -2501,6 +2504,10 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   AddToEagerLiteralsIfEager(expr);
 }
 
+void BytecodeGenerator::VisitClassConstructor(ClassConstructor* expr) {
+  VisitFunctionLiteral(expr->AsFunctionLiteral());
+}
+
 void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
   if (eager_inner_literals_ && literal->ShouldEagerCompile()) {
     DCHECK(!IsInEagerLiterals(literal, *eager_inner_literals_));
@@ -2863,6 +2870,8 @@ void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver) {
 
 void BytecodeGenerator::BuildInstanceMemberInitialization(Register constructor,
                                                           Register instance) {
+  // TODO(joyee): revert back to loading the initializer function from the
+  // constructor if there is a scope mismatch.
   RegisterList args = register_allocator()->NewRegisterList(1);
   Register initializer = register_allocator()->NewRegister();
 
@@ -5586,15 +5595,13 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   // if required.
   if (info()->literal()->requires_instance_members_initializer() ||
       !IsDerivedConstructor(info()->literal()->kind())) {
-    // TODO(joyee): Add a new ClassConstructor AST node type inheriting
-    // from FunctionLiteral and use the initialize statement there to
-    // initialize the class.
-#ifdef DEBUG
-    DCHECK_GE(info()->literal()->body()->length(), 1);
-    Statement* stmt = info()->literal()->body()->at(0);
-    DCHECK(stmt->IsInitializeClassMembersStatement());
-#endif
-    //   BuildInstanceMemberInitialization(this_function, instance);
+    InitializeClassMembersStatement* stmt =
+        info()->literal()->AsClassConstructor()->initialize_member_stmt();
+    DCHECK_NOT_NULL(stmt);
+    // TODO(joyee): set the instance as receiver
+    builder()->MoveRegister(instance, builder()->Receiver());
+    VisitInitializeClassMembersStatement(stmt);
+    // BuildInstanceMemberInitialization(this_function, instance);
   }
 
   builder()->LoadAccumulatorWithRegister(instance);

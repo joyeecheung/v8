@@ -85,6 +85,7 @@ namespace internal {
   V(Call)                       \
   V(CallNew)                    \
   V(CallRuntime)                \
+  V(ClassConstructor)           \
   V(ClassLiteral)               \
   V(CompareOperation)           \
   V(CompoundAssignment)         \
@@ -121,6 +122,7 @@ class Isolate;
 
 class AstNode;
 class AstNodeFactory;
+class ClassConstructor;
 class Declaration;
 class BreakableStatement;
 class Expression;
@@ -2109,8 +2111,7 @@ class Throw final : public Expression {
   Expression* exception_;
 };
 
-
-class FunctionLiteral final : public Expression {
+class FunctionLiteral : public Expression {
  public:
   enum ParameterFlag : uint8_t {
     kNoDuplicateParameters,
@@ -2262,6 +2263,7 @@ class FunctionLiteral final : public Expression {
   }
 
  private:
+  friend class ClassConstructor;
   friend class AstNodeFactory;
   friend Zone;
 
@@ -2273,8 +2275,9 @@ class FunctionLiteral final : public Expression {
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
                   bool has_braces, int function_literal_id,
-                  ProducedPreparseData* produced_preparse_data = nullptr)
-      : Expression(position, kFunctionLiteral),
+                  ProducedPreparseData* produced_preparse_data = nullptr,
+                  NodeType type = kFunctionLiteral)
+      : Expression(position, type),
         expected_property_count_(expected_property_count),
         parameter_count_(parameter_count),
         function_length_(function_length),
@@ -2325,6 +2328,40 @@ class FunctionLiteral final : public Expression {
   AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
   ProducedPreparseData* produced_preparse_data_;
+};
+
+class ClassConstructor final : public FunctionLiteral {
+ public:
+  void set_initialize_member_stmt(InitializeClassMembersStatement* stmt) {
+    initialize_member_stmt_ = stmt;
+  }
+  InitializeClassMembersStatement* initialize_member_stmt() const {
+    return initialize_member_stmt_;
+  }
+
+  FunctionLiteral* AsFunctionLiteral() {
+    return reinterpret_cast<FunctionLiteral*>(this);
+  }
+
+ private:
+  friend class AstNodeFactory;
+  friend Zone;
+  ClassConstructor(Zone* zone, const AstConsString* name,
+                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
+                   const ScopedPtrList<Statement>& body,
+                   int expected_property_count, int parameter_count,
+                   int function_length, FunctionSyntaxKind function_syntax_kind,
+                   ParameterFlag has_duplicate_parameters,
+                   EagerCompileHint eager_compile_hint, int position,
+                   bool has_braces, int function_literal_id,
+                   ProducedPreparseData* produced_preparse_data = nullptr)
+      : FunctionLiteral(
+            zone, name, ast_value_factory, scope, body, expected_property_count,
+            parameter_count, function_length, function_syntax_kind,
+            has_duplicate_parameters, eager_compile_hint, position, has_braces,
+            function_literal_id, produced_preparse_data, kClassConstructor) {}
+
+  InitializeClassMembersStatement* initialize_member_stmt_ = nullptr;
 };
 
 // Property is used for passing information
@@ -3201,6 +3238,23 @@ class AstNodeFactory final {
       bool has_braces, int function_literal_id,
       ProducedPreparseData* produced_preparse_data = nullptr) {
     return zone_->New<FunctionLiteral>(
+        zone_, name ? ast_value_factory_->NewConsString(name) : nullptr,
+        ast_value_factory_, scope, body, expected_property_count,
+        parameter_count, function_length, function_syntax_kind,
+        has_duplicate_parameters, eager_compile_hint, position, has_braces,
+        function_literal_id, produced_preparse_data);
+  }
+
+  ClassConstructor* NewClassConstructor(
+      const AstRawString* name, DeclarationScope* scope,
+      const ScopedPtrList<Statement>& body, int expected_property_count,
+      int parameter_count, int function_length,
+      FunctionLiteral::ParameterFlag has_duplicate_parameters,
+      FunctionSyntaxKind function_syntax_kind,
+      FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
+      bool has_braces, int function_literal_id,
+      ProducedPreparseData* produced_preparse_data = nullptr) {
+    return zone_->New<ClassConstructor>(
         zone_, name ? ast_value_factory_->NewConsString(name) : nullptr,
         ast_value_factory_, scope, body, expected_property_count,
         parameter_count, function_length, function_syntax_kind,

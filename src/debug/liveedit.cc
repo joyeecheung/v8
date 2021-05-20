@@ -742,6 +742,9 @@ class CollectFunctionLiterals final
     AstTraversalVisitor::VisitFunctionLiteral(lit);
     literals_->push_back(lit);
   }
+  void VisitClassConstructor(ClassConstructor* lit) {
+    AstTraversalVisitor::VisitClassConstructor(lit);
+  }
   void Run(std::vector<FunctionLiteral*>* literals) {
     literals_ = literals;
     AstTraversalVisitor::Run();

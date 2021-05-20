@@ -35,9 +35,9 @@
 namespace v8 {
 namespace internal {
 
-FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
-                                            bool call_super, int pos,
-                                            int end_pos) {
+ClassConstructor* Parser::DefaultConstructor(const AstRawString* name,
+                                             bool call_super, int pos,
+                                             int end_pos) {
   int expected_property_count = 0;
   const int parameter_count = 0;
 
@@ -79,12 +79,12 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
     expected_property_count = function_state.expected_property_count();
   }
 
-  FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
+  ClassConstructor* constructor = factory()->NewClassConstructor(
       name, function_scope, body, expected_property_count, parameter_count,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionSyntaxKind::kAnonymousExpression, default_eager_compile_hint(),
       pos, true, GetNextFunctionLiteralId());
-  return function_literal;
+  return constructor;
 }
 
 void Parser::ReportUnexpectedTokenAt(Scanner::Location location,
@@ -1236,7 +1236,8 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     InitializeClassMembersStatement* stmt =
         factory()->NewInitializeClassMembersStatement(
             class_info.instance_fields, kNoSourcePosition);
-    class_info.constructor->body()->InsertAt(0, stmt, zone());
+    class_info.constructor->AsClassConstructor()->set_initialize_member_stmt(
+        stmt);
     class_info.constructor->set_requires_instance_members_initializer(true);
     class_info.constructor->add_expected_properties(
         class_info.instance_fields->length());
@@ -2916,11 +2917,21 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                : FunctionLiteral::kNoDuplicateParameters;
 
   // Note that the FunctionLiteral needs to be created in the main Zone again.
-  FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
-      function_name, scope, body, expected_property_count, num_parameters,
-      function_length, duplicate_parameters, function_syntax_kind,
-      eager_compile_hint, pos, true, function_literal_id,
-      produced_preparse_data);
+  FunctionLiteral* function_literal;
+
+  if (IsClassConstructor(kind)) {
+    function_literal = factory()->NewClassConstructor(
+        function_name, scope, body, expected_property_count, num_parameters,
+        function_length, duplicate_parameters, function_syntax_kind,
+        eager_compile_hint, pos, true, function_literal_id,
+        produced_preparse_data);
+  } else {
+    function_literal = factory()->NewFunctionLiteral(
+        function_name, scope, body, expected_property_count, num_parameters,
+        function_length, duplicate_parameters, function_syntax_kind,
+        eager_compile_hint, pos, true, function_literal_id,
+        produced_preparse_data);
+  }
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_suspend_count(suspend_count);
 
@@ -3323,7 +3334,7 @@ void Parser::DeclarePublicClassMethod(const AstRawString* class_name,
                                       ClassInfo* class_info) {
   if (is_constructor) {
     DCHECK(!class_info->constructor);
-    class_info->constructor = property->value()->AsFunctionLiteral();
+    class_info->constructor = property->value()->AsClassConstructor();
     DCHECK_NOT_NULL(class_info->constructor);
     class_info->constructor->set_raw_name(
         class_name != nullptr ? ast_value_factory()->NewConsString(class_name)
@@ -3402,7 +3413,9 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
     InitializeClassMembersStatement* stmt =
         factory()->NewInitializeClassMembersStatement(
             class_info->instance_fields, kNoSourcePosition);
-    class_info->constructor->body()->InsertAt(0, stmt, zone());
+    DCHECK(class_info->constructor->IsClassConstructor());
+    class_info->constructor->AsClassConstructor()->set_initialize_member_stmt(
+        stmt);
     class_info->constructor->set_requires_instance_members_initializer(true);
     class_info->constructor->add_expected_properties(
         class_info->instance_fields->length());
