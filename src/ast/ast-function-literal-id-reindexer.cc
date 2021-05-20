@@ -32,6 +32,11 @@ void AstFunctionLiteralIdReindexer::VisitFunctionLiteral(FunctionLiteral* lit) {
   lit->set_function_literal_id(lit->function_literal_id() + delta_);
 }
 
+void AstFunctionLiteralIdReindexer::VisitClassConstructor(
+    ClassConstructor* lit) {
+  AstTraversalVisitor::VisitClassConstructor(lit);
+}
+
 void AstFunctionLiteralIdReindexer::VisitClassLiteral(ClassLiteral* expr) {
   // Manually visit the class literal so that we can change the property walk.
   // This should be kept in-sync with AstTraversalVisitor::VisitClassLiteral.
@@ -96,6 +101,10 @@ class AstFunctionLiteralIdReindexChecker final
     // TODO(leszeks): It would be nice to print the unvisited function literal
     // here, but that requires more advanced DCHECK support with formatting.
     DCHECK(visited_->find(lit) != visited_->end());
+  }
+
+  void VisitClassConstructor(ClassConstructor* lit) {
+    VisitFunctionLiteral(lit->AsFunctionLiteral());
   }
 
  private:

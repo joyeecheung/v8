@@ -218,6 +218,13 @@ void CallPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
   function_kind_ = last_function_kind;
 }
 
+void CallPrinter::VisitClassConstructor(ClassConstructor* expr) {
+  if (expr->initialize_member_stmt() != nullptr) {
+    VisitInitializeClassMembersStatement(expr->initialize_member_stmt());
+  }
+
+  VisitFunctionLiteral(expr->AsFunctionLiteral());
+}
 
 void CallPrinter::VisitClassLiteral(ClassLiteral* node) {
   if (node->extends()) Find(node->extends());
@@ -1081,6 +1088,16 @@ void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
   // PrintStatements(node->body());
 }
 
+void AstPrinter::VisitClassConstructor(ClassConstructor* node) {
+  IndentedScope indent(this, "CLASS CONSTRUCTOR", node->position());
+  PrintIndented("LITERAL ID");
+  Print(" %d\n", node->function_literal_id());
+  PrintLiteralIndented("NAME", node->raw_name(), false);
+  PrintLiteralIndented("INFERRED NAME", node->raw_inferred_name(), false);
+  if (node->initialize_member_stmt()) {
+    VisitInitializeClassMembersStatement(node->initialize_member_stmt());
+  }
+}
 
 void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
   IndentedScope indent(this, "CLASS LITERAL", node->position());

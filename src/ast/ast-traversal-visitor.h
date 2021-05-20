@@ -289,6 +289,17 @@ void AstTraversalVisitor<Subclass>::VisitFunctionLiteral(
 }
 
 template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitClassConstructor(
+    ClassConstructor* expr) {
+  PROCESS_EXPRESSION(expr);
+  InitializeClassMembersStatement* stmt = expr->initialize_member_stmt();
+  if (stmt != nullptr) {
+    RECURSE_EXPRESSION(VisitInitializeClassMembersStatement(stmt));
+  }
+  RECURSE_EXPRESSION(VisitFunctionLiteral(expr->AsFunctionLiteral()));
+}
+
+template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   PROCESS_EXPRESSION(expr);
