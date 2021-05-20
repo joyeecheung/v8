@@ -2509,7 +2509,8 @@ void Scope::AllocateVariablesRecursively() {
 #ifdef DEBUG
     printf("AllocateVariablesRecursively\n");
     scope->Print(2);
-    printf("%s\n\n", WasLazilyParsed(scope) ? "WasLazilyParsed" : "Not WasLazilyParsed");
+    printf("%s\n\n",
+           WasLazilyParsed(scope) ? "WasLazilyParsed" : "Not WasLazilyParsed");
 #endif
     if (WasLazilyParsed(scope)) return Iteration::kContinue;
     DCHECK_EQ(scope->ContextHeaderLength(), scope->num_heap_slots_);
@@ -2705,27 +2706,25 @@ void ClassScope::DoneReparseFromConstructor(ParseInfo* info) {
   this->ForEach([class_scope, info](Scope* scope) {
     if (scope == class_scope) {
 #ifdef DEBUG
-      printf("Class scope\n");
+      printf("DoneReparseFromConstructor: Class scope\n");
       scope->Print();
 #endif
       return Iteration::kDescend;
     }
-    if (scope->outer_scope() == class_scope && scope->is_declaration_scope()) {
 #ifdef DEBUG
-      printf("immediate delcaration inner scope %s\n",
-             FunctionKind2String(scope->AsDeclarationScope()->function_kind()));
-      scope->Print();
+    printf("DoneReparseFromConstructor: inner scope\n");
+    scope->Print();
 #endif
+
+    // Only analyze initializer scopes, the constructor would be analyzed
+    // normally by the parser.
+    if (scope->outer_scope() == class_scope && scope->is_declaration_scope() &&
+        scope->AsDeclarationScope()->function_kind() ==
+            FunctionKind::kClassMembersInitializerFunction) {
       bool resolved = DeclarationScope::Analyze(info, scope->AsDeclarationScope());
       CHECK(resolved);
-      return Iteration::kDescend;
-    } else {
-#ifdef DEBUG
-      printf("not immediate delcaration inner scope\n\n");
-      scope->Print();
-#endif
-      return Iteration::kContinue;
     }
+    return Iteration::kContinue;
   });
 }
 
