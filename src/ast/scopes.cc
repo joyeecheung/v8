@@ -2706,16 +2706,16 @@ void ClassScope::DoneReparseFromConstructor(ParseInfo* info) {
   // Resolve all unresolved variables in the inner scopes
   this->ForEach([class_scope, info](Scope* scope) {
     if (scope == class_scope) {
-#ifdef DEBUG
-      printf("DoneReparseFromConstructor: Class scope\n");
-      scope->Print();
-#endif
+// #ifdef DEBUG
+//       printf("DoneReparseFromConstructor: Class scope\n");
+//       scope->Print();
+// #endif
       return Iteration::kDescend;
     }
-#ifdef DEBUG
-    printf("DoneReparseFromConstructor: inner scope\n");
-    scope->Print();
-#endif
+// #ifdef DEBUG
+//     printf("DoneReparseFromConstructor: inner scope\n");
+//     scope->Print();
+// #endif
 
     // Only analyze initializer scopes, the constructor would be analyzed
     // normally by the parser.
