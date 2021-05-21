@@ -5598,7 +5598,7 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     InitializeClassMembersStatement* stmt =
         info()->literal()->AsClassConstructor()->initialize_member_stmt();
     DCHECK_NOT_NULL(stmt);
-    // TODO(joyee): set the instance as receiver
+    // Set the instance as reciever
     builder()->MoveRegister(instance, builder()->Receiver());
     VisitInitializeClassMembersStatement(stmt);
     // BuildInstanceMemberInitialization(this_function, instance);

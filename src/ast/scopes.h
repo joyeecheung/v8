@@ -421,7 +421,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     DCHECK_IMPLIES(is_catch_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(is_with_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(ForceContextForLanguageMode(), num_heap_slots() > 0);
-    // TODO(joyee): make it if class scope AND contains initializers.
+    // TODO(joyee): make it if class scope AND contains initializers to avoid
+    // allocation of unnecessary ScopeInfos
     return num_heap_slots() > 0 || is_class_scope();
   }
 

@@ -1052,8 +1052,6 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
 //     printf("shared_info->GetOuterScopeInfo():\n");
 //     shared_info->GetOuterScopeInfo().Print();
 //     DCHECK(original_scope_->is_class_scope());
-//     // TODO(joyee): make sure that classes with only public fields
-//     // also has the class scope info
 //     DCHECK(shared_info->HasOuterScopeInfo());
 //     Handle<ScopeInfo> outer_scope_info =
 //         handle(shared_info->GetOuterScopeInfo(), isolate);
@@ -1118,17 +1116,17 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   DCHECK_EQ(peek(), Token::CLASS);
   Expect(Token::CLASS);
 
-  const AstRawString* name = NullIdentifier();
+  const AstRawString* class_name = NullIdentifier();
   const AstRawString* variable_name = NullIdentifier();
   // It's a reparse so we don't need to check for default export and
   // whether the names are reserved
   if (peek() == Token::EXTENDS || peek() == Token::LBRACE) {
-    GetDefaultStrings(&name, &variable_name);
+    GetDefaultStrings(&class_name, &variable_name);
   } else {
-    name = ParseIdentifier();
-    variable_name = name;
+    class_name = ParseIdentifier();
+    variable_name = class_name;
   }
-  bool is_anonymous = name == nullptr || name->IsEmpty();
+  bool is_anonymous = class_name == nullptr || class_name->IsEmpty();
 
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
@@ -1200,14 +1198,21 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
         DCHECK_NOT_NULL(private_name_var);
         property->set_private_name_var(private_name_var);
       }
+      // We skip assignments of most of the class info properties
+      // since it's not necessary for generating code for the constructor.
       // class_info.requires_brand |= (!is_field && !prop_info.is_static);
       // bool is_method = property_kind == ClassLiteralProperty::METHOD;
       // class_info.has_private_methods |= is_method;
       // class_info.has_static_private_methods |= is_method &&
       // prop_info.is_static;
       class_info.instance_fields->Add(property, zone());
-      InferFunctionName();
-      continue;
+    } else if (is_constructor) {
+      DCHECK(!class_info.constructor);
+      class_info.constructor = property->value()->AsClassConstructor();
+      DCHECK_NOT_NULL(class_info.constructor);
+      class_info.constructor->set_raw_name(
+          class_name != nullptr ? ast_value_factory()->NewConsString(class_name)
+                                : nullptr);
     }
 
     InferFunctionName();
@@ -1224,7 +1229,7 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   if (has_default_constructor) {
     class_token_pos = constructor_pos;
     class_info.constructor =
-        DefaultConstructor(name, has_extends, class_token_pos, end_pos);
+        DefaultConstructor(class_name, has_extends, class_token_pos, end_pos);
   }
 
   // if (name != nullptr) {
