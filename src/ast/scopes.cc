@@ -806,6 +806,9 @@ Scope* Scope::FinalizeBlockScope() {
 
   // This block does not need a context.
   num_heap_slots_ = 0;
+  printf("Scope::FinalizeBlockScope sets num_heap_slots_ to 0\n");
+  Print(2);
+  printf("\n");
 
   // Mark scope as removed by making it its own sibling.
 #ifdef DEBUG
@@ -2541,13 +2544,18 @@ void Scope::AllocateVariablesRecursively() {
         (scope->is_function_scope() &&
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
         (scope->is_block_scope() && scope->is_declaration_scope() &&
-         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
+         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
+         (scope->is_class_scope());
+    // TODO(joyee): do this only when the class constructor needs initializers
 
     // If we didn't allocate any locals in the local context, then we only
     // need the minimal number of slots if we must have a context.
     if (scope->num_heap_slots_ == scope->ContextHeaderLength() &&
         !must_have_context) {
       scope->num_heap_slots_ = 0;
+      printf("Scope::AllocateVariablesRecursively sets num_heap_slots_ to 0\n");
+      scope->Print(2);
+      printf("\n");
     }
 
     // Allocation done.
