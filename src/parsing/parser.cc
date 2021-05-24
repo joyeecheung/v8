@@ -1238,7 +1238,8 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   if (class_info.has_instance_members) {
     InitializeClassMembersStatement* stmt =
         factory()->NewInitializeClassMembersStatement(
-            class_info.instance_fields, kNoSourcePosition);
+            class_info.instance_fields, class_info.instance_members_scope,
+            kNoSourcePosition);
     class_info.constructor->AsClassConstructor()->set_initialize_member_stmt(
         stmt);
     class_info.constructor->set_requires_instance_members_initializer(true);
@@ -3415,7 +3416,8 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
     //         class_info->instance_fields, kNoSourcePosition));
     InitializeClassMembersStatement* stmt =
         factory()->NewInitializeClassMembersStatement(
-            class_info->instance_fields, kNoSourcePosition);
+            class_info->instance_fields, class_info->instance_members_scope,
+            kNoSourcePosition);
     DCHECK(class_info->constructor->IsClassConstructor());
     class_info->constructor->AsClassConstructor()->set_initialize_member_stmt(
         stmt);
