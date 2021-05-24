@@ -2449,15 +2449,20 @@ class InitializeClassMembersStatement final : public Statement {
   using Property = ClassLiteralProperty;
 
   ZonePtrList<Property>* fields() const { return fields_; }
+  DeclarationScope* initializer_scope() { return initializer_scope_; }
 
  private:
   friend class AstNodeFactory;
   friend Zone;
 
-  InitializeClassMembersStatement(ZonePtrList<Property>* fields, int pos)
-      : Statement(pos, kInitializeClassMembersStatement), fields_(fields) {}
+  InitializeClassMembersStatement(ZonePtrList<Property>* fields,
+                                  DeclarationScope* initializer_scope, int pos)
+      : Statement(pos, kInitializeClassMembersStatement),
+        fields_(fields),
+        initializer_scope_(initializer_scope) {}
 
   ZonePtrList<Property>* fields_;
+  DeclarationScope* initializer_scope_;
 };
 
 class InitializeClassStaticElementsStatement final : public Statement {
@@ -3356,8 +3361,10 @@ class AstNodeFactory final {
   }
 
   InitializeClassMembersStatement* NewInitializeClassMembersStatement(
-      ZonePtrList<ClassLiteral::Property>* args, int pos) {
-    return zone_->New<InitializeClassMembersStatement>(args, pos);
+      ZonePtrList<ClassLiteral::Property>* args,
+      DeclarationScope* initializer_scope, int pos) {
+    return zone_->New<InitializeClassMembersStatement>(args, initializer_scope,
+                                                       pos);
   }
 
   InitializeClassStaticElementsStatement*

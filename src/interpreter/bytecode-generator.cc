@@ -856,7 +856,17 @@ class V8_NODISCARD BytecodeGenerator::CurrentScope final {
   CurrentScope(BytecodeGenerator* generator, Scope* scope)
       : generator_(generator), outer_scope_(generator->current_scope()) {
     if (scope != nullptr) {
-      DCHECK_EQ(outer_scope_, scope->outer_scope());
+#ifdef DEBUG
+      // TODO(joyee): is it OK to patch the scopes like this?
+      if (scope->is_declaration_scope() &&
+          scope->AsDeclarationScope()->function_kind() ==
+              FunctionKind::kClassMembersInitializerFunction) {
+        DCHECK_EQ(outer_scope_->GetInitializerClassScope(),
+                  scope->outer_scope());
+      } else {
+        DCHECK_EQ(outer_scope_, scope->outer_scope());
+      }
+#endif
       generator_->set_current_scope(scope);
     }
   }
@@ -2494,6 +2504,12 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
+  if (expr->scope()->outer_scope() != current_scope()) {
+    printf("expr->scope()->outer_scope()\n");
+    expr->scope()->outer_scope()->Print(2);
+    printf("current_scope()\n");
+    current_scope()->Print(2);
+  }
   DCHECK_EQ(expr->scope()->outer_scope(), current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope(),
@@ -2813,7 +2829,7 @@ void BytecodeGenerator::VisitInitializeClassMembersStatement(
   //   builder()->StoreAccumulatorInRegister(initializer).LoadUndefined();
   //   BuildVariableAssignment(new_target, Token::INIT, HoleCheckMode::kElided);
   // }
-
+  CurrentScope current_scope(this, stmt->initializer_scope());
   for (int i = 0; i < stmt->fields()->length(); i++) {
     BuildClassProperty(stmt->fields()->at(i));
   }

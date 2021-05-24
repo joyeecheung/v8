@@ -548,6 +548,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
 
+  // Find the first class scope in the outer scopes for the initializer.
+  // If there isn't one, return nullptr.
+  ClassScope* GetInitializerClassScope();
+
   // Find the first class scope or object literal block scope. This is where
   // 'super' is bound.
   Scope* GetHomeObjectScope();

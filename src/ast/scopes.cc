@@ -1447,6 +1447,21 @@ DeclarationScope* Scope::GetReceiverScope() {
   return scope->AsDeclarationScope();
 }
 
+ClassScope* Scope::GetInitializerClassScope() {
+  Scope* scope = this;
+  while (scope != nullptr) {
+    if (scope->private_name_lookup_skips_outer_class()) {
+      DCHECK(scope->outer_scope()->is_class_scope());
+      scope = scope->outer_scope()->outer_scope();
+    } else if (scope->is_class_scope()) {
+      return scope->AsClassScope();
+    } else {
+      scope = scope->outer_scope();
+    }
+  }
+  return nullptr;
+}
+
 Scope* Scope::GetHomeObjectScope() {
   Scope* scope = this;
   while (scope != nullptr && !scope->is_home_object_scope()) {
@@ -2545,7 +2560,7 @@ void Scope::AllocateVariablesRecursively() {
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
         (scope->is_block_scope() && scope->is_declaration_scope() &&
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
-         (scope->is_class_scope());
+        (scope->is_class_scope());
     // TODO(joyee): do this only when the class constructor needs initializers
 
     // If we didn't allocate any locals in the local context, then we only
