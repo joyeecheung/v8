@@ -806,9 +806,9 @@ Scope* Scope::FinalizeBlockScope() {
 
   // This block does not need a context.
   num_heap_slots_ = 0;
-  printf("Scope::FinalizeBlockScope sets num_heap_slots_ to 0\n");
-  Print(2);
-  printf("\n");
+  // printf("Scope::FinalizeBlockScope sets num_heap_slots_ to 0\n");
+  // Print(2);
+  // printf("\n");
 
   // Mark scope as removed by making it its own sibling.
 #ifdef DEBUG
@@ -2568,9 +2568,8 @@ void Scope::AllocateVariablesRecursively() {
     if (scope->num_heap_slots_ == scope->ContextHeaderLength() &&
         !must_have_context) {
       scope->num_heap_slots_ = 0;
-      printf("Scope::AllocateVariablesRecursively sets num_heap_slots_ to 0\n");
-      scope->Print(2);
-      printf("\n");
+      // printf("Scope::AllocateVariablesRecursively sets num_heap_slots_ to
+      // 0\n"); scope->Print(2); printf("\n");
     }
 
     // Allocation done.
@@ -2667,7 +2666,22 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, IsolateT* isolate) {
   if (scope->needs_private_name_context_chain_recalc()) {
     scope->RecalcPrivateNameContextChain();
   }
+
   scope->AllocateScopeInfosRecursively(isolate, outer_scope);
+
+  // Make sure the ClassMembersInitializerFunction has the scope info.
+  if (scope->is_declaration_scope() &&
+      IsClassConstructor(scope->AsDeclarationScope()->function_kind())) {
+    DCHECK_NOT_NULL(scope->outer_scope());
+    DCHECK(scope->outer_scope()->is_class_scope());
+    ClassScope* class_scope = scope->outer_scope()->AsClassScope();
+    DeclarationScope* initializer_scope = class_scope->initializer_scope();
+    if (initializer_scope != nullptr) {
+      initializer_scope->scope_info_ =
+          ScopeInfo::Create(isolate, initializer_scope->zone(),
+                            initializer_scope, class_scope->scope_info());
+    }
+  }
 
   // The debugger expects all shared function infos to contain a scope info.
   // Since the top-most scope will end up in a shared function info, make sure

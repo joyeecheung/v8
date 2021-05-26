@@ -1489,6 +1489,11 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // the class for the constructor.
   Variable* LookupLocalVariable(Isolate* isolate, const AstRawString* name);
 
+  DeclarationScope* initializer_scope() const { return initializer_scope_; }
+  void set_initializer_scope(DeclarationScope* scope) {
+    initializer_scope_ = scope;
+  }
+
   void PrepareForReparseFromConstructor();
   void DoneReparseFromConstructor(ParseInfo* info);
   bool is_being_reparsed_from_constructor() const {
@@ -1541,7 +1546,10 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // This is only maintained during reparsing, restored from the
   // preparsed data.
   bool should_save_class_variable_index_ = false;
+  // This is only maintained during reparsing, when the constructor
+  // inlines member initialization.
   bool is_being_reparsed_from_constructor_ = false;
+  DeclarationScope* initializer_scope_ = nullptr;
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the

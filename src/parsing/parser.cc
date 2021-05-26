@@ -1236,6 +1236,7 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   // }
 
   if (class_info.has_instance_members) {
+    class_scope->set_initializer_scope(class_info.instance_members_scope);
     InitializeClassMembersStatement* stmt =
         factory()->NewInitializeClassMembersStatement(
             class_info.instance_fields, class_info.instance_members_scope,
