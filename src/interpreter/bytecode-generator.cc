@@ -857,12 +857,18 @@ class V8_NODISCARD BytecodeGenerator::CurrentScope final {
       : generator_(generator), outer_scope_(generator->current_scope()) {
     if (scope != nullptr) {
 #ifdef DEBUG
-      // TODO(joyee): is it OK to patch the scopes like this?
-      if (scope->is_declaration_scope() &&
-          scope->AsDeclarationScope()->function_kind() ==
-              FunctionKind::kClassMembersInitializerFunction) {
-        DCHECK_EQ(outer_scope_->GetInitializerClassScope(),
-                  scope->outer_scope());
+      if (outer_scope_ != scope->outer_scope()) {
+        // printf("outer_scope_\n");
+        // outer_scope_->Print(2);
+        // printf("scope\n");
+        // scope->Print(2);
+        DCHECK(scope->is_class_scope());
+        DCHECK_EQ(outer_scope_->GetInitializerClassScope(), scope);
+      // } else if (scope->is_declaration_scope() &&
+      //     scope->AsDeclarationScope()->function_kind() ==
+      //         FunctionKind::kClassMembersInitializerFunction) {
+      //   DCHECK_EQ(outer_scope_->GetInitializerClassScope(),
+      //             scope->outer_scope());
       } else {
         DCHECK_EQ(outer_scope_, scope->outer_scope());
       }
@@ -2504,12 +2510,14 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
+#ifdef DEBUG
   if (expr->scope()->outer_scope() != current_scope()) {
     printf("expr->scope()->outer_scope()\n");
     expr->scope()->outer_scope()->Print(2);
     printf("current_scope()\n");
     current_scope()->Print(2);
   }
+#endif
   DCHECK_EQ(expr->scope()->outer_scope(), current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope(),
@@ -2820,25 +2828,39 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
 
 void BytecodeGenerator::VisitInitializeClassMembersStatement(
     InitializeClassMembersStatement* stmt) {
-  // Make the new.target undefined until initialization is done.
-  // Variable* new_target = closure_scope()->new_target_var();
-  // Register initializer;
-  // if (new_target != nullptr) {
-  //   initializer = register_allocator()->NewRegister();
-  //   BuildVariableLoad(new_target, HoleCheckMode::kElided);
-  //   builder()->StoreAccumulatorInRegister(initializer).LoadUndefined();
-  //   BuildVariableAssignment(new_target, Token::INIT, HoleCheckMode::kElided);
-  // }
-  CurrentScope current_scope(this, stmt->initializer_scope());
-  for (int i = 0; i < stmt->fields()->length(); i++) {
-    BuildClassProperty(stmt->fields()->at(i));
-  }
+  DeclarationScope* scope = stmt->initializer_scope();
+  CurrentScope current_scope(this, scope->outer_scope());
+  // We need to do a subset of what GenerateBytecode() does
+  if (scope->NeedsContext()) {
+    int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
+      builder()->CreateFunctionContext(scope, slot_count);
+    } else {
+      Register arg = register_allocator()->NewRegister();
+      builder()->LoadLiteral(scope).StoreAccumulatorInRegister(arg).CallRuntime(
+          Runtime::kNewFunctionContext, arg);
+    }
 
-  // if (new_target != nullptr) {
-  //   // Restore the new.target register
-  //   builder()->LoadAccumulatorWithRegister(initializer);
-  //   BuildVariableAssignment(new_target, Token::INIT, HoleCheckMode::kElided);
-  // }
+    CurrentScope current_scope(this, scope);
+    ContextScope local_function_context(this, scope);
+
+    if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
+      Variable* variable = scope->receiver();
+      Register receiver(builder()->Receiver());
+      // Context variable (at bottom of the context chain).
+      DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
+      builder()->LoadAccumulatorWithRegister(receiver).StoreContextSlot(
+          execution_context()->reg(), variable->index(), 0);
+    }
+
+    for (int i = 0; i < stmt->fields()->length(); i++) {
+      BuildClassProperty(stmt->fields()->at(i));
+    }
+  } else {
+    for (int i = 0; i < stmt->fields()->length(); i++) {
+      BuildClassProperty(stmt->fields()->at(i));
+    }
+  }
 }
 
 void BytecodeGenerator::VisitInitializeClassStaticElementsStatement(
@@ -5610,8 +5632,12 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   // if required.
   if (info()->literal()->requires_instance_members_initializer() ||
       !IsDerivedConstructor(info()->literal()->kind())) {
+    // FIXME(joyee): info()->literal() isn't the constructor itself if
+    // super() is nested in another function. We need to find the outer
+    // constructor somehow from the inner function, maybe using a scope.
+    ClassConstructor* constructor = info()->literal()->AsClassConstructor();
     InitializeClassMembersStatement* stmt =
-        info()->literal()->AsClassConstructor()->initialize_member_stmt();
+        constructor->initialize_member_stmt();
     DCHECK_NOT_NULL(stmt);
     // Set the instance as reciever
     builder()->MoveRegister(instance, builder()->Receiver());

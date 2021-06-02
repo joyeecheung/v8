@@ -671,8 +671,7 @@ bool DeclarationScope::Analyze(ParseInfo* info, DeclarationScope* additional) {
   scope->CheckScopePositions();
   scope->CheckZones();
 #endif
-  if (additional == nullptr &&
-      scope->outer_scope() != nullptr &&
+  if (additional == nullptr && scope->outer_scope() != nullptr &&
       scope->outer_scope()->IsReparsedClassScope()) {
     scope->outer_scope()->AsClassScope()->DoneReparseFromConstructor(info);
   }
@@ -2759,7 +2758,8 @@ void ClassScope::DoneReparseFromConstructor(ParseInfo* info) {
     if (scope->outer_scope() == class_scope && scope->is_declaration_scope() &&
         scope->AsDeclarationScope()->function_kind() ==
             FunctionKind::kClassMembersInitializerFunction) {
-      bool resolved = DeclarationScope::Analyze(info, scope->AsDeclarationScope());
+      bool resolved =
+          DeclarationScope::Analyze(info, scope->AsDeclarationScope());
       CHECK(resolved);
     }
     return Iteration::kContinue;
