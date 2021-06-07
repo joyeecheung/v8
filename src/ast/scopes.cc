@@ -805,9 +805,6 @@ Scope* Scope::FinalizeBlockScope() {
 
   // This block does not need a context.
   num_heap_slots_ = 0;
-  // printf("Scope::FinalizeBlockScope sets num_heap_slots_ to 0\n");
-  // Print(2);
-  // printf("\n");
 
   // Mark scope as removed by making it its own sibling.
 #ifdef DEBUG
@@ -2523,13 +2520,6 @@ void ModuleScope::AllocateModuleVariables() {
 void Scope::AllocateVariablesRecursively() {
   this->ForEach([](Scope* scope) -> Iteration {
     DCHECK(!scope->already_resolved_);
-    // #ifdef DEBUG
-    //     printf("AllocateVariablesRecursively\n");
-    //     scope->Print(2);
-    //     printf("%s\n\n",
-    //            WasLazilyParsed(scope) ? "WasLazilyParsed" : "Not
-    //            WasLazilyParsed");
-    // #endif
     if (WasLazilyParsed(scope)) return Iteration::kContinue;
     DCHECK_EQ(scope->ContextHeaderLength(), scope->num_heap_slots_);
 
@@ -2567,8 +2557,6 @@ void Scope::AllocateVariablesRecursively() {
     if (scope->num_heap_slots_ == scope->ContextHeaderLength() &&
         !must_have_context) {
       scope->num_heap_slots_ = 0;
-      // printf("Scope::AllocateVariablesRecursively sets num_heap_slots_ to
-      // 0\n"); scope->Print(2); printf("\n");
     }
 
     // Allocation done.
@@ -2724,7 +2712,6 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
   }
 }
 
-
 void ClassScope::PrepareForReparseFromConstructor() {
 #ifdef DEBUG
   already_resolved_ = false;
@@ -2742,16 +2729,8 @@ void ClassScope::DoneReparseFromConstructor(ParseInfo* info) {
   // Resolve all unresolved variables in the inner scopes
   this->ForEach([class_scope, info](Scope* scope) {
     if (scope == class_scope) {
-// #ifdef DEBUG
-//       printf("DoneReparseFromConstructor: Class scope\n");
-//       scope->Print();
-// #endif
       return Iteration::kDescend;
     }
-// #ifdef DEBUG
-//     printf("DoneReparseFromConstructor: inner scope\n");
-//     scope->Print();
-// #endif
 
     // Only analyze initializer scopes, the constructor would be analyzed
     // normally by the parser.
