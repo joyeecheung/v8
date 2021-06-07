@@ -858,17 +858,8 @@ class V8_NODISCARD BytecodeGenerator::CurrentScope final {
     if (scope != nullptr) {
 #ifdef DEBUG
       if (outer_scope_ != scope->outer_scope()) {
-        // printf("outer_scope_\n");
-        // outer_scope_->Print(2);
-        // printf("scope\n");
-        // scope->Print(2);
         DCHECK(scope->is_class_scope());
         DCHECK_EQ(outer_scope_->GetInitializerClassScope(), scope);
-      // } else if (scope->is_declaration_scope() &&
-      //     scope->AsDeclarationScope()->function_kind() ==
-      //         FunctionKind::kClassMembersInitializerFunction) {
-      //   DCHECK_EQ(outer_scope_->GetInitializerClassScope(),
-      //             scope->outer_scope());
       } else {
         DCHECK_EQ(outer_scope_, scope->outer_scope());
       }
@@ -2510,14 +2501,6 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-#ifdef DEBUG
-  if (expr->scope()->outer_scope() != current_scope()) {
-    printf("expr->scope()->outer_scope()\n");
-    expr->scope()->outer_scope()->Print(2);
-    printf("current_scope()\n");
-    current_scope()->Print(2);
-  }
-#endif
   DCHECK_EQ(expr->scope()->outer_scope(), current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope(),

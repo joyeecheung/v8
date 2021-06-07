@@ -1041,30 +1041,6 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
                            function_literal_id, raw_name);
   }
 
-// #ifdef DEBUG
-//   {
-//     printf("original scope\n");
-//     original_scope_->Print(2);
-//     printf("shared_info:\n");
-//     shared_info->Print();
-//     printf("shared_info->GetOuterScopeInfo():\n");
-//     shared_info->GetOuterScopeInfo().Print();
-//     DCHECK(original_scope_->is_class_scope());
-//     DCHECK(shared_info->HasOuterScopeInfo());
-//     Handle<ScopeInfo> outer_scope_info =
-//         handle(shared_info->GetOuterScopeInfo(), isolate);
-//     int class_start = outer_scope_info->StartPosition();
-//     int class_end = outer_scope_info->EndPosition();
-
-//     Handle<String> source = handle(
-//         String::cast(Script::cast(shared_info->script()).source()), isolate);
-//     std::unique_ptr<char[]> source_string =
-//         source->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, class_start,
-//                           class_end - class_start, nullptr);
-//     printf("Class source:\n%s\n", source_string.get());
-//   }
-// #endif
-
   // Reparse the outer class while skipping the non-fields to get a list of
   // ClassLiteralProperty and create a InitializeClassMembersStatement and
   // insert it into the body of the constructorl later.
