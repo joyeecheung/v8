@@ -16,13 +16,21 @@
 namespace v8 {
 namespace internal {
 
-enum class StoreMode { kOrdinary, kInLiteral };
+enum class StoreMode { kOrdinary, kOwn, kInLiteral };
+
+// With private symbols, 'define' semantics will throw if the field already
+// exists, while 'update' semantics will throw if the field does not exist.
+enum class PrivateNameSemantics { kUpdate, kDefine };
 
 class KeyedStoreGenericAssembler : public AccessorAssembler {
  public:
-  explicit KeyedStoreGenericAssembler(compiler::CodeAssemblerState* state,
-                                      StoreMode mode)
-      : AccessorAssembler(state), mode_(mode) {}
+  explicit KeyedStoreGenericAssembler(
+      compiler::CodeAssemblerState* state, StoreMode mode,
+      PrivateNameSemantics private_name_semantics =
+          PrivateNameSemantics::kUpdate)
+      : AccessorAssembler(state),
+        mode_(mode),
+        private_name_semantics_(private_name_semantics) {}
 
   void KeyedStoreGeneric();
 
@@ -44,6 +52,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
  private:
   StoreMode mode_;
+  PrivateNameSemantics private_name_semantics_;
 
   enum UpdateLength {
     kDontChangeLength,
@@ -130,15 +139,20 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                                       Label* slow);
 
   bool IsKeyedStore() const { return mode_ == StoreMode::kOrdinary; }
+  bool IsKeyedStoreOwn() const { return mode_ == StoreMode::kOwn; }
   bool IsStoreInLiteral() const { return mode_ == StoreMode::kInLiteral; }
+  bool IsKeyedDefineOwn() const {
+    return mode_ == StoreMode::kOwn &&
+           private_name_semantics_ == PrivateNameSemantics::kDefine;
+  }
 
   bool ShouldCheckPrototype() const { return IsKeyedStore(); }
   bool ShouldReconfigureExisting() const { return IsStoreInLiteral(); }
-  bool ShouldCallSetter() const { return IsKeyedStore(); }
+  bool ShouldCallSetter() const { return IsKeyedStore() || IsKeyedStoreOwn(); }
   bool ShouldCheckPrototypeValidity() const {
     // We don't do this for "in-literal" stores, because it is impossible for
     // the target object to be a "prototype"
-    return !IsStoreInLiteral();
+    return !IsStoreInLiteral() && !IsKeyedStoreOwn();
   }
 };
 
@@ -147,8 +161,21 @@ void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state) {
   assembler.KeyedStoreGeneric();
 }
 
+void KeyedDefineOwnGenericGenerator::Generate(
+    compiler::CodeAssemblerState* state) {
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kOwn,
+                                       PrivateNameSemantics::kDefine);
+  assembler.KeyedStoreGeneric();
+}
+
 void StoreICNoFeedbackGenerator::Generate(compiler::CodeAssemblerState* state) {
   KeyedStoreGenericAssembler assembler(state, StoreMode::kOrdinary);
+  assembler.StoreIC_NoFeedback();
+}
+
+void StoreOwnICNoFeedbackGenerator::Generate(
+    compiler::CodeAssemblerState* state) {
+  KeyedStoreGenericAssembler assembler(state, StoreMode::kOwn);
   assembler.StoreIC_NoFeedback();
 }
 
@@ -783,6 +810,10 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&descriptor_found);
     {
+      if (IsKeyedDefineOwn()) {
+        // Take slow path to throw if a private name already exists
+        GotoIf(IsPrivateSymbol(name), slow);
+      }
       TNode<IntPtrT> name_index = var_name_index.value();
       TNode<Uint32T> details = LoadDetailsByKeyIndex(descriptors, name_index);
       Label data_property(this);
@@ -841,6 +872,9 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&dictionary_found);
     {
       Label check_const(this), overwrite(this), done(this);
+      if (IsKeyedDefineOwn()) {
+        GotoIf(IsPrivateSymbol(name), slow);
+      }
       TNode<Uint32T> details =
           LoadDetailsByKeyIndex(properties, var_name_index.value());
       JumpIfDataProperty(details, &check_const,
@@ -1035,12 +1069,20 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 
   BIND(&slow);
   {
-    if (IsKeyedStore()) {
+    if (IsKeyedStore() || IsKeyedStoreOwn()) {
       Comment("KeyedStoreGeneric_slow");
-      TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
-                      value);
+      if (IsKeyedDefineOwn()) {
+        // Currently, KeyedDefineOwn ICs are only used for class instance
+        // fields, hence %DefineClassField.
+        TailCallRuntime(Runtime::kDefineClassField, context, receiver, key,
+                        value);
+      } else {
+        TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
+                        value);
+      }
     } else {
       DCHECK(IsStoreInLiteral());
+      DCHECK_EQ(private_name_semantics_, PrivateNameSemantics::kUpdate);
       TailCallRuntime(Runtime::kStoreDataPropertyInLiteral, context, receiver,
                       key, value);
     }
@@ -1087,16 +1129,19 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
     // checks, strings and string wrappers, proxies) are handled in the runtime.
     GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
     {
-      StoreICParameters p(context, receiver, name, value, slot,
-                          UndefinedConstant());
+      StoreICParameters p(
+          context, receiver, name, value, slot, UndefinedConstant(),
+          IsKeyedStoreOwn() ? StoreICMode::kStoreOwn : StoreICMode::kDefault);
       EmitGenericPropertyStore(CAST(receiver), receiver_map, &p, &miss);
     }
   }
 
   BIND(&miss);
   {
-    TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                    UndefinedConstant(), receiver_maybe_smi, name);
+    auto runtime =
+        IsKeyedStoreOwn() ? Runtime::kStoreOwnIC_Miss : Runtime::kStoreIC_Miss;
+    TailCallRuntime(runtime, context, value, slot, UndefinedConstant(),
+                    receiver_maybe_smi, name);
   }
 }
 
