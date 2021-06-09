@@ -36,6 +36,19 @@
             {"name": "DefinePublic-SingleField"},
             {"name": "DefinePublic-MultipleFields"}
           ]
+        },
+        {
+          "name": "ClassWithFieldsEvaluation",
+          "main": "run.js",
+          "resources": [ "class-evaluation.js" ],
+          "test_flags": [ "class-evaluation" ],
+          "results_regexp": "^%s\\-ClassFields\\(Score\\): (.+)$",
+          "tests": [
+            {"name": "ClassWithFieldsEvaluation-SinglePublicField"},
+            {"name": "ClassWithFieldsEvaluation-MultiplePublicFields"},
+            {"name": "ClassWithFieldsEvaluation-SinglePrivateField"},
+            {"name": "ClassWithFieldsEvaluation-MultiplePrivateFields"}
+          ]
         }
       ]
     }
