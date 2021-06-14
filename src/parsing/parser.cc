@@ -1062,7 +1062,6 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   class_scope->PrepareForReparseFromConstructor();
   int class_token_pos =
       class_scope->start_position();  // calculate based on current position?
-
   // Insert a FunctionState with the closest outer Declaration scope
   DeclarationScope* nearest_decl_scope = nullptr;
   Scope* scope = class_scope;
@@ -1106,7 +1105,8 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   class_info.is_anonymous = is_anonymous;
 
   if (Check(Token::EXTENDS)) {
-    // TODO(joyee): we should not actually parse the expression
+    // We should skip as much as possible.
+    ParsingModeScope mode(this, PARSE_LAZILY);
     ClassScope::HeritageParsingScope heritage(class_scope);
     FuncNameInferrerState fni_state(&fni_);
     ExpressionParsingScope scope(impl());
@@ -1124,7 +1124,7 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     // Either we're parsing a `static { }` initialization block or a property.
     if (FLAG_harmony_class_static_blocks && peek() == Token::STATIC &&
         PeekAhead() == Token::LBRACE) {
-      // TODO(joyee): we should preparse the block
+      ParsingModeScope mode(this, PARSE_LAZILY);
       ParseClassStaticBlock(&class_info);
       continue;
     }
@@ -1136,10 +1136,9 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     ParsePropertyInfo prop_info(this);
     prop_info.position = PropertyPosition::kClassLiteral;
 
-    // TODO(joyee): we should preparse the property if it's not the
-    // constructor nor the field
-    ClassLiteralPropertyT property =
-        ParseClassPropertyDefinition(&class_info, &prop_info, has_extends);
+    // We will preparse the property if it's not the the field
+    ClassLiteralPropertyT property = ParseClassPropertyDefinition(
+        &class_info, &prop_info, has_extends, kSkipClassMethodOrAccessor);
 
     if (has_error()) return nullptr;
 
@@ -1174,11 +1173,6 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
       }
       // We skip assignments of most of the class info properties
       // since it's not necessary for generating code for the constructor.
-      // class_info.requires_brand |= (!is_field && !prop_info.is_static);
-      // bool is_method = property_kind == ClassLiteralProperty::METHOD;
-      // class_info.has_private_methods |= is_method;
-      // class_info.has_static_private_methods |= is_method &&
-      // prop_info.is_static;
       class_info.instance_fields->Add(property, zone());
     } else if (is_constructor) {
       DCHECK(!class_info.constructor);
@@ -2851,6 +2845,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       SkipFunction(function_name, kind, function_syntax_kind, scope,
                    &num_parameters, &function_length, &produced_preparse_data);
 
+  // PrintF("%.*s should_preparse = %s did_preparse_successfully =%s\n",
+  //         function_name->length(), function_name->raw_data(),
+  //         should_preparse ? "true" : "false",
+  //         did_preparse_successfully ? "true" : "false");
   if (!did_preparse_successfully) {
     // If skipping aborted, it rewound the scanner until before the LPAREN.
     // Consume it in that case.
@@ -2927,6 +2925,25 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     fni_.AddFunction(function_literal);
   }
   return function_literal;
+}
+
+FunctionLiteral* Parser::ParseClassMethodOrAccessor(
+    const AstRawString* prop_name, FunctionKind function_kind,
+    int name_token_position, ParsingClassMemberFlag class_member_flag) {
+  // We are reparsing class body for the instance member initializer,
+  // in this case there is no need to parse the entire method.
+  if (class_member_flag == kSkipClassMethodOrAccessor && !IsClassConstructor(function_kind)) {
+    ParsingModeScope mode(this, PARSE_LAZILY);
+    return ParseFunctionLiteral(
+        prop_name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
+        name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
+        language_mode(), nullptr);
+  } else {
+    return ParseFunctionLiteral(
+        prop_name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
+        name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
+        language_mode(), nullptr);
+  }
 }
 
 bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
