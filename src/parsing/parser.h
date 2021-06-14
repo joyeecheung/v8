@@ -233,6 +233,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info, ParseInfo* info,
       int start_position, int end_position, int function_literal_id,
       const AstRawString* raw_name);
+
   FunctionLiteral* ParseAndRewriteClassConstructor(Isolate* isolate,
                                                    ClassScope* scope,
                                                    int constructor_pos,
@@ -391,6 +392,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       int function_token_position, FunctionSyntaxKind type,
       LanguageMode language_mode,
       ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
+
+  FunctionLiteral* ParseClassMethodOrAccessor(
+      const AstRawString* prop_name, FunctionKind function_kind,
+      int name_token_position, ParsingClassMemberFlag class_member_flag);
 
   ObjectLiteral* InitializeObjectLiteral(ObjectLiteral* object_literal) {
     object_literal->CalculateEmitStore(main_zone());

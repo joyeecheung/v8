@@ -54,6 +54,11 @@ enum class ParseFunctionFlag : uint8_t {
 
 using ParseFunctionFlags = base::Flags<ParseFunctionFlag>;
 
+enum ParsingClassMemberFlag {
+  kParseClassMethodOrAccessor,
+  kSkipClassMethodOrAccessor
+};
+
 struct FormalParametersBase {
   explicit FormalParametersBase(DeclarationScope* scope) : scope(scope) {}
 
@@ -1175,7 +1180,8 @@ class ParserBase {
   ExpressionT ParseProperty(ParsePropertyInfo* prop_info);
   ExpressionT ParseObjectLiteral();
   ClassLiteralPropertyT ParseClassPropertyDefinition(
-      ClassInfo* class_info, ParsePropertyInfo* prop_info, bool has_extends);
+      ClassInfo* class_info, ParsePropertyInfo* prop_info, bool has_extends,
+      ParsingClassMemberFlag class_member_flag);
   void CheckClassFieldName(IdentifierT name, bool is_static);
   void CheckClassMethodName(IdentifierT name, ParsePropertyKind type,
                             ParseFunctionFlags flags, bool is_static,
@@ -2282,9 +2288,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
 
 template <typename Impl>
 typename ParserBase<Impl>::ClassLiteralPropertyT
-ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
-                                               ParsePropertyInfo* prop_info,
-                                               bool has_extends) {
+ParserBase<Impl>::ParseClassPropertyDefinition(
+    ClassInfo* class_info, ParsePropertyInfo* prop_info, bool has_extends,
+    ParsingClassMemberFlag class_member_flag) {
   DCHECK_NOT_NULL(class_info);
   DCHECK_EQ(prop_info->position, PropertyPosition::kClassLiteral);
 
@@ -2371,10 +2377,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
                            : FunctionKind::kBaseConstructor;
       }
 
-      ExpressionT value = impl()->ParseFunctionLiteral(
-          prop_info->name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
-          language_mode(), nullptr);
+      ExpressionT value = impl()->ParseClassMethodOrAccessor(
+          prop_info->name, kind, name_token_position, class_member_flag);
 
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
           name_expression, value, ClassLiteralProperty::METHOD,
@@ -2409,10 +2413,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
                       : FunctionKind::kSetterFunction;
       }
 
-      FunctionLiteralT value = impl()->ParseFunctionLiteral(
-          prop_info->name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
-          language_mode(), nullptr);
+      FunctionLiteralT value = impl()->ParseClassMethodOrAccessor(
+          prop_info->name, kind, name_token_position, class_member_flag);
 
       ClassLiteralProperty::Kind property_kind =
           is_get ? ClassLiteralProperty::GETTER : ClassLiteralProperty::SETTER;
@@ -4655,8 +4657,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     ParsePropertyInfo prop_info(this);
     prop_info.position = PropertyPosition::kClassLiteral;
 
-    ClassLiteralPropertyT property =
-        ParseClassPropertyDefinition(&class_info, &prop_info, has_extends);
+    ClassLiteralPropertyT property = ParseClassPropertyDefinition(
+        &class_info, &prop_info, has_extends, kParseClassMethodOrAccessor);
 
     if (has_error()) return impl()->FailureExpression();
 

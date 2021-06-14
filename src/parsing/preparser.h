@@ -1032,6 +1032,15 @@ class PreParser : public ParserBase<PreParser> {
       LanguageMode language_mode,
       ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
 
+  Expression ParseClassMethodOrAccessor(
+      Identifier prop_name, FunctionKind function_kind, int name_token_position,
+      ParsingClassMemberFlag class_member_flag) {
+    return ParseFunctionLiteral(
+        prop_name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
+        name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
+        language_mode(), nullptr);
+  }
+
   PreParserExpression InitializeObjectLiteral(PreParserExpression literal) {
     return literal;
   }
