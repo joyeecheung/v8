@@ -2557,7 +2557,6 @@ void Scope::AllocateVariablesRecursively() {
         (scope->is_block_scope() && scope->is_declaration_scope() &&
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
         (scope->GetClassInitializerScope() != nullptr);
-    // TODO(joyee): do this only when the class constructor needs initializers
 
     // If we didn't allocate any locals in the local context, then we only
     // need the minimal number of slots if we must have a context.
@@ -2724,6 +2723,8 @@ void ClassScope::PrepareForReparseFromConstructor() {
   already_resolved_ = false;
 #endif
   is_being_reparsed_from_constructor_ = true;
+  // TODO(joyee): freeze new variable declaration directly in the class
+  // scope - only look up from existing scope info is allowed.
 }
 
 void ClassScope::DoneReparseFromConstructor(ParseInfo* info) {
@@ -2863,22 +2864,19 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name,
   return var;
 }
 
-Variable* ClassScope::LookupLocalVariable(Isolate* isolate,
+Variable* ClassScope::DeserializeVariable(Isolate* isolate,
                                           const AstRawString* name) {
   Variable* var = nullptr;
+  DCHECK(!scope_info_.is_null());
+  Handle<String> name_string = name->GetInternalized(isolate);
   if (name->IsPrivateName()) {
-    var = LookupLocalPrivateName(name);
-    if (var == nullptr && !scope_info_.is_null()) {
-      Handle<String> name_string = name->GetInternalized(isolate);
-      var = LookupPrivateNameInScopeInfo(name, name_string);
-    }
+    DCHECK_NULL(LookupLocalPrivateName(name));
+    var = LookupPrivateNameInScopeInfo(name, name_string);
   } else {
-    var = LookupLocal(name);
-    if (var == nullptr && !scope_info_.is_null()) {
-      Handle<String> name_string = name->GetInternalized(isolate);
-      var = LookupInScopeInfo(name, name_string, this);
-    }
+    Handle<String> name_string = name->GetInternalized(isolate);
+    var = LookupInScopeInfo(name, name_string, this);
   }
+  DCHECK_NOT_NULL(var);
   return var;
 }
 

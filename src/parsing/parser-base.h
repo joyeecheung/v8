@@ -54,9 +54,9 @@ enum class ParseFunctionFlag : uint8_t {
 
 using ParseFunctionFlags = base::Flags<ParseFunctionFlag>;
 
-enum ParsingClassMemberFlag {
-  kParseClassMethodOrAccessor,
-  kSkipClassMethodOrAccessor
+enum class ParsingClassLiteralFlag {
+  kParseAll,
+  kParseForInstanceInitialization
 };
 
 struct FormalParametersBase {
@@ -300,6 +300,66 @@ class ParserBase {
   void SkipFunctionLiterals(int delta) { function_literal_id_ += delta; }
 
   void ResetFunctionLiteralId() { function_literal_id_ = 0; }
+
+  enum ParsingMode { PARSE_LAZILY, PARSE_EAGERLY };
+  class V8_NODISCARD ParsingModeScope {
+   public:
+    ParsingModeScope(ParserBase* parser, ParsingMode mode)
+        : parser_(parser), old_mode_(parser->parsing_mode_) {
+      parser_->parsing_mode_ = mode;
+    }
+    ~ParsingModeScope() { parser_->parsing_mode_ = old_mode_; }
+
+   private:
+    ParserBase* parser_;
+    ParsingMode old_mode_;
+  };
+  bool parse_lazily() const { return parsing_mode_ == PARSE_LAZILY; }
+  void set_parsing_mode(ParsingMode mode) { parsing_mode_ = mode; }
+
+  // TODO(joyee): is it an ExpressionScope?
+  class V8_NODISCARD ClassLiteralParsingScope final {
+   public:
+    ClassLiteralParsingScope(ParserBase* parser,
+                             ParsingClassLiteralFlag class_literal_flag,
+                             Isolate* isolate)
+        : parser_(parser),
+          class_literal_flag_(class_literal_flag),
+          isolate_(isolate),
+          previous_class_literal_parsing_scope_(
+              parser->class_literal_parsing_scope_),
+          original_parsing_mode_(parser->parsing_mode_) {
+      parser_->class_literal_parsing_scope_ = this;
+    }
+
+    ~ClassLiteralParsingScope() {
+      parser_->class_literal_parsing_scope_ =
+          previous_class_literal_parsing_scope_;
+    }
+
+    Isolate* isolate() const { return isolate_; }
+    ParsingClassLiteralFlag class_literal_flag() const {
+      return class_literal_flag_;
+    }
+    ParsingMode original_parsing_mode() const { return original_parsing_mode_; }
+
+   private:
+    ParserBase* parser_;
+    ParsingClassLiteralFlag class_literal_flag_;
+    Isolate* isolate_;
+    ClassLiteralParsingScope* previous_class_literal_parsing_scope_;
+    ParsingMode original_parsing_mode_;
+  };
+
+  ClassLiteralParsingScope* class_literal_parsing_scope() const {
+    return class_literal_parsing_scope_;
+  }
+
+  bool parse_for_instance_initialization() const {
+    DCHECK_NOT_NULL(class_literal_parsing_scope_);
+    return class_literal_parsing_scope_->class_literal_flag() ==
+           ParsingClassLiteralFlag::kParseForInstanceInitialization;
+  }
 
   // The Zone where the parsing outputs are stored.
   Zone* main_zone() const { return ast_value_factory()->zone(); }
@@ -598,6 +658,7 @@ class ParserBase {
           static_elements(parser->impl()->NewClassStaticElementList(4)),
           instance_fields(parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
+          name(parser->impl()->NullIdentifier()),
           has_seen_constructor(false),
           has_static_computed_names(false),
           has_static_elements(false),
@@ -616,6 +677,7 @@ class ParserBase {
     ClassStaticElementListT static_elements;
     ClassPropertyListT instance_fields;
     FunctionLiteralT constructor;
+    IdentifierT name;
 
     bool has_seen_constructor;
     bool has_static_computed_names;
@@ -646,7 +708,8 @@ class ParserBase {
           is_computed_name(false),
           is_private(false),
           is_static(false),
-          is_rest(false) {}
+          is_rest(false),
+          is_constructor(false) {}
 
     bool ParsePropertyKindFromToken(Token::Value token) {
       // This returns true, setting the property kind, iff the given token is
@@ -688,6 +751,7 @@ class ParserBase {
     bool is_private;
     bool is_static;
     bool is_rest;
+    bool is_constructor;
   };
 
   void DeclareLabel(ZonePtrList<const AstRawString>** labels,
@@ -1179,8 +1243,7 @@ class ParserBase {
   ExpressionT ParseProperty(ParsePropertyInfo* prop_info);
   ExpressionT ParseObjectLiteral();
   ClassLiteralPropertyT ParseClassPropertyDefinition(
-      ClassInfo* class_info, ParsePropertyInfo* prop_info, bool has_extends,
-      ParsingClassMemberFlag class_member_flag);
+      ClassInfo* class_info, ParsePropertyInfo* prop_info, bool has_extends);
   void CheckClassFieldName(IdentifierT name, bool is_static);
   void CheckClassMethodName(IdentifierT name, ParsePropertyKind type,
                             ParseFunctionFlags flags, bool is_static,
@@ -1227,6 +1290,13 @@ class ParserBase {
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved,
                                 int class_token_pos);
+  ExpressionT DoParseClassLiteral(ClassScope* class_scope, IdentifierT name,
+                                  Scanner::Location class_name_location,
+                                  bool is_anonymous, int class_token_pos);
+  void DeclareClassMember(ClassScope* class_scope,
+                          ClassLiteralPropertyT property,
+                          ParsePropertyInfo* prop_info, ClassInfo* class_info);
+
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool tagged);
   ExpressionT ParseSuperExpression();
   ExpressionT ParseImportExpressions();
@@ -1606,6 +1676,10 @@ class ParserBase {
   bool accept_IN_ = true;
 
   bool allow_eval_cache_ = true;
+
+  ParsingMode parsing_mode_ =
+      PARSE_EAGERLY;  // Lazy mode must be set explicitly.
+  ClassLiteralParsingScope* class_literal_parsing_scope_ = nullptr;
 };
 
 template <typename Impl>
@@ -2286,9 +2360,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
 
 template <typename Impl>
 typename ParserBase<Impl>::ClassLiteralPropertyT
-ParserBase<Impl>::ParseClassPropertyDefinition(
-    ClassInfo* class_info, ParsePropertyInfo* prop_info, bool has_extends,
-    ParsingClassMemberFlag class_member_flag) {
+ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
+                                               ParsePropertyInfo* prop_info,
+                                               bool has_extends) {
   DCHECK_NOT_NULL(class_info);
   DCHECK_EQ(prop_info->position, PropertyPosition::kClassLiteral);
 
@@ -2376,7 +2450,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       }
 
       ExpressionT value = impl()->ParseClassMethodOrAccessor(
-          prop_info->name, kind, name_token_position, class_member_flag);
+          prop_info->name, kind, name_token_position);
 
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
           name_expression, value, ClassLiteralProperty::METHOD,
@@ -2412,7 +2486,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       }
 
       FunctionLiteralT value = impl()->ParseClassMethodOrAccessor(
-          prop_info->name, kind, name_token_position, class_member_flag);
+          prop_info->name, kind, name_token_position);
 
       ClassLiteralProperty::Kind property_kind =
           is_get ? ClassLiteralProperty::GETTER : ClassLiteralProperty::SETTER;
@@ -2460,7 +2534,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
                                     initializer_scope);
 
     AcceptINScope scope(this, true);
-    initializer = ParseAssignmentExpression();
+    initializer = impl()->ParseClassMemberInitializerAssignment();
   } else {
     initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
@@ -4601,7 +4675,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     IdentifierT name, Scanner::Location class_name_location,
     bool name_is_strict_reserved, int class_token_pos) {
   bool is_anonymous = impl()->IsNull(name);
-
   // All parts of a ClassDeclaration and ClassExpression are strict code.
   if (!impl()->HasCheckedSyntax() && !is_anonymous) {
     if (name_is_strict_reserved) {
@@ -4617,6 +4690,17 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   }
 
   ClassScope* class_scope = NewClassScope(scope(), is_anonymous);
+  ClassLiteralParsingScope class_literal_parsing(
+      this, ParsingClassLiteralFlag::kParseAll, nullptr);
+  return DoParseClassLiteral(class_scope, name, class_name_location,
+                             is_anonymous, class_token_pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
+    ClassScope* class_scope, IdentifierT name,
+    Scanner::Location class_name_location, bool is_anonymous,
+    int class_token_pos) {
   BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 
@@ -4624,6 +4708,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
+  class_info.name = name;
 
   scope()->set_start_position(class_token_pos);
   if (Check(Token::EXTENDS)) {
@@ -4651,53 +4736,21 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     FuncNameInferrerState fni_state(&fni_);
     // If we haven't seen the constructor yet, it potentially is the next
     // property.
-    bool is_constructor = !class_info.has_seen_constructor;
     ParsePropertyInfo prop_info(this);
+    prop_info.is_constructor = !class_info.has_seen_constructor;
     prop_info.position = PropertyPosition::kClassLiteral;
 
-    ClassLiteralPropertyT property = ParseClassPropertyDefinition(
-        &class_info, &prop_info, has_extends, kParseClassMethodOrAccessor);
+    ClassLiteralPropertyT property =
+        ParseClassPropertyDefinition(&class_info, &prop_info, has_extends);
 
     if (has_error()) return impl()->FailureExpression();
 
-    ClassLiteralProperty::Kind property_kind =
-        ClassPropertyKindFor(prop_info.kind);
     if (!class_info.has_static_computed_names && prop_info.is_static &&
         prop_info.is_computed_name) {
       class_info.has_static_computed_names = true;
     }
-    is_constructor &= class_info.has_seen_constructor;
-
-    bool is_field = property_kind == ClassLiteralProperty::FIELD;
-
-    if (V8_UNLIKELY(prop_info.is_private)) {
-      DCHECK(!is_constructor);
-      class_info.requires_brand |= (!is_field && !prop_info.is_static);
-      bool is_method = property_kind == ClassLiteralProperty::METHOD;
-      class_info.has_private_methods |= is_method;
-      class_info.has_static_private_methods |= is_method && prop_info.is_static;
-      impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
-                                        property_kind, prop_info.is_static,
-                                        &class_info);
-      impl()->InferFunctionName();
-      continue;
-    }
-
-    if (V8_UNLIKELY(is_field)) {
-      DCHECK(!prop_info.is_private);
-      if (prop_info.is_computed_name) {
-        class_info.computed_field_count++;
-      }
-      impl()->DeclarePublicClassField(class_scope, property,
-                                      prop_info.is_static,
-                                      prop_info.is_computed_name, &class_info);
-      impl()->InferFunctionName();
-      continue;
-    }
-
-    impl()->DeclarePublicClassMethod(name, property, is_constructor,
-                                     &class_info);
-    impl()->InferFunctionName();
+    prop_info.is_constructor &= class_info.has_seen_constructor;
+    DeclareClassMember(class_scope, property, &prop_info, &class_info);
   }
 
   Expect(Token::RBRACE);
@@ -4713,24 +4766,45 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     return impl()->FailureExpression();
   }
 
+  bool reparsing = parse_for_instance_initialization();
   if (class_info.requires_brand) {
-    class_scope->DeclareBrandVariable(
-        ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
+    if (reparsing) {
+      DCHECK_NOT_NULL(class_scope->brand());
+    } else {
+      class_scope->DeclareBrandVariable(
+          ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
+    }
   }
 
   if (class_scope->needs_home_object()) {
-    class_info.home_object_variable =
-        class_scope->DeclareHomeObjectVariable(ast_value_factory());
-    class_info.static_home_object_variable =
-        class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
+    if (reparsing) {
+      // We need the isolate here to internalize the strings.
+      Isolate* isolate = class_literal_parsing_scope()->isolate();
+      Variable* home_object_variable = class_scope->DeserializeVariable(
+          isolate, ast_value_factory()->dot_home_object_string());
+      home_object_variable->set_is_used();
+      home_object_variable->ForceContextAllocation();
+      Variable* static_home_object_variable = class_scope->DeserializeVariable(
+          isolate, ast_value_factory()->dot_static_home_object_string());
+      static_home_object_variable->set_is_used();
+      static_home_object_variable->ForceContextAllocation();
+    } else {
+      class_info.home_object_variable =
+          class_scope->DeclareHomeObjectVariable(ast_value_factory());
+      class_info.static_home_object_variable =
+          class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
+    }
   }
 
   bool should_save_class_variable_index =
       class_scope->should_save_class_variable_index();
   if (!is_anonymous || should_save_class_variable_index) {
-    impl()->DeclareClassVariable(class_scope, name, &class_info,
-                                 class_token_pos);
+    if (!reparsing) {
+      impl()->DeclareClassVariable(class_scope, name, &class_info,
+                                   class_token_pos);
+    }
     if (should_save_class_variable_index) {
+      DCHECK_NOT_NULL(class_scope->class_variable());
       class_scope->class_variable()->set_is_used();
       class_scope->class_variable()->ForceContextAllocation();
     }
@@ -4738,6 +4812,44 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   return impl()->RewriteClassLiteral(class_scope, name, &class_info,
                                      class_token_pos, end_pos);
+}
+template <typename Impl>
+void ParserBase<Impl>::DeclareClassMember(ClassScope* class_scope,
+                                          ClassLiteralPropertyT property,
+                                          ParsePropertyInfo* prop_info,
+                                          ClassInfo* class_info) {
+  ClassLiteralProperty::Kind property_kind =
+      ClassPropertyKindFor(prop_info->kind);
+  bool is_constructor = prop_info->is_constructor;
+  bool is_field = property_kind == ClassLiteralProperty::FIELD;
+
+  if (V8_UNLIKELY(prop_info->is_private)) {
+    DCHECK(!prop_info->is_constructor);
+
+    class_info->requires_brand |= (!is_field && !prop_info->is_static);
+    bool is_method = property_kind == ClassLiteralProperty::METHOD;
+    class_info->has_private_methods |= is_method;
+    class_info->has_static_private_methods |= is_method && prop_info->is_static;
+    impl()->DeclarePrivateClassMember(class_scope, prop_info->name, property,
+                                      property_kind, prop_info->is_static,
+                                      class_info);
+    impl()->InferFunctionName();
+    return;
+  }
+
+  if (V8_UNLIKELY(is_field)) {
+    DCHECK(!prop_info->is_private);
+    if (prop_info->is_computed_name) {
+      class_info->computed_field_count++;
+    }
+    impl()->DeclarePublicClassField(class_scope, property, prop_info->is_static,
+                                    prop_info->is_computed_name, class_info);
+    impl()->InferFunctionName();
+    return;
+  }
+
+  impl()->DeclarePublicClassMethod(property, is_constructor, class_info);
+  impl()->InferFunctionName();
 }
 
 template <typename Impl>

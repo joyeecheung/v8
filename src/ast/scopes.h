@@ -567,9 +567,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Analyze() must have been called once to create the ScopeInfo.
   Handle<ScopeInfo> scope_info() const {
-    if (scope_info_.is_null()) {
-      const_cast<Scope*>(this)->Print(2);
-    }
     DCHECK(!scope_info_.is_null());
     return scope_info_;
   }
@@ -1487,12 +1484,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
-  // Find the variable declared in the local map first, if it cannot
-  // be found there, try scope info if there is any.
-  // Returns nullptr if it cannot be found. Used by the parser to
-  // bind the computed name and private name variables when reparsing
-  // the class for the constructor.
-  Variable* LookupLocalVariable(Isolate* isolate, const AstRawString* name);
+  // Used by the parser to bind variables declared in the class scope
+  // when reparsing the class for the instance initialization.
+  Variable* DeserializeVariable(Isolate* isolate, const AstRawString* name);
 
   DeclarationScope* initializer_scope() const { return initializer_scope_; }
   void set_initializer_scope(DeclarationScope* scope) {
