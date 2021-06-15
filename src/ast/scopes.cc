@@ -1998,6 +1998,13 @@ bool Scope::IsReparsedClassScope() const {
          AsClassScope()->is_being_reparsed_from_constructor();
 }
 
+DeclarationScope* Scope::GetClassInitializerScope() const {
+  if (!is_class_scope()) {
+    return nullptr;
+  }
+  return AsClassScope()->initializer_scope();
+}
+
 Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Declare a new non-local.
   DCHECK(IsDynamicVariableMode(mode));
@@ -2549,7 +2556,7 @@ void Scope::AllocateVariablesRecursively() {
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
         (scope->is_block_scope() && scope->is_declaration_scope() &&
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
-        (scope->is_class_scope());
+        (scope->GetClassInitializerScope() != nullptr);
     // TODO(joyee): do this only when the class constructor needs initializers
 
     // If we didn't allocate any locals in the local context, then we only
@@ -2657,6 +2664,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, IsolateT* isolate) {
   scope->AllocateScopeInfosRecursively(isolate, outer_scope);
 
   // Make sure the ClassMembersInitializerFunction has the scope info.
+  // TODO(joyee): should we visit the inner scopes?
   if (scope->is_declaration_scope() &&
       IsClassConstructor(scope->AsDeclarationScope()->function_kind())) {
     DCHECK_NOT_NULL(scope->outer_scope());
@@ -2664,9 +2672,8 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, IsolateT* isolate) {
     ClassScope* class_scope = scope->outer_scope()->AsClassScope();
     DeclarationScope* initializer_scope = class_scope->initializer_scope();
     if (initializer_scope != nullptr) {
-      initializer_scope->scope_info_ =
-          ScopeInfo::Create(isolate, initializer_scope->zone(),
-                            initializer_scope, class_scope->scope_info());
+      initializer_scope->AllocateScopeInfosRecursively(
+          isolate, class_scope->scope_info());
     }
   }
 

@@ -415,15 +415,17 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return (language_mode() > outer_scope_->language_mode());
   }
 
+  // Only returns a pointer if it's a class scope and has initializers,
+  // otherwise returns now.
+  DeclarationScope* GetClassInitializerScope() const;
+
   // Whether this needs to be represented by a runtime context.
   bool NeedsContext() const {
     // Catch scopes always have heap slots.
     DCHECK_IMPLIES(is_catch_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(is_with_scope(), num_heap_slots() > 0);
     DCHECK_IMPLIES(ForceContextForLanguageMode(), num_heap_slots() > 0);
-    // TODO(joyee): make it if class scope AND contains initializers to avoid
-    // allocation of unnecessary ScopeInfos
-    return num_heap_slots() > 0 || is_class_scope();
+    return num_heap_slots() > 0 || GetClassInitializerScope() != nullptr;
   }
 
   // Use Scope::ForEach for depth first traversal of scopes.
@@ -565,6 +567,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Analyze() must have been called once to create the ScopeInfo.
   Handle<ScopeInfo> scope_info() const {
+    if (scope_info_.is_null()) {
+      const_cast<Scope*>(this)->Print(2);
+    }
     DCHECK(!scope_info_.is_null());
     return scope_info_;
   }

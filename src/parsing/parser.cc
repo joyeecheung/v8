@@ -2934,7 +2934,8 @@ FunctionLiteral* Parser::ParseClassMethodOrAccessor(
     int name_token_position, ParsingClassMemberFlag class_member_flag) {
   // We are reparsing class body for the instance member initializer,
   // in this case there is no need to parse the entire method.
-  if (class_member_flag == kSkipClassMethodOrAccessor && !IsClassConstructor(function_kind)) {
+  if (class_member_flag == kSkipClassMethodOrAccessor &&
+      !IsClassConstructor(function_kind)) {
     ParsingModeScope mode(this, PARSE_LAZILY);
     return ParseFunctionLiteral(
         prop_name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
@@ -3410,6 +3411,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
     //     "<instance_members_initializer>", class_info->instance_members_scope,
     //     factory()->NewInitializeClassMembersStatement(
     //         class_info->instance_fields, kNoSourcePosition));
+    block_scope->set_initializer_scope(class_info->instance_members_scope);
     InitializeClassMembersStatement* stmt =
         factory()->NewInitializeClassMembersStatement(
             class_info->instance_fields, class_info->instance_members_scope,
