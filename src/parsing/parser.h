@@ -184,22 +184,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                original_scope_);
   }
 
-  bool parse_lazily() const { return mode_ == PARSE_LAZILY; }
-  enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
-
-  class V8_NODISCARD ParsingModeScope {
-   public:
-    ParsingModeScope(Parser* parser, Mode mode)
-        : parser_(parser), old_mode_(parser->mode_) {
-      parser_->mode_ = mode;
-    }
-    ~ParsingModeScope() { parser_->mode_ = old_mode_; }
-
-   private:
-    Parser* parser_;
-    Mode old_mode_;
-  };
-
   // Runtime encoding of different completion modes.
   enum CompletionKind {
     kNormalCompletion,
@@ -337,6 +321,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Statement* DeclareClass(const AstRawString* variable_name, Expression* value,
                           ZonePtrList<const AstRawString>* names,
                           int class_token_pos, int end_pos);
+  void DeclareClassMember(ClassScope* class_scope,
+                          ClassLiteralProperty property,
+                          ParsePropertyInfo* prop_info, ClassInfo* class_info);
   void DeclareClassVariable(ClassScope* scope, const AstRawString* name,
                             ClassInfo* class_info, int class_token_pos);
   void DeclareClassBrandVariable(ClassScope* scope, ClassInfo* class_info,
@@ -346,8 +333,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  ClassLiteralProperty* property,
                                  ClassLiteralProperty::Kind kind,
                                  bool is_static, ClassInfo* class_info);
-  void DeclarePublicClassMethod(const AstRawString* class_name,
-                                ClassLiteralProperty* property,
+  void DeclarePublicClassMethod(ClassLiteralProperty* property,
                                 bool is_constructor, ClassInfo* class_info);
   void DeclarePublicClassField(ClassScope* scope,
                                ClassLiteralProperty* property, bool is_static,
@@ -393,9 +379,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       LanguageMode language_mode,
       ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
 
-  FunctionLiteral* ParseClassMethodOrAccessor(
-      const AstRawString* prop_name, FunctionKind function_kind,
-      int name_token_position, ParsingClassMemberFlag class_member_flag);
+  FunctionLiteral* ParseClassMethodOrAccessor(const AstRawString* prop_name,
+                                              FunctionKind function_kind,
+                                              int name_token_position);
+
+  Expression* ParseClassMemberInitializerAssignment();
 
   ObjectLiteral* InitializeObjectLiteral(ObjectLiteral* object_literal) {
     object_literal->CalculateEmitStore(main_zone());
@@ -1076,7 +1064,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Scanner scanner_;
   Zone preparser_zone_;
   PreParser* reusable_preparser_;
-  Mode mode_;
 
   MaybeHandle<FixedArray> maybe_wrapped_arguments_;
 

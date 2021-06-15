@@ -428,7 +428,6 @@ Parser::Parser(ParseInfo* info)
       scanner_(info->character_stream(), flags()),
       preparser_zone_(info->zone()->allocator(), "pre-parser-zone"),
       reusable_preparser_(nullptr),
-      mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
       total_preparse_skipped_(0),
       consumed_preparse_data_(info->consumed_preparse_data()),
@@ -1053,6 +1052,10 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
   DCHECK(result->requires_instance_members_initializer());
   DCHECK_EQ(result->class_scope_has_private_brand(),
             flags().class_scope_has_private_brand());
+  // TODO(joyee): check that the class scope doesn't declare any new variables
+  // but instead look up from the scope info. e.g. the number of variables are
+  // the same.
+
   // The private_name_lookup_skips_outer_class bit should be set by
   // PostProcessParseResult() during scope analysis later
   return result;
@@ -1062,8 +1065,8 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
     Isolate* isolate, ClassScope* class_scope, int constructor_pos,
     int constructor_id) {
   class_scope->PrepareForReparseFromConstructor();
-  int class_token_pos =
-      class_scope->start_position();  // calculate based on current position?
+  int class_token_pos = class_scope->start_position();
+
   // Insert a FunctionState with the closest outer Declaration scope
   DeclarationScope* nearest_decl_scope = nullptr;
   Scope* scope = class_scope;
@@ -1076,16 +1079,21 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   }
   DCHECK_NOT_NULL(nearest_decl_scope);
   FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
-  BlockState block_state(&scope_, class_scope);
-
-  RaiseLanguageMode(LanguageMode::kStrict);
   ResetFunctionLiteralId();
-
-  BlockState object_literal_scope_state(&object_literal_scope_, nullptr);
 
   Scanner::BookmarkScope bookmark(scanner());
   bookmark.Set(class_scope->start_position());
   bookmark.Apply();
+
+  // Start lazily, and change to eager when we encounter
+  // constructors or field initializers.
+  ClassLiteralParsingScope class_literal_parsing(
+      this, ParsingClassLiteralFlag::kParseForInstanceInitialization, isolate);
+  // TODO(joyee): ideally we should have a specialized parser that only
+  // parses for function literals and assumes that everything
+  // is correct so that function literal ids match.
+  // For now we make do with the preparser.
+  ParsingModeScope mode(this, PARSE_LAZILY);
 
   ExpressionParsingScope no_expression_scope(impl());
   DCHECK_EQ(peek(), Token::CLASS);
@@ -1103,140 +1111,20 @@ FunctionLiteral* Parser::ParseAndRewriteClassConstructor(
   }
   bool is_anonymous = class_name == nullptr || class_name->IsEmpty();
 
-  ClassInfo class_info(this);
-  class_info.is_anonymous = is_anonymous;
-
-  if (Check(Token::EXTENDS)) {
-    // We should skip as much as possible.
-    ParsingModeScope mode(this, PARSE_LAZILY);
-    ClassScope::HeritageParsingScope heritage(class_scope);
-    FuncNameInferrerState fni_state(&fni_);
-    ExpressionParsingScope scope(impl());
-    class_info.extends = ParseLeftHandSideExpression();
-    scope.ValidateExpression();
-  }
-
-  DCHECK_EQ(peek(), Token::LBRACE);
-  Expect(Token::LBRACE);
-
-  const bool has_extends = !IsNull(class_info.extends);
-  while (peek() != Token::RBRACE) {
-    if (Check(Token::SEMICOLON)) continue;
-
-    // Either we're parsing a `static { }` initialization block or a property.
-    if (FLAG_harmony_class_static_blocks && peek() == Token::STATIC &&
-        PeekAhead() == Token::LBRACE) {
-      ParsingModeScope mode(this, PARSE_LAZILY);
-      ParseClassStaticBlock(&class_info);
-      continue;
-    }
-
-    FuncNameInferrerState fni_state(&fni_);
-    // If we haven't seen the constructor yet, it potentially is the next
-    // property.
-    bool is_constructor = !class_info.has_seen_constructor;
-    ParsePropertyInfo prop_info(this);
-    prop_info.position = PropertyPosition::kClassLiteral;
-
-    // We will preparse the property if it's not the the field
-    ClassLiteralPropertyT property = ParseClassPropertyDefinition(
-        &class_info, &prop_info, has_extends, kSkipClassMethodOrAccessor);
-
-    if (has_error()) return nullptr;
-
-    ClassLiteralProperty::Kind property_kind =
-        ClassPropertyKindFor(prop_info.kind);
-    if (!class_info.has_static_computed_names && prop_info.is_static &&
-        prop_info.is_computed_name) {
-      class_info.has_static_computed_names = true;
-    }
-    is_constructor &= class_info.has_seen_constructor;
-
-    bool is_field = property_kind == ClassLiteralProperty::FIELD;
-
-    // Deal with field initializers and constructors
-    if (V8_UNLIKELY(!prop_info.is_static && is_field)) {
-      // TODO(joyee): we need to internalize the strings
-      if (prop_info.is_computed_name) {
-        class_info.computed_field_count++;
-        const AstRawString* name = ClassFieldVariableName(
-            ast_value_factory(), class_info.computed_field_count);
-        Variable* computed_name_var =
-            class_scope->LookupLocalVariable(isolate, name);
-        DCHECK_NOT_NULL(computed_name_var);
-        property->set_computed_name_var(computed_name_var);
-      }
-      if (prop_info.is_private) {
-        const AstRawString* name = prop_info.name;
-        Variable* private_name_var =
-            class_scope->LookupLocalVariable(isolate, name);
-        DCHECK_NOT_NULL(private_name_var);
-        property->set_private_name_var(private_name_var);
-      }
-      // We skip assignments of most of the class info properties
-      // since it's not necessary for generating code for the constructor.
-      class_info.instance_fields->Add(property, zone());
-    } else if (is_constructor) {
-      DCHECK(!class_info.constructor);
-      class_info.constructor = property->value()->AsClassConstructor();
-      DCHECK_NOT_NULL(class_info.constructor);
-      class_info.constructor->set_raw_name(
-          class_name != nullptr ? ast_value_factory()->NewConsString(class_name)
-                                : nullptr);
-    }
-
-    InferFunctionName();
-  }
-
-  Expect(Token::RBRACE);
-  int end_pos = end_position();
-  class_scope->set_end_position(end_pos);
-
-  VariableProxy* unresolvable = class_scope->ResolvePrivateNamesPartially();
-  CHECK_NULL(unresolvable);
-
-  bool has_default_constructor = class_info.constructor == nullptr;
-  if (has_default_constructor) {
-    class_token_pos = constructor_pos;
-    class_info.constructor =
-        DefaultConstructor(class_name, has_extends, class_token_pos, end_pos);
-  }
-
-  // if (name != nullptr) {
-  //   DCHECK_NOT_NULL(class_scope->class_variable());
-  //   class_scope->class_variable()->set_initializer_position(end_pos);
-  // }
-
-  if (class_info.has_instance_members) {
-    class_scope->set_initializer_scope(class_info.instance_members_scope);
-    InitializeClassMembersStatement* stmt =
-        factory()->NewInitializeClassMembersStatement(
-            class_info.instance_fields, class_info.instance_members_scope,
-            kNoSourcePosition);
-    class_info.constructor->AsClassConstructor()->set_initialize_member_stmt(
-        stmt);
-    class_info.constructor->set_requires_instance_members_initializer(true);
-    class_info.constructor->add_expected_properties(
-        class_info.instance_fields->length());
-  }
-
-  if (class_info.requires_brand) {
-    class_info.constructor->set_class_scope_has_private_brand(true);
-  }
-  if (class_info.has_static_private_methods) {
-    class_info.constructor->set_has_static_private_methods_or_accessors(true);
-  }
-  AddFunctionForNameInference(class_info.constructor);
+  Expression* expr =
+      DoParseClassLiteral(class_scope, class_name, scanner()->location(),
+                          is_anonymous, class_token_pos);
+  DCHECK(expr->IsClassLiteral());
+  ClassConstructor* constructor =
+      expr->AsClassLiteral()->constructor()->AsClassConstructor();
 
   // Reindex so that the function literal ids match
   AstFunctionLiteralIdReindexer reindexer(
-      stack_limit_,
-      constructor_id - class_info.constructor->function_literal_id());
-  reindexer.Reindex(class_info.constructor);
+      stack_limit_, constructor_id - constructor->function_literal_id());
+  reindexer.Reindex(constructor);
 
   no_expression_scope.ValidateExpression();
-
-  return class_info.constructor;
+  return constructor;
 }
 
 Statement* Parser::ParseModuleItem() {
@@ -2931,21 +2819,36 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
 FunctionLiteral* Parser::ParseClassMethodOrAccessor(
     const AstRawString* prop_name, FunctionKind function_kind,
-    int name_token_position, ParsingClassMemberFlag class_member_flag) {
-  // We are reparsing class body for the instance member initializer,
-  // in this case there is no need to parse the entire method.
-  if (class_member_flag == kSkipClassMethodOrAccessor &&
-      !IsClassConstructor(function_kind)) {
-    ParsingModeScope mode(this, PARSE_LAZILY);
+    int name_token_position) {
+  // If we are reparsing class body for the instance member initializer,
+  // there is no need to parse the entire method.
+  DCHECK_IMPLIES(parse_for_instance_initialization(), parse_lazily());
+
+  if (IsClassConstructor(function_kind) &&
+      parse_for_instance_initialization()) {
+    // If it's class constructor, revert to the original mode.
+    ParsingModeScope mode(
+        this, class_literal_parsing_scope()->original_parsing_mode());
     return ParseFunctionLiteral(
         prop_name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
         name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
         language_mode(), nullptr);
+  }
+
+  return ParseFunctionLiteral(
+      prop_name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
+      name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
+      language_mode(), nullptr);
+}
+
+Expression* Parser::ParseClassMemberInitializerAssignment() {
+  if (parse_for_instance_initialization()) {
+    // Revert to the original mode.
+    ParsingModeScope mode(
+        this, class_literal_parsing_scope()->original_parsing_mode());
+    return ParseAssignmentExpression();
   } else {
-    return ParseFunctionLiteral(
-        prop_name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
-        name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
-        language_mode(), nullptr);
+    return ParseAssignmentExpression();
   }
 }
 
@@ -3015,7 +2918,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     // Make sure we don't re-preparse inner functions of the aborted function.
     // The error might be in an inner function.
     allow_lazy_ = false;
-    mode_ = PARSE_EAGERLY;
+    set_parsing_mode(PARSE_EAGERLY);
     DCHECK(!pending_error_handler()->stack_overflow());
     // If we encounter an error that the preparser can not identify we reset to
     // the state before preparsing. The caller may then fully parse the function
@@ -3290,9 +3193,16 @@ void Parser::DeclarePublicClassField(ClassScope* scope,
   if (is_computed_name) {
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
-    Variable* computed_name_var =
-        CreateSyntheticContextVariable(ClassFieldVariableName(
-            ast_value_factory(), class_info->computed_field_count));
+    Variable* computed_name_var;
+    const AstRawString* property_name = ClassFieldVariableName(
+        ast_value_factory(), class_info->computed_field_count);
+    if (parse_for_instance_initialization()) {
+      computed_name_var = scope->DeserializeVariable(
+          class_literal_parsing_scope()->isolate(), property_name);
+    } else {
+      computed_name_var = CreateSyntheticContextVariable(property_name);
+    }
+
     property->set_computed_name_var(computed_name_var);
     class_info->public_members->Add(property, zone());
   }
@@ -3312,10 +3222,16 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
     }
   }
 
-  Variable* private_name_var = CreatePrivateNameVariable(
-      scope, GetVariableMode(kind),
-      is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
-      property_name);
+  Variable* private_name_var;
+  if (parse_for_instance_initialization()) {
+    private_name_var = scope->DeserializeVariable(
+        class_literal_parsing_scope()->isolate(), property_name);
+  } else {
+    private_name_var = CreatePrivateNameVariable(
+        scope, GetVariableMode(kind),
+        is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
+        property_name);
+  }
   int pos = property->value()->position();
   if (pos == kNoSourcePosition) {
     pos = property->key()->position();
@@ -3329,8 +3245,7 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
 // following fields of class_info, as appropriate:
 //   - constructor
 //   - properties
-void Parser::DeclarePublicClassMethod(const AstRawString* class_name,
-                                      ClassLiteralProperty* property,
+void Parser::DeclarePublicClassMethod(ClassLiteralProperty* property,
                                       bool is_constructor,
                                       ClassInfo* class_info) {
   if (is_constructor) {
@@ -3338,8 +3253,9 @@ void Parser::DeclarePublicClassMethod(const AstRawString* class_name,
     class_info->constructor = property->value()->AsClassConstructor();
     DCHECK_NOT_NULL(class_info->constructor);
     class_info->constructor->set_raw_name(
-        class_name != nullptr ? ast_value_factory()->NewConsString(class_name)
-                              : nullptr);
+        class_info->name != nullptr
+            ? ast_value_factory()->NewConsString(class_info->name)
+            : nullptr);
     return;
   }
 
@@ -3392,8 +3308,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
         DefaultConstructor(name, has_extends, pos, end_pos);
   }
 
-  if (name != nullptr) {
-    DCHECK_NOT_NULL(block_scope->class_variable());
+  if (block_scope->class_variable() != nullptr) {
     block_scope->class_variable()->set_initializer_position(end_pos);
   }
 
