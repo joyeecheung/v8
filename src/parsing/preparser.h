@@ -1283,6 +1283,7 @@ class PreParser : public ParserBase<PreParser> {
     }
     if (class_info->has_instance_members) {
       GetNextFunctionLiteralId();
+      scope->set_initializer_scope(class_info->instance_members_scope);
     }
     return PreParserExpression::Default();
   }
