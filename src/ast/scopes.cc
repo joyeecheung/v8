@@ -1452,10 +1452,7 @@ DeclarationScope* Scope::GetReceiverScope() {
 ClassScope* Scope::GetInitializerClassScope() {
   Scope* scope = this;
   while (scope != nullptr) {
-    if (scope->private_name_lookup_skips_outer_class()) {
-      DCHECK(scope->outer_scope()->is_class_scope());
-      scope = scope->outer_scope()->outer_scope();
-    } else if (scope->is_class_scope()) {
+    if (scope->is_class_scope()) {
       return scope->AsClassScope();
     } else {
       scope = scope->outer_scope();
@@ -1960,6 +1957,12 @@ void Scope::Print(int n) {
                  ? ", index saved"
                  : ", index not saved");
       PrintVar(n1, class_scope->class_variable());
+    }
+    if (class_scope->initializer_scope() != nullptr) {
+      Indent(n1, "// initializer scope set to ");
+      PrintF("%p\n", reinterpret_cast<void*>(class_scope->initializer_scope()));
+    } else {
+      Indent(n1, "// no unknown initializer scope");
     }
   }
 
