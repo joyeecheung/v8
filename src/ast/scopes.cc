@@ -2876,11 +2876,17 @@ Variable* ClassScope::DeserializeVariable(Isolate* isolate,
   DCHECK(!scope_info_.is_null());
   Handle<String> name_string = name->GetInternalized(isolate);
   if (name->IsPrivateName()) {
-    DCHECK_NULL(LookupLocalPrivateName(name));
-    var = LookupPrivateNameInScopeInfo(name, name_string);
+    var = LookupLocalPrivateName(name);
+    // It could be non-null when recompiling for the debugger.
+    if (var == nullptr) {
+      var = LookupPrivateNameInScopeInfo(name, name_string);
+    }
   } else {
-    Handle<String> name_string = name->GetInternalized(isolate);
-    var = LookupInScopeInfo(name, name_string, this);
+    var = LookupLocal(name);
+    // It could be non-null when recompiling for the debugger.
+    if (var == nullptr) {
+      var = LookupInScopeInfo(name, name_string, this);
+    }
   }
   return var;
 }
@@ -2891,14 +2897,15 @@ void ClassScope::RestoreHomeVariables(Isolate* isolate,
   Variable* home_object_variable =
       DeserializeVariable(isolate, ast_value_factory->dot_home_object_string());
   if (home_object_variable == nullptr) {
-    DeclareHomeObjectVariable(ast_value_factory);
+    home_object_variable = DeclareHomeObjectVariable(ast_value_factory);
   }
   home_object_variable->set_is_used();
   home_object_variable->ForceContextAllocation();
   Variable* static_home_object_variable = DeserializeVariable(
       isolate, ast_value_factory->dot_static_home_object_string());
   if (static_home_object_variable == nullptr) {
-    DeclareStaticHomeObjectVariable(ast_value_factory);
+    static_home_object_variable =
+        DeclareStaticHomeObjectVariable(ast_value_factory);
   }
   static_home_object_variable->set_is_used();
   static_home_object_variable->ForceContextAllocation();
