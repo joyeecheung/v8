@@ -4778,16 +4778,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
 
   if (class_scope->needs_home_object()) {
     if (reparsing) {
-      // We need the isolate here to internalize the strings.
-      Isolate* isolate = class_literal_parsing_scope()->isolate();
-      Variable* home_object_variable = class_scope->DeserializeVariable(
-          isolate, ast_value_factory()->dot_home_object_string());
-      home_object_variable->set_is_used();
-      home_object_variable->ForceContextAllocation();
-      Variable* static_home_object_variable = class_scope->DeserializeVariable(
-          isolate, ast_value_factory()->dot_static_home_object_string());
-      static_home_object_variable->set_is_used();
-      static_home_object_variable->ForceContextAllocation();
+      class_scope->RestoreHomeVariables(
+          class_literal_parsing_scope()->isolate(), ast_value_factory());
     } else {
       class_info.home_object_variable =
           class_scope->DeclareHomeObjectVariable(ast_value_factory());
@@ -4799,9 +4791,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
   bool should_save_class_variable_index =
       class_scope->should_save_class_variable_index();
   if (!is_anonymous || should_save_class_variable_index) {
-    if (!reparsing) {
+    if (class_scope->class_variable() == nullptr) {
       impl()->DeclareClassVariable(class_scope, name, &class_info,
                                    class_token_pos);
+    } else {
+      DCHECK(reparsing);
     }
     if (should_save_class_variable_index) {
       DCHECK_NOT_NULL(class_scope->class_variable());

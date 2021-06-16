@@ -3191,13 +3191,14 @@ void Parser::DeclarePublicClassField(ClassScope* scope,
   if (is_computed_name) {
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
-    Variable* computed_name_var;
+    Variable* computed_name_var = nullptr;
     const AstRawString* property_name = ClassFieldVariableName(
         ast_value_factory(), class_info->computed_field_count);
     if (parse_for_instance_initialization()) {
       computed_name_var = scope->DeserializeVariable(
           class_literal_parsing_scope()->isolate(), property_name);
-    } else {
+    }
+    if (computed_name_var == nullptr) {
       computed_name_var = CreateSyntheticContextVariable(property_name);
     }
 
@@ -3220,11 +3221,13 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
     }
   }
 
-  Variable* private_name_var;
+  Variable* private_name_var = nullptr;
   if (parse_for_instance_initialization()) {
     private_name_var = scope->DeserializeVariable(
         class_literal_parsing_scope()->isolate(), property_name);
-  } else {
+  }
+
+  if (private_name_var == nullptr) {
     private_name_var = CreatePrivateNameVariable(
         scope, GetVariableMode(kind),
         is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
