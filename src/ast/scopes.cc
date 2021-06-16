@@ -887,6 +887,12 @@ void Scope::ReplaceOuterScope(Scope* outer) {
   outer_scope_ = outer;
 }
 
+Variable* Scope::LookupLocal(const AstRawString* name) {
+  DCHECK(scope_info_.is_null() ||
+         (is_class_scope() && AsClassScope()->IsReparsedClassScope()));
+  return variables_.Lookup(name);
+}
+
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   return LookupInScopeInfo(name, name->string(), cache);
 }
@@ -2876,8 +2882,26 @@ Variable* ClassScope::DeserializeVariable(Isolate* isolate,
     Handle<String> name_string = name->GetInternalized(isolate);
     var = LookupInScopeInfo(name, name_string, this);
   }
-  DCHECK_NOT_NULL(var);
   return var;
+}
+
+void ClassScope::RestoreHomeVariables(Isolate* isolate,
+                                      AstValueFactory* ast_value_factory) {
+  // We need the isolate here to internalize the strings.
+  Variable* home_object_variable =
+      DeserializeVariable(isolate, ast_value_factory->dot_home_object_string());
+  if (home_object_variable == nullptr) {
+    DeclareHomeObjectVariable(ast_value_factory);
+  }
+  home_object_variable->set_is_used();
+  home_object_variable->ForceContextAllocation();
+  Variable* static_home_object_variable = DeserializeVariable(
+      isolate, ast_value_factory->dot_static_home_object_string());
+  if (static_home_object_variable == nullptr) {
+    DeclareStaticHomeObjectVariable(ast_value_factory);
+  }
+  static_home_object_variable->set_is_used();
+  static_home_object_variable->ForceContextAllocation();
 }
 
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {

@@ -200,10 +200,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Lookup a variable in this scope. Returns the variable or nullptr if not
   // found.
-  Variable* LookupLocal(const AstRawString* name) {
-    DCHECK(scope_info_.is_null());
-    return variables_.Lookup(name);
-  }
+  Variable* LookupLocal(const AstRawString* name);
 
   Variable* LookupInScopeInfo(const AstRawString* name, Scope* cache);
   Variable* LookupInScopeInfo(const AstRawString* name,
@@ -1487,6 +1484,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // Used by the parser to bind variables declared in the class scope
   // when reparsing the class for the instance initialization.
   Variable* DeserializeVariable(Isolate* isolate, const AstRawString* name);
+  void RestoreHomeVariables(Isolate* isolate,
+                            AstValueFactory* ast_value_factory);
 
   DeclarationScope* initializer_scope() const { return initializer_scope_; }
   void set_initializer_scope(DeclarationScope* scope) {
