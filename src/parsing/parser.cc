@@ -79,11 +79,12 @@ ClassConstructor* Parser::DefaultConstructor(const AstRawString* name,
     expected_property_count = function_state.expected_property_count();
   }
 
-  ClassConstructor* constructor = factory()->NewClassConstructor(
+  ClassConstructor* constructor = NewClassConstructor(
       name, function_scope, body, expected_property_count, parameter_count,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionSyntaxKind::kAnonymousExpression, default_eager_compile_hint(),
       pos, true, GetNextFunctionLiteralId());
+
   return constructor;
 }
 
@@ -293,13 +294,42 @@ Expression* Parser::NewSuperPropertyReference(int pos) {
       NewUnresolved(home_object_name, pos), pos);
 }
 
+ClassConstructor* Parser::NewClassConstructor(
+    const AstRawString* name, DeclarationScope* scope,
+    const ScopedPtrList<Statement>& body, int expected_property_count,
+    int parameter_count, int function_length,
+    FunctionLiteral::ParameterFlag has_duplicate_parameters,
+    FunctionSyntaxKind function_syntax_kind,
+    FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
+    bool has_braces, int function_literal_id,
+    ProducedPreparseData* produced_preparse_data) {
+  ClassConstructor* constructor = factory()->NewClassConstructor(
+      name, scope, body, expected_property_count, parameter_count,
+      function_length, has_duplicate_parameters, function_syntax_kind,
+      eager_compile_hint, position, has_braces, function_literal_id,
+      produced_preparse_data);
+  // class_literal_parsing_scope() could be nullptr when we reparse
+  // a class constructor without initializers for errors or the debugger.
+  if (class_literal_parsing_scope() != nullptr) {
+    class_literal_parsing_scope()->RecordConstructor(constructor);
+  }
+  return constructor;
+}
+
 Expression* Parser::NewSuperCallReference(int pos) {
   VariableProxy* new_target_proxy =
       NewUnresolved(ast_value_factory()->new_target_string(), pos);
+
   VariableProxy* this_function_proxy =
       NewUnresolved(ast_value_factory()->this_function_string(), pos);
-  return factory()->NewSuperCallReference(new_target_proxy, this_function_proxy,
-                                          pos);
+  SuperCallReference* call = factory()->NewSuperCallReference(
+      new_target_proxy, this_function_proxy, pos);
+  // class_literal_parsing_scope() could be nullptr when we reparse
+  // a class constructor without initializers for errors or the debugger.
+  if (class_literal_parsing_scope() != nullptr) {
+    class_literal_parsing_scope()->RecordSuperCall(call);
+  }
+  return call;
 }
 
 Expression* Parser::NewTargetExpression(int pos) {
@@ -1042,6 +1072,9 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
                            function_literal_id, raw_name);
   }
 
+  // TODO(joyee): we also need to reparse the class body if it's a preparsed
+  // function that calls super() - use Scope::GetHomeObjectScope() to get that
+  // class scope.
   // Reparse the outer class while skipping the non-fields to get a list of
   // ClassLiteralProperty and create a InitializeClassMembersStatement and
   // insert it into the body of the constructorl later.
@@ -2789,7 +2822,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral* function_literal;
 
   if (IsClassConstructor(kind)) {
-    function_literal = factory()->NewClassConstructor(
+    function_literal = NewClassConstructor(
         function_name, scope, body, expected_property_count, num_parameters,
         function_length, duplicate_parameters, function_syntax_kind,
         eager_compile_hint, pos, true, function_literal_id,

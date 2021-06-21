@@ -1462,9 +1462,10 @@ void BytecodeGenerator::GenerateBytecodeBody() {
     if (literal->requires_instance_members_initializer()) {
       InitializeClassMembersStatement* stmt =
           literal->AsClassConstructor()->initialize_member_stmt();
-      VisitInitializeClassMembersStatement(stmt);
+      // VisitInitializeClassMembersStatement(stmt, builder()->Receiver());
       // BuildInstanceMemberInitialization(Register::function_closure(),
       // builder()->Receiver());
+      BuildInstanceMemberInitialization(stmt, builder()->Receiver());
     }
   }
 
@@ -2810,41 +2811,7 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
 }
 
 void BytecodeGenerator::VisitInitializeClassMembersStatement(
-    InitializeClassMembersStatement* stmt) {
-  DeclarationScope* scope = stmt->initializer_scope();
-  CurrentScope current_scope(this, scope->outer_scope());
-  // We need to do a subset of what GenerateBytecode() does
-  if (scope->NeedsContext()) {
-    int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-    if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
-      builder()->CreateFunctionContext(scope, slot_count);
-    } else {
-      Register arg = register_allocator()->NewRegister();
-      builder()->LoadLiteral(scope).StoreAccumulatorInRegister(arg).CallRuntime(
-          Runtime::kNewFunctionContext, arg);
-    }
-
-    CurrentScope current_scope(this, scope);
-    ContextScope local_function_context(this, scope);
-
-    if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
-      Variable* variable = scope->receiver();
-      Register receiver(builder()->Receiver());
-      // Context variable (at bottom of the context chain).
-      DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
-      builder()->LoadAccumulatorWithRegister(receiver).StoreContextSlot(
-          execution_context()->reg(), variable->index(), 0);
-    }
-
-    for (int i = 0; i < stmt->fields()->length(); i++) {
-      BuildClassProperty(stmt->fields()->at(i));
-    }
-  } else {
-    for (int i = 0; i < stmt->fields()->length(); i++) {
-      BuildClassProperty(stmt->fields()->at(i));
-    }
-  }
-}
+    InitializeClassMembersStatement* stmt) {}
 
 void BytecodeGenerator::VisitInitializeClassStaticElementsStatement(
     InitializeClassStaticElementsStatement* stmt) {
@@ -2889,27 +2856,69 @@ void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver) {
       .CallRuntime(Runtime::kAddPrivateBrand, brand_args);
 }
 
-void BytecodeGenerator::BuildInstanceMemberInitialization(Register constructor,
-                                                          Register instance) {
-  // TODO(joyee): revert back to loading the initializer function from the
-  // constructor if there is a scope mismatch.
-  RegisterList args = register_allocator()->NewRegisterList(1);
-  Register initializer = register_allocator()->NewRegister();
+void BytecodeGenerator::BuildInstanceMemberInitialization(
+    InitializeClassMembersStatement* stmt, Register receiver) {
+  // RegisterList args = register_allocator()->NewRegisterList(1);
+  // Register initializer = register_allocator()->NewRegister();
 
-  FeedbackSlot slot = feedback_spec()->AddLoadICSlot();
-  BytecodeLabel done;
+  // FeedbackSlot slot = feedback_spec()->AddLoadICSlot();
+  // BytecodeLabel done;
 
-  builder()
-      ->LoadClassFieldsInitializer(constructor, feedback_index(slot))
-      // TODO(gsathya): This jump can be elided for the base
-      // constructor and derived constructor. This is only required
-      // when called from an arrow function.
-      .JumpIfUndefined(&done)
-      .StoreAccumulatorInRegister(initializer)
-      .MoveRegister(instance, args[0])
-      .CallProperty(initializer, args,
-                    feedback_index(feedback_spec()->AddCallICSlot()))
-      .Bind(&done);
+  // builder()
+  //     ->LoadClassFieldsInitializer(constructor, feedback_index(slot))
+  //     // TODO(gsathya): This jump can be elided for the base
+  //     // constructor and derived constructor. This is only required
+  //     // when called from an arrow function.
+  //     .JumpIfUndefined(&done)
+  //     .StoreAccumulatorInRegister(initializer)
+  //     .MoveRegister(instance, args[0])
+  //     .CallProperty(initializer, args,
+  //                   feedback_index(feedback_spec()->AddCallICSlot()))
+  //     .Bind(&done);
+
+  DeclarationScope* scope = stmt->initializer_scope();
+  CurrentScope class_current_scope(this, scope->outer_scope());
+  // FIXME(joyee): fix the non-linear context chain.
+  ContextScope class_context_scope(this, scope->outer_scope());
+  // We need to do a subset of what GenerateBytecode() does
+  if (scope->NeedsContext()) {
+    int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+    if (slot_count <= ConstructorBuiltins::MaximumFunctionContextSlots()) {
+      builder()->CreateFunctionContext(scope, slot_count);
+    } else {
+      Register arg = register_allocator()->NewRegister();
+      builder()->LoadLiteral(scope).StoreAccumulatorInRegister(arg).CallRuntime(
+          Runtime::kNewFunctionContext, arg);
+    }
+
+    CurrentScope initializer_current_scope(this, scope);
+    ContextScope initializer_context_scope(this, scope);
+
+    // if (scope->has_this_declaration() && scope->receiver()->IsContextSlot())
+    // {
+    //   Variable* variable = scope->receiver();
+    //   Register receiver(builder()->Receiver());
+    //   // Context variable (at bottom of the context chain).
+    //   DCHECK_EQ(0, scope->ContextChainLength(variable->scope()));
+    //   builder()->LoadAccumulatorWithRegister(receiver).StoreContextSlot(
+    //       execution_context()->reg(), variable->index(), 0);
+    // }
+    // Variable* receiver_var = scope->receiver();
+    // DCHECK(scope->receiver()->IsContextSlot());
+    // DCHECK_EQ(0, scope->ContextChainLength(receiver_var->scope()));
+    // builder()
+    //     ->LoadAccumulatorWithRegister(receiver)
+    //     .StoreContextSlot(execution_context()->reg(), receiver_var->index(),
+    //     0);
+
+    for (int i = 0; i < stmt->fields()->length(); i++) {
+      BuildClassProperty(stmt->fields()->at(i));
+    }
+  } else {
+    for (int i = 0; i < stmt->fields()->length(); i++) {
+      BuildClassProperty(stmt->fields()->at(i));
+    }
+  }
 }
 
 void BytecodeGenerator::VisitNativeFunctionLiteral(
@@ -5619,13 +5628,11 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     // FIXME(joyee): info()->literal() isn't the constructor itself if
     // super() is nested in another function. We need to find the outer
     // constructor somehow from the inner function, maybe using a scope.
-    ClassConstructor* constructor = info()->literal()->AsClassConstructor();
-    InitializeClassMembersStatement* stmt =
-        constructor->initialize_member_stmt();
+    InitializeClassMembersStatement* stmt = super->derived_initializer();
     DCHECK_NOT_NULL(stmt);
     // Set the instance as reciever
     builder()->MoveRegister(instance, builder()->Receiver());
-    VisitInitializeClassMembersStatement(stmt);
+    BuildInstanceMemberInitialization(stmt, instance);
     // BuildInstanceMemberInitialization(this_function, instance);
   }
 

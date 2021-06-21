@@ -2606,6 +2606,12 @@ class SuperCallReference final : public Expression {
  public:
   VariableProxy* new_target_var() const { return new_target_var_; }
   VariableProxy* this_function_var() const { return this_function_var_; }
+  InitializeClassMembersStatement* derived_initializer() const {
+    return derived_initializer_;
+  }
+  void set_derived_initializer(InitializeClassMembersStatement* stmt) {
+    derived_initializer_ = stmt;
+  }
 
  private:
   friend class AstNodeFactory;
@@ -2616,13 +2622,15 @@ class SuperCallReference final : public Expression {
                      VariableProxy* this_function_var, int pos)
       : Expression(pos, kSuperCallReference),
         new_target_var_(new_target_var),
-        this_function_var_(this_function_var) {
+        this_function_var_(this_function_var),
+        derived_initializer_(nullptr) {
     DCHECK(new_target_var->raw_name()->IsOneByteEqualTo(".new.target"));
     DCHECK(this_function_var->raw_name()->IsOneByteEqualTo(".this_function"));
   }
 
   VariableProxy* new_target_var_;
   VariableProxy* this_function_var_;
+  InitializeClassMembersStatement* derived_initializer_;
 };
 
 // This AST Node is used to represent a dynamic import call --

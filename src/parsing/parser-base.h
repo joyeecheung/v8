@@ -329,13 +329,26 @@ class ParserBase {
           isolate_(isolate),
           previous_class_literal_parsing_scope_(
               parser->class_literal_parsing_scope_),
-          original_parsing_mode_(parser->parsing_mode_) {
+          original_parsing_mode_(parser->parsing_mode_),
+          constructor_(nullptr) {
       parser_->class_literal_parsing_scope_ = this;
     }
 
     ~ClassLiteralParsingScope() {
       parser_->class_literal_parsing_scope_ =
           previous_class_literal_parsing_scope_;
+      if (constructor_ == nullptr) {
+        DCHECK(parser_->has_error() || Impl::IsPreParser());
+        return;
+      }
+      DCHECK_IMPLIES(!super_calls_.empty(),
+                     IsDerivedConstructor(constructor_->kind()));
+      if (constructor_->initialize_member_stmt() == nullptr) {
+        return;
+      }
+      for (auto call : super_calls_) {
+        call->set_derived_initializer(constructor_->initialize_member_stmt());
+      }
     }
 
     Isolate* isolate() const { return isolate_; }
@@ -344,12 +357,23 @@ class ParserBase {
     }
     ParsingMode original_parsing_mode() const { return original_parsing_mode_; }
 
+    void RecordSuperCall(SuperCallReference* call) {
+      super_calls_.push_back(call);
+    }
+
+    void RecordConstructor(ClassConstructor* constructor) {
+      DCHECK_NULL(constructor_);
+      constructor_ = constructor;
+    }
+
    private:
     ParserBase* parser_;
     ParsingClassLiteralFlag class_literal_flag_;
     Isolate* isolate_;
     ClassLiteralParsingScope* previous_class_literal_parsing_scope_;
     ParsingMode original_parsing_mode_;
+    std::vector<SuperCallReference*> super_calls_;
+    ClassConstructor* constructor_;
   };
 
   ClassLiteralParsingScope* class_literal_parsing_scope() const {

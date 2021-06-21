@@ -795,6 +795,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* ImportMetaExpression(int pos);
 
   Expression* ExpressionFromLiteral(Token::Value token, int pos);
+  ClassConstructor* NewClassConstructor(
+      const AstRawString* name, DeclarationScope* scope,
+      const ScopedPtrList<Statement>& body, int expected_property_count,
+      int parameter_count, int function_length,
+      FunctionLiteral::ParameterFlag has_duplicate_parameters,
+      FunctionSyntaxKind function_syntax_kind,
+      FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
+      bool has_braces, int function_literal_id,
+      ProducedPreparseData* produced_preparse_data = nullptr);
 
   V8_INLINE VariableProxy* ExpressionFromPrivateName(
       PrivateNameScopeIterator* private_name_scope, const AstRawString* name,
