@@ -50,6 +50,7 @@ enum class FeedbackSlotKind : uint8_t {
   kStoreGlobalStrict,
   kStoreNamedStrict,
   kStoreOwnNamed,
+  kDefineOwnKeyed,
   kStoreKeyedStrict,
   kStoreInArrayLiteral,
   kBinaryOp,
@@ -102,13 +103,18 @@ inline bool IsStoreOwnICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kStoreOwnNamed;
 }
 
+inline bool IsDefineOwnICKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kDefineOwnKeyed;
+}
+
 inline bool IsStoreDataPropertyInLiteralKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kStoreDataPropertyInLiteral;
 }
 
 inline bool IsKeyedStoreICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kStoreKeyedSloppy ||
-         kind == FeedbackSlotKind::kStoreKeyedStrict;
+         kind == FeedbackSlotKind::kStoreKeyedStrict ||
+         kind == FeedbackSlotKind::kDefineOwnKeyed;
 }
 
 inline bool IsStoreInArrayLiteralICKind(FeedbackSlotKind kind) {
@@ -422,6 +428,12 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
 
   FeedbackSlot AddStoreOwnICSlot() {
     return AddSlot(FeedbackSlotKind::kStoreOwnNamed);
+  }
+
+  // Identical to StoreOwnKeyed, but will throw if a private field already
+  // exists.
+  FeedbackSlot AddKeyedDefineOwnICSlot() {
+    return AddSlot(FeedbackSlotKind::kDefineOwnKeyed);
   }
 
   FeedbackSlot AddStoreGlobalICSlot(LanguageMode language_mode) {
