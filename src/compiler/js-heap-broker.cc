@@ -343,6 +343,10 @@ KeyedAccessMode KeyedAccessMode::FromNexus(FeedbackNexus const& nexus) {
   if (IsKeyedHasICKind(kind)) {
     return KeyedAccessMode(AccessMode::kHas, nexus.GetKeyedAccessLoadMode());
   }
+  if (IsDefineOwnICKind(kind)) {
+    return KeyedAccessMode(AccessMode::kDefine,
+                           nexus.GetKeyedAccessStoreMode());
+  }
   if (IsKeyedStoreICKind(kind)) {
     return KeyedAccessMode(AccessMode::kStore, nexus.GetKeyedAccessStoreMode());
   }
@@ -361,6 +365,7 @@ bool KeyedAccessMode::IsLoad() const {
 }
 bool KeyedAccessMode::IsStore() const {
   return access_mode_ == AccessMode::kStore ||
+         access_mode_ == AccessMode::kDefine ||
          access_mode_ == AccessMode::kStoreInLiteral;
 }
 
