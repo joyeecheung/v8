@@ -186,22 +186,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                original_scope_);
   }
 
-  bool parse_lazily() const { return mode_ == PARSE_LAZILY; }
-  enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
-
-  class V8_NODISCARD ParsingModeScope {
-   public:
-    ParsingModeScope(Parser* parser, Mode mode)
-        : parser_(parser), old_mode_(parser->mode_) {
-      parser_->mode_ = mode;
-    }
-    ~ParsingModeScope() { parser_->mode_ = old_mode_; }
-
-   private:
-    Parser* parser_;
-    Mode old_mode_;
-  };
-
   // Runtime encoding of different completion modes.
   enum CompletionKind {
     kNormalCompletion,
@@ -230,6 +214,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                    int start_position, int end_position,
                                    int function_literal_id,
                                    const AstRawString* raw_name);
+
+  FunctionLiteral* DoParseDeserializedFunction(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared_info, ParseInfo* info,
+      int start_position, int end_position, int function_literal_id,
+      const AstRawString* raw_name);
+
+  FunctionLiteral* ParseClassForInstanceMemberInitialization(
+      Isolate* isolate, ClassScope* scope, int initializer_pos,
+      int initializer_id);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
@@ -384,6 +377,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       int function_token_position, FunctionSyntaxKind type,
       LanguageMode language_mode,
       ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
+
+  FunctionLiteral* ParseClassMethodOrAccessor(const AstRawString* prop_name,
+                                              FunctionKind function_kind,
+                                              int name_token_position);
+
+  Expression* ParseClassMemberInitializerAssignment();
 
   ObjectLiteral* InitializeObjectLiteral(ObjectLiteral* object_literal) {
     object_literal->CalculateEmitStore(main_zone());
@@ -1060,7 +1059,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Scanner scanner_;
   Zone preparser_zone_;
   PreParser* reusable_preparser_;
-  Mode mode_;
 
   MaybeHandle<FixedArray> maybe_wrapped_arguments_;
 
