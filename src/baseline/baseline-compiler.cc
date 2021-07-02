@@ -943,6 +943,14 @@ void BaselineCompiler::VisitStaKeyedProperty() {
       IndexAsTagged(2));                // slot
 }
 
+void BaselineCompiler::VisitStaKeyedPropertyAsDefine() {
+  CallBuiltin<Builtin::kKeyedDefineOwnICBaseline>(
+      RegisterOperand(0),               // object
+      RegisterOperand(1),               // key
+      kInterpreterAccumulatorRegister,  // value
+      IndexAsTagged(2));                // slot
+}
+
 void BaselineCompiler::VisitStaInArrayLiteral() {
   CallBuiltin<Builtin::kStoreInArrayLiteralICBaseline>(
       RegisterOperand(0),               // object
