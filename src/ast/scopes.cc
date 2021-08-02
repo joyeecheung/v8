@@ -812,7 +812,7 @@ Scope* Scope::FinalizeBlockScope() {
 }
 
 void DeclarationScope::AddLocal(Variable* var) {
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   // Temporaries are only placed in ClosureScopes.
   DCHECK_EQ(GetClosureScope(), this);
   locals_.Add(var);
@@ -878,7 +878,7 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) {
 void Scope::ReplaceOuterScope(Scope* outer) {
   DCHECK_NOT_NULL(outer);
   DCHECK_NOT_NULL(outer_scope_);
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   outer_scope_->RemoveInnerScope(this);
   outer->AddInnerScope(this);
   outer_scope_ = outer;
@@ -923,10 +923,10 @@ Variable* Scope::LookupInScopeInfo(Isolate* isolate, const AstRawString* name,
 
   // Heap allocation may happen if mode is kInternalizeVariableName
   // and the name is not internalized yet.
-  Handle<String> name_string = GetVariableNameForLookup<mode>(isolate, name);
+  Handle<String> name_handle = GetVariableNameForLookup<mode>(isolate, name);
 
   DisallowGarbageCollection no_gc;
-  String name_handle = *(name_string);
+  String name_string = *(name_handle);
   ScopeInfo scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
@@ -940,20 +940,20 @@ Variable* Scope::LookupInScopeInfo(Isolate* isolate, const AstRawString* name,
   {
     location = VariableLocation::CONTEXT;
     index =
-        ScopeInfo::ContextSlotIndex(scope_info, name_handle, &lookup_result);
+        ScopeInfo::ContextSlotIndex(scope_info, name_string, &lookup_result);
     found = index >= 0;
   }
 
   if (!found && is_module_scope()) {
     location = VariableLocation::MODULE;
-    index = scope_info.ModuleIndex(name_handle, &lookup_result.mode,
+    index = scope_info.ModuleIndex(name_string, &lookup_result.mode,
                                    &lookup_result.init_flag,
                                    &lookup_result.maybe_assigned_flag);
     found = index != 0;
   }
 
   if (!found) {
-    index = scope_info.FunctionContextSlotIndex(name_handle);
+    index = scope_info.FunctionContextSlotIndex(name_string);
     if (index < 0) return nullptr;  // Nowhere found.
     Variable* var = AsDeclarationScope()->DeclareFunctionVar(name, cache);
     DCHECK_EQ(VariableMode::kConst, var->mode());
@@ -980,7 +980,7 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
                                              bool is_optional, bool is_rest,
                                              AstValueFactory* ast_value_factory,
                                              int position) {
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   DCHECK(is_function_scope() || is_module_scope());
   DCHECK(!has_rest_);
   DCHECK(!is_optional || !is_rest);
@@ -1010,7 +1010,7 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
 }
 
 void DeclarationScope::RecordParameter(bool is_rest) {
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   DCHECK(is_function_scope() || is_module_scope());
   DCHECK(is_being_lazily_parsed_);
   DCHECK(!has_rest_);
@@ -1021,7 +1021,7 @@ void DeclarationScope::RecordParameter(bool is_rest) {
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                               VariableKind kind, bool* was_added,
                               InitializationFlag init_flag) {
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   // Private methods should be declared with ClassScope::DeclarePrivateName()
   DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
   // This function handles VariableMode::kVar, VariableMode::kLet, and
@@ -1059,7 +1059,7 @@ Variable* Scope::DeclareVariable(
   // Private methods should be declared with ClassScope::DeclarePrivateName()
   DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
   DCHECK(IsDeclaredVariableMode(mode));
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   DCHECK(!GetDeclarationScope()->is_being_lazily_parsed());
   DCHECK(!GetDeclarationScope()->was_lazily_parsed());
 
@@ -1141,7 +1141,7 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
                                      VariableMode mode, bool* was_added,
                                      VariableKind kind) {
   DCHECK(IsDeclaredVariableMode(mode));
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   DCHECK(GetDeclarationScope()->is_being_lazily_parsed());
   // Private methods should be declared with ClassScope::DeclarePrivateName()
   DCHECK(!IsPrivateMethodOrAccessorVariableMode(mode));
@@ -1174,7 +1174,7 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
 }
 
 Variable* Scope::DeclareCatchVariableName(const AstRawString* name) {
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   DCHECK(is_catch_scope());
   DCHECK(scope_info_.is_null());
 
@@ -1186,7 +1186,7 @@ Variable* Scope::DeclareCatchVariableName(const AstRawString* name) {
 }
 
 void Scope::AddUnresolved(VariableProxy* proxy) {
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   DCHECK(!proxy->is_resolved());
   unresolved_list_.Add(proxy);
 }
@@ -1443,7 +1443,7 @@ DeclarationScope* Scope::GetClosureScope() {
 }
 
 bool Scope::NeedsScopeInfo() const {
-  DCHECK(!already_resolved_);
+  DCHECK(!already_resolved());
   DCHECK(GetClosureScope()->ShouldEagerCompile());
   // The debugger expects all functions to have scope infos.
   // TODO(jochen|yangguo): Remove this requirement.
@@ -2166,7 +2166,7 @@ Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
   // accessed from inside of an inner with scope (the property may not be in
   // the 'with' object).
   if (!var->is_dynamic() && var->IsUnallocated()) {
-    DCHECK(!scope->already_resolved_);
+    DCHECK(!scope->already_resolved());
     var->set_is_used();
     var->ForceContextAllocation();
     if (proxy->is_assigned()) var->SetMaybeAssigned();
@@ -2537,7 +2537,7 @@ void ModuleScope::AllocateModuleVariables() {
 
 void Scope::AllocateVariablesRecursively() {
   this->ForEach([](Scope* scope) -> Iteration {
-    DCHECK(!scope->already_resolved_);
+    DCHECK(!scope->already_resolved());
     if (WasLazilyParsed(scope)) return Iteration::kContinue;
     DCHECK_EQ(scope->ContextHeaderLength(), scope->num_heap_slots_);
 
@@ -2718,9 +2718,6 @@ void ClassScope::PrepareForReparseForInitialization() {
   // The scope must be deserialized during reparsing.
   DCHECK(!scope_info_.is_null());
 #ifdef DEBUG
-  // Flip the already_resolved bit so that we can restore variables.
-  // We will flip it back once reparsing is done.
-  already_resolved_ = false;
 
   // At this point, the class scope should contain no more than 2
   // variables:
@@ -2741,7 +2738,6 @@ void ClassScope::DoneReparseForInitialization(ParseInfo* info) {
   // The scope must be deserialized during reparsing.
   DCHECK(!scope_info_.is_null());
 #ifdef DEBUG
-  already_resolved_ = true;
   // Some variables might be declared but not serialized, but
   // at least we should not miss any variables.
   int serialized_count = scope_info_->ContextLocalCount();
@@ -2846,13 +2842,13 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(Isolate* isolate,
   DCHECK_NULL(LookupLocalPrivateName(name));
   // Heap allocation may happen if mode is kInternalizeVariableName
   // and the name is not internalized yet.
-  Handle<String> name_string = GetVariableNameForLookup<mode>(isolate, name);
+  Handle<String> name_handle = GetVariableNameForLookup<mode>(isolate, name);
 
   DisallowGarbageCollection no_gc;
   VariableLookupResult lookup_result;
-  String name_handle = *(name_string);
+  String name_string = *(name_handle);
   int index =
-      ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &lookup_result);
+      ScopeInfo::ContextSlotIndex(*scope_info_, name_string, &lookup_result);
   if (index < 0) {
     return nullptr;
   }
@@ -2894,8 +2890,8 @@ Variable* ClassScope::DeserializeVariable(Isolate* isolate,
   return var;
 }
 
-void ClassScope::RestoreHomeVariables(Isolate* isolate,
-                                      AstValueFactory* ast_value_factory) {
+void ClassScope::RestoreHomeObjectVariables(
+    Isolate* isolate, AstValueFactory* ast_value_factory) {
   Variable* home_object_variable =
       DeserializeVariable(isolate, ast_value_factory->dot_home_object_string());
   if (home_object_variable == nullptr) {

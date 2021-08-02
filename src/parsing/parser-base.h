@@ -4817,7 +4817,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
 
   if (class_scope->needs_home_object()) {
     if (reparsing) {
-      class_scope->RestoreHomeVariables(
+      class_scope->RestoreHomeObjectVariables(
           class_literal_parsing_scope()->isolate(), ast_value_factory());
     } else {
       class_info.home_object_variable =

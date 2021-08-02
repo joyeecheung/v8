@@ -254,7 +254,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
-    DCHECK(!already_resolved_);
+    DCHECK(!already_resolved());
     DCHECK_EQ(factory->zone(), zone());
     VariableProxy* proxy = factory->NewVariableProxy(name, kind, start_pos);
     AddUnresolved(proxy);
@@ -364,7 +364,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void set_is_hidden() { is_hidden_ = true; }
 
   void ForceContextAllocationForParameters() {
-    DCHECK(!already_resolved_);
+    DCHECK(!already_resolved());
     force_context_allocation_for_parameters_ = true;
   }
   bool has_forced_context_allocation_for_parameters() const {
@@ -592,6 +592,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Check that all Scopes in the scope tree use the same Zone.
   void CheckZones();
+
+  bool already_resolved() const {
+    // We allow re-resolution when reparsing class scopes.
+    return already_resolved_ && !IsReparsedClassScope();
+  }
 #endif
 
   bool IsReparsedClassScope() const;
@@ -1497,8 +1502,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // do not declare these variables but instead restore them from the
   // scope info.
   Variable* DeserializeVariable(Isolate* isolate, const AstRawString* name);
-  void RestoreHomeVariables(Isolate* isolate,
-                            AstValueFactory* ast_value_factory);
+  void RestoreHomeObjectVariables(Isolate* isolate,
+                                  AstValueFactory* ast_value_factory);
   void PrepareForReparseForInitialization();
   // Called after the class is reparsed for instance member initialization.
   void DoneReparseForInitialization(ParseInfo* info);

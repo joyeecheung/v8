@@ -1060,15 +1060,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   int class_token_pos = initializer_pos;
 
   // Insert a FunctionState with the closest outer Declaration scope
-  DeclarationScope* nearest_decl_scope = nullptr;
-  Scope* scope = class_scope;
-  while (nearest_decl_scope == nullptr && scope->outer_scope() != nullptr) {
-    if (scope->outer_scope()->is_declaration_scope()) {
-      nearest_decl_scope = scope->outer_scope()->AsDeclarationScope();
-    } else {
-      scope = scope->outer_scope();
-    }
-  }
+  DeclarationScope* nearest_decl_scope = class_scope->GetDeclarationScope();
   DCHECK_NOT_NULL(nearest_decl_scope);
   FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
   // We will reindex the function literals later.
