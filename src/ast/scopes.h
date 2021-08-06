@@ -600,6 +600,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 #endif
 
   bool IsReparsedClassScope() const;
+  bool IsReparsedInstanceInitializerScope() const;
 
   // Retrieve `IsSimpleParameterList` of current or outer function.
   bool HasSimpleParameters();
@@ -1497,16 +1498,9 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
-  // Used by the parser to rebind variables declared in the class scope.
-  // When reparsing the class for the instance initialization, we
-  // do not declare these variables but instead restore them from the
-  // scope info.
-  Variable* DeserializeVariable(Isolate* isolate, const AstRawString* name);
-  void RestoreHomeObjectVariables(Isolate* isolate,
-                                  AstValueFactory* ast_value_factory);
   void PrepareForReparseForInitialization();
   // Called after the class is reparsed for instance member initialization.
-  void DoneReparseForInitialization(ParseInfo* info);
+  void DoneReparseForInitialization();
 
   DeclarationScope* initializer_scope() const { return initializer_scope_; }
   void set_initializer_scope(DeclarationScope* scope) {

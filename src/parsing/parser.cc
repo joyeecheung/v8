@@ -1054,13 +1054,12 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
 }
 
 FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
-    Isolate* isolate, ClassScope* class_scope, int initializer_pos,
+    Isolate* isolate, ClassScope* original_scope, int initializer_pos,
     int initializer_id) {
-  class_scope->PrepareForReparseForInitialization();
   int class_token_pos = initializer_pos;
 
   // Insert a FunctionState with the closest outer Declaration scope
-  DeclarationScope* nearest_decl_scope = class_scope->GetDeclarationScope();
+  DeclarationScope* nearest_decl_scope = original_scope->GetDeclarationScope();
   DCHECK_NOT_NULL(nearest_decl_scope);
   FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
   // We will reindex the function literals later.
@@ -1094,6 +1093,10 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
     variable_name = class_name;
   }
   bool is_anonymous = class_name == nullptr || class_name->IsEmpty();
+
+  ClassScope* class_scope =
+      NewClassScope(original_scope->outer_scope(), is_anonymous);
+  class_scope->PrepareForReparseForInitialization();
 
   Expression* expr =
       DoParseClassLiteral(class_scope, class_name, scanner()->location(),
@@ -3152,17 +3155,10 @@ void Parser::DeclarePublicClassField(ClassScope* scope,
   if (is_computed_name) {
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
-    Variable* computed_name_var = nullptr;
     const AstRawString* property_name = ClassFieldVariableName(
         ast_value_factory(), class_info->computed_field_count);
-    if (parse_for_instance_initialization()) {
-      computed_name_var = scope->DeserializeVariable(
-          class_literal_parsing_scope()->isolate(), property_name);
-    }
-    if (computed_name_var == nullptr) {
-      computed_name_var = CreateSyntheticContextVariable(property_name);
-    }
 
+    Variable* computed_name_var = CreateSyntheticContextVariable(property_name);
     property->set_computed_name_var(computed_name_var);
     class_info->public_members->Add(property, zone());
   }
@@ -3182,18 +3178,11 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
     }
   }
 
-  Variable* private_name_var = nullptr;
-  if (parse_for_instance_initialization()) {
-    private_name_var = scope->DeserializeVariable(
-        class_literal_parsing_scope()->isolate(), property_name);
-  }
+  Variable* private_name_var = CreatePrivateNameVariable(
+      scope, GetVariableMode(kind),
+      is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
+      property_name);
 
-  if (private_name_var == nullptr) {
-    private_name_var = CreatePrivateNameVariable(
-        scope, GetVariableMode(kind),
-        is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
-        property_name);
-  }
   int pos = property->value()->position();
   if (pos == kNoSourcePosition) {
     pos = property->key()->position();

@@ -643,6 +643,11 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // 3) a function/eval in a scope that was already resolved.
   // 4) a instance member initialization in a class scope that's not yet
   // resolved.
+  if (!(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
+        scope->outer_scope()->already_resolved_ ||
+        scope->outer_scope()->IsReparsedClassScope())) {
+    scope->Print(2);
+  }
   DCHECK(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
          scope->outer_scope()->already_resolved_ ||
          scope->outer_scope()->IsReparsedClassScope());
@@ -668,9 +673,10 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   scope->CheckScopePositions();
   scope->CheckZones();
 #endif
+
   if (scope->outer_scope() != nullptr &&
       scope->outer_scope()->IsReparsedClassScope()) {
-    scope->outer_scope()->AsClassScope()->DoneReparseForInitialization(info);
+    scope->outer_scope()->AsClassScope()->DoneReparseForInitialization();
   }
   return true;
 }
@@ -1328,13 +1334,25 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
     return false;
   }
 
-  if (!ResolveVariablesRecursively(info->scope())) {
+  DCHECK_EQ(this, info->scope());
+  // Aallocate variables for the the class scope too if `scope` is an instance
+  // member function scope being reparsed.
+  bool is_reparsed_instance_initializer_scope =
+      IsReparsedInstanceInitializerScope();
+  Scope* scope = is_reparsed_instance_initializer_scope ? outer_scope() : this;
+  if (scope->IsReparsedInstanceInitializerScope()) {
+    scope = scope->outer_scope();
+  }
+
+  if (!scope->ResolveVariablesRecursively(scope)) {
     DCHECK(info->pending_error_handler()->has_pending_error());
     return false;
   }
 
   // Don't allocate variables of preparsed scopes.
-  if (!was_lazily_parsed()) AllocateVariablesRecursively();
+  if (!was_lazily_parsed() || is_reparsed_instance_initializer_scope) {
+    scope->AllocateVariablesRecursively();
+  }
 
   return true;
 }
@@ -2007,6 +2025,13 @@ void Scope::CheckZones() {
 bool Scope::IsReparsedClassScope() const {
   return is_class_scope() &&
          AsClassScope()->is_being_reparsed_for_initialization();
+}
+
+bool Scope::IsReparsedInstanceInitializerScope() const {
+  return is_declaration_scope() &&
+         AsDeclarationScope()->function_kind() ==
+             FunctionKind::kClassMembersInitializerFunction &&
+         outer_scope()->IsReparsedClassScope();
 }
 
 DeclarationScope* Scope::GetClassInitializerScope() const {
@@ -2715,39 +2740,42 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
 }
 
 void ClassScope::PrepareForReparseForInitialization() {
-  // The scope must be deserialized during reparsing.
-  DCHECK(!scope_info_.is_null());
-#ifdef DEBUG
+  //   // The scope must be deserialized during reparsing.
+  //   DCHECK(!scope_info_.is_null());
+  // #ifdef DEBUG
 
-  // At this point, the class scope should contain no more than 2
-  // variables:
-  // 1) A local variable .brand, always context-allocated, if the class
-  //    has private methods/accessors.
-  // 2) A local variable for the class name variable if the class needs
-  //    to save it for inner access or static brand check.
-  DCHECK_LE(num_var(), 2);
-  RareData* rare_data = GetRareData();
-  if (rare_data != nullptr) {
-    DCHECK_EQ(rare_data->private_name_map.occupancy(), 0);
-  }
-#endif
+  //   // At this point, the class scope should contain no more than 2
+  //   // variables:
+  //   // 1) A local variable .brand, always context-allocated, if the class
+  //   //    has private methods/accessors.
+  //   // 2) A local variable for the class name variable if the class needs
+  //   //    to save it for inner access or static brand check.
+  //   DCHECK_LE(num_var(), 2);
+  //   RareData* rare_data = GetRareData();
+  //   if (rare_data != nullptr) {
+  //     DCHECK_EQ(rare_data->private_name_map.occupancy(), 0);
+  //   }
+  // #endif
   is_being_reparsed_for_initialization_ = true;
 }
 
-void ClassScope::DoneReparseForInitialization(ParseInfo* info) {
-  // The scope must be deserialized during reparsing.
-  DCHECK(!scope_info_.is_null());
-#ifdef DEBUG
-  // Some variables might be declared but not serialized, but
-  // at least we should not miss any variables.
-  int serialized_count = scope_info_->ContextLocalCount();
-  int declared_count = variables_.occupancy();
-  RareData* rare_data = GetRareData();
-  if (rare_data != nullptr) {
-    declared_count += rare_data->private_name_map.occupancy();
-  }
-  DCHECK_GE(declared_count, serialized_count);
-#endif
+void ClassScope::DoneReparseForInitialization() {
+  // // The scope must be deserialized during reparsing.
+  // DCHECK(!scope_info_.is_null());
+
+  // TODO(joyee): check this block using the original scope
+  // #ifdef DEBUG
+  //   // Some variables might be declared but not serialized, but
+  //   // at least we should not miss any variables.
+  //   int serialized_count = scope_info_->ContextLocalCount();
+  //   int declared_count = variables_.occupancy();
+  //   RareData* rare_data = GetRareData();
+  //   if (rare_data != nullptr) {
+  //     declared_count += rare_data->private_name_map.occupancy();
+  //   }
+  //   DCHECK_GE(declared_count, serialized_count);
+  // #endif
+
   is_being_reparsed_for_initialization_ = false;
 }
 
@@ -2870,43 +2898,6 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(Isolate* isolate,
 Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   return LookupPrivateNameInScopeInfo<Scope::kVariableNameAlreadyInternalized>(
       nullptr, name);
-}
-
-Variable* ClassScope::DeserializeVariable(Isolate* isolate,
-                                          const AstRawString* name) {
-  Variable* var = nullptr;
-  DCHECK(!scope_info_.is_null());
-
-  bool is_private = name->IsPrivateName();
-  var = is_private ? LookupLocalPrivateName(name) : LookupLocal(name);
-  // It could be non-null when recompiling for the debugger.
-  constexpr Scope::VariableNameInternalizeMode mode =
-      Scope::kInternalizeVariableName;
-  if (var == nullptr) {
-    var = is_private ? LookupPrivateNameInScopeInfo<mode>(isolate, name)
-                     : LookupInScopeInfo<mode>(isolate, name, this);
-  }
-
-  return var;
-}
-
-void ClassScope::RestoreHomeObjectVariables(
-    Isolate* isolate, AstValueFactory* ast_value_factory) {
-  Variable* home_object_variable =
-      DeserializeVariable(isolate, ast_value_factory->dot_home_object_string());
-  if (home_object_variable == nullptr) {
-    home_object_variable = DeclareHomeObjectVariable(ast_value_factory);
-  }
-  home_object_variable->set_is_used();
-  home_object_variable->ForceContextAllocation();
-  Variable* static_home_object_variable = DeserializeVariable(
-      isolate, ast_value_factory->dot_static_home_object_string());
-  if (static_home_object_variable == nullptr) {
-    static_home_object_variable =
-        DeclareStaticHomeObjectVariable(ast_value_factory);
-  }
-  static_home_object_variable->set_is_used();
-  static_home_object_variable->ForceContextAllocation();
 }
 
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {

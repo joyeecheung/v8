@@ -4805,26 +4805,26 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
     return impl()->FailureExpression();
   }
 
-  bool reparsing = parse_for_instance_initialization();
+  // bool reparsing = parse_for_instance_initialization();
   if (class_info.requires_brand) {
-    if (reparsing) {
-      DCHECK_NOT_NULL(class_scope->brand());
-    } else {
-      class_scope->DeclareBrandVariable(
-          ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
-    }
+    // if (reparsing) {
+    //   DCHECK_NOT_NULL(class_scope->brand());
+    // } else {
+    class_scope->DeclareBrandVariable(
+        ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
+    // }
   }
 
   if (class_scope->needs_home_object()) {
-    if (reparsing) {
-      class_scope->RestoreHomeObjectVariables(
-          class_literal_parsing_scope()->isolate(), ast_value_factory());
-    } else {
-      class_info.home_object_variable =
-          class_scope->DeclareHomeObjectVariable(ast_value_factory());
-      class_info.static_home_object_variable =
-          class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
-    }
+    // if (reparsing) {
+    //   class_scope->RestoreHomeObjectVariables(
+    //       class_literal_parsing_scope()->isolate(), ast_value_factory());
+    // } else {
+    class_info.home_object_variable =
+        class_scope->DeclareHomeObjectVariable(ast_value_factory());
+    class_info.static_home_object_variable =
+        class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
+    // }
   }
 
   bool should_save_class_variable_index =
@@ -4833,9 +4833,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
     if (class_scope->class_variable() == nullptr) {
       impl()->DeclareClassVariable(class_scope, name, &class_info,
                                    class_token_pos);
-    } else {
-      DCHECK(reparsing);
     }
+    //  else {
+    //   DCHECK(reparsing);
+    // }
     if (should_save_class_variable_index) {
       DCHECK_NOT_NULL(class_scope->class_variable());
       class_scope->class_variable()->set_is_used();
