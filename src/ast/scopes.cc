@@ -2293,6 +2293,15 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
     return SetNeedsHoleCheck(var, proxy);
   }
 
+  if (scope->IsReparsedClassScope()) {
+    // We don't have access to the variable source positions during reparsing,
+    // so we will use update the check based on the variable flags.
+    if (var->initialization_flag() == kNeedsInitialization) {
+      SetNeedsHoleCheck(var, proxy);
+    }
+    return;
+  }
+
   // Check if the binding really needs an initialization check. The check
   // can be skipped in the following situation: we have a VariableMode::kLet or
   // VariableMode::kConst binding, both the Variable and the VariableProxy have
@@ -2316,6 +2325,12 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
   }
 
   // We should always have valid source positions.
+  if (var->initializer_position() == kNoSourcePosition) {
+    PrintVar(2, var);
+  }
+  if (var->raw_name()->length() == 4) {
+    PrintVar(2, var);
+  }
   DCHECK_NE(var->initializer_position(), kNoSourcePosition);
   DCHECK_NE(proxy->position(), kNoSourcePosition);
 
