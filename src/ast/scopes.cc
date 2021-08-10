@@ -1340,9 +1340,6 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   bool is_reparsed_instance_initializer_scope =
       IsReparsedInstanceInitializerScope();
   Scope* scope = is_reparsed_instance_initializer_scope ? outer_scope() : this;
-  if (scope->IsReparsedInstanceInitializerScope()) {
-    scope = scope->outer_scope();
-  }
 
   if (!scope->ResolveVariablesRecursively(scope)) {
     DCHECK(info->pending_error_handler()->has_pending_error());
