@@ -1206,7 +1206,6 @@ class PreParser : public ParserBase<PreParser> {
                                       const PreParserIdentifier& name,
                                       ClassInfo* class_info,
                                       int class_token_pos) {
-    // DCHECK(!parse_for_instance_initialization());
     DCHECK_IMPLIES(IsNull(name), class_info->is_anonymous);
     // Declare a special class variable for anonymous classes with the dot
     // if we need to save it for static private method access.
@@ -1216,14 +1215,11 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void DeclarePublicClassMethod(const PreParserIdentifier& class_name,
                                           const PreParserExpression& property,
                                           bool is_constructor,
-                                          ClassInfo* class_info) {
-    // DCHECK(!parse_for_instance_initialization());
-  }
+                                          ClassInfo* class_info) {}
   V8_INLINE void DeclarePublicClassField(ClassScope* scope,
                                          const PreParserExpression& property,
                                          bool is_static, bool is_computed_name,
                                          ClassInfo* class_info) {
-    // DCHECK(!parse_for_instance_initialization());
     if (is_computed_name) {
       bool was_added;
       DeclareVariableName(
@@ -1237,7 +1233,6 @@ class PreParser : public ParserBase<PreParser> {
       ClassScope* scope, const PreParserIdentifier& property_name,
       const PreParserExpression& property, ClassLiteralProperty::Kind kind,
       bool is_static, ClassInfo* class_info) {
-    // DCHECK(!parse_for_instance_initialization());
     bool was_added;
 
     DeclarePrivateVariableName(

@@ -1067,7 +1067,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
 
   // Start lazily, and change to eager when we encounter field initializers.
   ClassLiteralParsingScope class_literal_parsing(
-      this, ParsingClassLiteralFlag::kParseForInstanceInitialization, isolate);
+      this, ParsingClassLiteralFlag::kParseForInstanceInitialization);
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
   ParsingModeScope mode(this, PARSE_LAZILY);

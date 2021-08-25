@@ -324,11 +324,9 @@ class ParserBase {
   class V8_NODISCARD ClassLiteralParsingScope final {
    public:
     ClassLiteralParsingScope(ParserBase* parser,
-                             ParsingClassLiteralFlag class_literal_flag,
-                             Isolate* isolate)
+                             ParsingClassLiteralFlag class_literal_flag)
         : parser_(parser),
           class_literal_flag_(class_literal_flag),
-          isolate_(isolate),
           previous_class_literal_parsing_scope_(
               parser->class_literal_parsing_scope_),
           original_parsing_mode_(parser->parsing_mode_) {
@@ -340,7 +338,6 @@ class ParserBase {
           previous_class_literal_parsing_scope_;
     }
 
-    Isolate* isolate() const { return isolate_; }
     ParsingClassLiteralFlag class_literal_flag() const {
       return class_literal_flag_;
     }
@@ -349,10 +346,6 @@ class ParserBase {
    private:
     ParserBase* parser_;
     ParsingClassLiteralFlag class_literal_flag_;
-    // It's necessary to keep a pointer to the current isolate to internalize
-    // strings of variable names so that we can look them up from the scope
-    // info when reparsing the class body to collect the instance initializers.
-    Isolate* isolate_;
     ClassLiteralParsingScope* previous_class_literal_parsing_scope_;
     ParsingMode original_parsing_mode_;
   };
@@ -1287,7 +1280,6 @@ class ParserBase {
   ExpressionT ParseArrowFunctionLiteral(const FormalParametersT& parameters);
   void ParseAsyncFunctionBody(Scope* scope, StatementListT* body);
   ExpressionT ParseAsyncFunctionLiteral();
-
   ExpressionT ParseClassLiteral(IdentifierT name,
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved,
@@ -4693,7 +4685,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   ClassScope* class_scope = NewClassScope(scope(), is_anonymous);
   ClassLiteralParsingScope class_literal_parsing(
-      this, ParsingClassLiteralFlag::kParseAll, nullptr);
+      this, ParsingClassLiteralFlag::kParseAll);
   return DoParseClassLiteral(class_scope, name, class_name_location,
                              is_anonymous, class_token_pos);
 }
@@ -4805,40 +4797,24 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
     return impl()->FailureExpression();
   }
 
-  // bool reparsing = parse_for_instance_initialization();
   if (class_info.requires_brand) {
-    // if (reparsing) {
-    //   DCHECK_NOT_NULL(class_scope->brand());
-    // } else {
     class_scope->DeclareBrandVariable(
         ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
-    // }
   }
 
   if (class_scope->needs_home_object()) {
-    // if (reparsing) {
-    //   class_scope->RestoreHomeObjectVariables(
-    //       class_literal_parsing_scope()->isolate(), ast_value_factory());
-    // } else {
     class_info.home_object_variable =
         class_scope->DeclareHomeObjectVariable(ast_value_factory());
     class_info.static_home_object_variable =
         class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
-    // }
   }
 
   bool should_save_class_variable_index =
       class_scope->should_save_class_variable_index();
   if (!is_anonymous || should_save_class_variable_index) {
-    if (class_scope->class_variable() == nullptr) {
-      impl()->DeclareClassVariable(class_scope, name, &class_info,
-                                   class_token_pos);
-    }
-    //  else {
-    //   DCHECK(reparsing);
-    // }
+    impl()->DeclareClassVariable(class_scope, name, &class_info,
+                                 class_token_pos);
     if (should_save_class_variable_index) {
-      DCHECK_NOT_NULL(class_scope->class_variable());
       class_scope->class_variable()->set_is_used();
       class_scope->class_variable()->ForceContextAllocation();
     }

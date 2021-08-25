@@ -63,22 +63,16 @@ class OneByteStringStream {
 
 template <typename IsolateT>
 void AstRawString::Internalize(IsolateT* isolate) {
-  DCHECK(!is_internalized());
-  set_string(GetInternalized(isolate));
-}
-
-template <typename IsolateT>
-Handle<String> AstRawString::GetInternalized(IsolateT* isolate) const {
-  DCHECK_NE(isolate, nullptr);
+  DCHECK(!has_string_);
   if (literal_bytes_.length() == 0) {
-    return isolate->factory()->empty_string();
+    set_string(isolate->factory()->empty_string());
   } else if (is_one_byte()) {
     OneByteStringKey key(raw_hash_field_, literal_bytes_);
-    return isolate->factory()->InternalizeStringWithKey(&key);
+    set_string(isolate->factory()->InternalizeStringWithKey(&key));
   } else {
     TwoByteStringKey key(raw_hash_field_,
                          base::Vector<const uint16_t>::cast(literal_bytes_));
-    return isolate->factory()->InternalizeStringWithKey(&key);
+    set_string(isolate->factory()->InternalizeStringWithKey(&key));
   }
 }
 
@@ -86,11 +80,6 @@ template EXPORT_TEMPLATE_DEFINE(
     V8_EXPORT_PRIVATE) void AstRawString::Internalize(Isolate* isolate);
 template EXPORT_TEMPLATE_DEFINE(
     V8_EXPORT_PRIVATE) void AstRawString::Internalize(LocalIsolate* isolate);
-
-template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Handle<String> AstRawString::GetInternalized(Isolate* isolate) const;
-template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    Handle<String> AstRawString::GetInternalized(LocalIsolate* isolate) const;
 
 bool AstRawString::AsArrayIndex(uint32_t* index) const {
   // The StringHasher will set up the hash. Bail out early if we know it
