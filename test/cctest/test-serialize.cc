@@ -4221,6 +4221,7 @@ UNINITIALIZED_TEST(ClassFieldsWithInheritance) {
   delete[] blob.data;
   FreeCurrentEmbeddedBlob();
 }
+
 UNINITIALIZED_TEST(ClassFieldsRecalcPrivateNames) {
   DisableAlwaysOpt();
   i::FLAG_rehash_snapshot = true;
@@ -4277,6 +4278,111 @@ UNINITIALIZED_TEST(ClassFieldsRecalcPrivateNames) {
     ExpectBoolean("error1 instanceof TypeError", true);
     CompileRun("try { d.exfilEval(c) } catch(e) { error2 = e; }");
     ExpectBoolean("error2 instanceof TypeError", true);
+  }
+  isolate->Dispose();
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
+UNINITIALIZED_TEST(ClassFieldsWithBindings) {
+  DisableAlwaysOpt();
+  i::FLAG_rehash_snapshot = true;
+  i::FLAG_hash_seed = 42;
+  i::FLAG_allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun(
+          "function testVarBinding() {"
+          "  function FuncWithVar() {"
+          "    this.getPrivate = () => 'test';"
+          "  }"
+          "  class Derived extends FuncWithVar {"
+          "    ['computed'] = FuncWithVar;"
+          "    #private = FuncWithVar;"
+          "    public = FuncWithVar;"
+          "    constructor() {"
+          "        super();"
+          "        this.#private = this.getPrivate();"
+          "    }"
+          "    check() {"
+          "      return this.#private === this.getPrivate() &&"
+          "             this.computed === FuncWithVar &&"
+          "             this.public === FuncWithVar;"
+          "    }"
+          "  }"
+          ""
+          "  return((new Derived()).check());"
+          "}"
+          "class ClassWithLet {"
+          "    #private = 'test';"
+          "    getPrivate() { return this.#private; }"
+          "}"
+          "function testLetBinding() {"
+          "  class Derived extends ClassWithLet {"
+          "    ['computed'] = ClassWithLet;"
+          "    #private = ClassWithLet;"
+          "    public = ClassWithLet;"
+          "    constructor() {"
+          "        super();"
+          "        this.#private = this.getPrivate();"
+          "    }"
+          "    check() {"
+          "      return this.#private === this.getPrivate() &&"
+          "             this.computed === ClassWithLet &&"
+          "             this.public === ClassWithLet;"
+          "    }"
+          "  }"
+          ""
+          "  return((new Derived()).check());"
+          "}"
+          "const ClassWithConst = class {"
+          "    #private = 'test';"
+          "    getPrivate() { return this.#private; }"
+          "};"
+          "function testConstBinding() {"
+          "  class Derived extends ClassWithConst {"
+          "    ['computed'] = ClassWithConst;"
+          "    #private = ClassWithConst;"
+          "    public = ClassWithConst;"
+          "    constructor() {"
+          "        super();"
+          "        this.#private = this.getPrivate();"
+          "    }"
+          "    check() {"
+          "      return this.#private === this.getPrivate() &&"
+          "             this.computed === ClassWithConst &&"
+          "             this.public === ClassWithConst;"
+          "    }"
+          "  }"
+          ""
+          "  return((new Derived()).check());"
+          "}");
+      creator.SetDefaultContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.snapshot_blob = &blob;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
+    ExpectBoolean("testVarBinding()", true);
+    ExpectBoolean("testLetBinding()", true);
+    ExpectBoolean("testConstBinding()", true);
   }
   isolate->Dispose();
   delete[] blob.data;
