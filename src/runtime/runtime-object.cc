@@ -575,7 +575,9 @@ MaybeHandle<Object> Runtime::DefineClassField(Isolate* isolate,
     Handle<Object> name_string(Symbol::cast(*key).description(), isolate);
     DCHECK(name_string->IsString());
     THROW_NEW_ERROR(
-        isolate, NewTypeError(MessageTemplate::kVarRedeclaration, name_string),
+        isolate,
+        NewTypeError(MessageTemplate::kInvalidPrivateFieldReitialization,
+                     name_string),
         Object);
   }
 
