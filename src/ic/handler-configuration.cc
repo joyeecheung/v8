@@ -448,7 +448,6 @@ const char* KeyedAccessStoreModeToString(KeyedAccessStoreMode mode) {
 
 void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
   StoreHandler::Kind kind = StoreHandler::KindBits::decode(raw_handler);
-  os << "kind = ";
   switch (kind) {
     case StoreHandler::Kind::kField:
     case StoreHandler::Kind::kConstField: {
@@ -510,72 +509,78 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
 // static
 void LoadHandler::PrintHandler(Object handler, std::ostream& os) {
   DisallowGarbageCollection no_gc;
+  // Reused by _v8_internal_Print_LoadHandler() which supports printing
+  // the Smi directly.
   if (handler.IsSmi()) {
     int raw_handler = handler.ToSmi().value();
-    os << "LoadHandler(Smi)(";
+    os << ": Smi"
+       << "\n - kind: ";
     PrintSmiLoadHandler(raw_handler, os);
-    os << ")" << std::endl;
+    os << std::endl;
   } else {
     LoadHandler load_handler = LoadHandler::cast(handler);
     int raw_handler = load_handler.smi_handler().ToSmi().value();
-    os << "LoadHandler(do access check on lookup start object = "
+    os << "\n - do access check on lookup start object = "
        << DoAccessCheckOnLookupStartObjectBits::decode(raw_handler)
-       << ", lookup on lookup start object = "
-       << LookupOnLookupStartObjectBits::decode(raw_handler) << ", ";
+       << "\n - lookup on lookup start object = "
+       << LookupOnLookupStartObjectBits::decode(raw_handler) << "\n - kind: ";
     PrintSmiLoadHandler(raw_handler, os);
     DCHECK_GE(load_handler.data_field_count(), 1);
-    os << ", data1 = ";
+    os << "\n - data1 = ";
     load_handler.data1().ShortPrint(os);
     if (load_handler.data_field_count() >= 2) {
-      os << ", data2 = ";
+      os << "\n - data2 = ";
       load_handler.data2().ShortPrint(os);
     }
     if (load_handler.data_field_count() >= 3) {
-      os << ", data3 = ";
+      os << "\n - data3 = ";
       load_handler.data3().ShortPrint(os);
     }
-    os << ", validity cell = ";
+    os << "\n - validity cell = ";
     load_handler.validity_cell().ShortPrint(os);
-    os << ")" << std::endl;
+    os << std::endl;
   }
 }
 
 void StoreHandler::PrintHandler(Object handler, std::ostream& os) {
   DisallowGarbageCollection no_gc;
+  // Reused by _v8_internal_Print_StoreHandler() which supports printing
+  // the Smi directly.
   if (handler.IsSmi()) {
     int raw_handler = handler.ToSmi().value();
-    os << "StoreHandler(Smi)(";
+    os << ": Smi"
+       << "\n - kind: ";
     PrintSmiStoreHandler(raw_handler, os);
-    os << ")" << std::endl;
+    os << std::endl;
   } else {
-    os << "StoreHandler(";
     StoreHandler store_handler = StoreHandler::cast(handler);
     if (store_handler.smi_handler().IsCode()) {
       Code code = Code::cast(store_handler.smi_handler());
-      os << "builtin = ";
+      os << "\n - builtin = ";
       code.ShortPrint(os);
     } else {
       int raw_handler = store_handler.smi_handler().ToSmi().value();
-      os << "do access check on lookup start object = "
+      os << "\n - do access check on lookup start object = "
          << DoAccessCheckOnLookupStartObjectBits::decode(raw_handler)
-         << ", lookup on lookup start object = "
-         << LookupOnLookupStartObjectBits::decode(raw_handler) << ", ";
+         << "\n - lookup on lookup start object = "
+         << LookupOnLookupStartObjectBits::decode(raw_handler) << "\n - kind: ";
       PrintSmiStoreHandler(raw_handler, os);
     }
-    DCHECK_GE(store_handler.data_field_count(), 1);
-    os << ", data1 = ";
-    store_handler.data1().ShortPrint(os);
+    if (store_handler.data_field_count() >= 1) {
+      os << "\n - data1 = ";
+      store_handler.data1().ShortPrint(os);
+    }
     if (store_handler.data_field_count() >= 2) {
-      os << ", data2 = ";
+      os << "\n - data2 = ";
       store_handler.data2().ShortPrint(os);
     }
     if (store_handler.data_field_count() >= 3) {
-      os << ", data3 = ";
+      os << "\n - data3 = ";
       store_handler.data3().ShortPrint(os);
     }
-    os << ", validity cell = ";
+    os << "\n - validity cell = ";
     store_handler.validity_cell().ShortPrint(os);
-    os << ")" << std::endl;
+    os << std::endl;
   }
 }
 
@@ -584,6 +589,24 @@ std::ostream& operator<<(std::ostream& os, WasmValueType type) {
 }
 
 #endif  // defined(OBJECT_PRINT)
+
+void LoadHandler::LoadHandlerShortPrint(std::ostream& os) {
+#if defined(OBJECT_PRINT)
+  PrintSmiLoadHandler(smi_handler().ToSmi().value(), os);
+#endif  // defined(OBJECT_PRINT)
+}
+
+void StoreHandler::StoreHandlerShortPrint(std::ostream& os) {
+  if (smi_handler().IsCode()) {
+    Code code = Code::cast(smi_handler());
+    os << "builtin = ";
+    code.ShortPrint(os);
+  } else {
+#if defined(OBJECT_PRINT)
+    PrintSmiStoreHandler(smi_handler().ToSmi().value(), os);
+#endif  // defined(OBJECT_PRINT)
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -228,6 +228,8 @@ class LoadHandler final : public DataHandler {
   // Decodes the KeyedAccessLoadMode from a {handler}.
   static KeyedAccessLoadMode GetKeyedAccessLoadMode(MaybeObject handler);
 
+  V8_EXPORT_PRIVATE void LoadHandlerShortPrint(std::ostream& os);
+
 #if defined(OBJECT_PRINT)
   static void PrintHandler(Object handler, std::ostream& os);
 #endif  // defined(OBJECT_PRINT)
@@ -369,6 +371,8 @@ class StoreHandler final : public DataHandler {
 
   // Decodes the KeyedAccessStoreMode from a {handler}.
   static KeyedAccessStoreMode GetKeyedAccessStoreMode(MaybeObject handler);
+
+  V8_EXPORT_PRIVATE void StoreHandlerShortPrint(std::ostream& os);
 
 #if defined(OBJECT_PRINT)
   static void PrintHandler(Object handler, std::ostream& os);

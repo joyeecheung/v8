@@ -2074,38 +2074,22 @@ void WasmValueObject::WasmValueObjectPrint(std::ostream& os) {
 
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {
   PrintHeader(os, "LoadHandler");
-  // TODO(ishell): implement printing based on handler kind
-  os << "\n - handler: " << Brief(smi_handler());
-  os << "\n - validity_cell: " << Brief(validity_cell());
-  int data_count = data_field_count();
-  if (data_count >= 1) {
-    os << "\n - data1: " << Brief(data1());
-  }
-  if (data_count >= 2) {
-    os << "\n - data2: " << Brief(data2());
-  }
-  if (data_count >= 3) {
-    os << "\n - data3: " << Brief(data3());
-  }
-  os << "\n";
+#if defined(OBJECT_PRINT)
+  PrintHandler(*this, os);
+#else
+  os << " ";
+  LoadHandlerShortPrint(os);
+#endif  // defined(OBJECT_PRINT)
 }
 
 void StoreHandler::StoreHandlerPrint(std::ostream& os) {
   PrintHeader(os, "StoreHandler");
-  // TODO(ishell): implement printing based on handler kind
-  os << "\n - handler: " << Brief(smi_handler());
-  os << "\n - validity_cell: " << Brief(validity_cell());
-  int data_count = data_field_count();
-  if (data_count >= 1) {
-    os << "\n - data1: " << Brief(data1());
-  }
-  if (data_count >= 2) {
-    os << "\n - data2: " << Brief(data2());
-  }
-  if (data_count >= 3) {
-    os << "\n - data3: " << Brief(data3());
-  }
-  os << "\n";
+#if defined(OBJECT_PRINT)
+  PrintHandler(*this, os);
+#else
+  os << " ";
+  StoreHandlerShortPrint(os);
+#endif  // defined(OBJECT_PRINT)
 }
 
 void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {
@@ -2848,6 +2832,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_LoadHandler(void* object) {
 #ifdef OBJECT_PRINT
   i::StdoutStream os;
+  os << "LoadHandler";
   i::LoadHandler::PrintHandler(GetObjectFromRaw(object), os);
   os << std::flush;
 #endif
@@ -2856,6 +2841,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_LoadHandler(void* object) {
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_StoreHandler(void* object) {
 #ifdef OBJECT_PRINT
   i::StdoutStream os;
+  os << "StoreHandler";
   i::StoreHandler::PrintHandler(GetObjectFromRaw(object), os);
   os << std::flush;
 #endif

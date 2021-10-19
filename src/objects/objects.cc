@@ -39,6 +39,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -2136,6 +2137,20 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       } else {
         os << ", side_effect_free= false>";
       }
+      break;
+    }
+    case STORE_HANDLER_TYPE: {
+      os << "<StoreHandler ";
+      StoreHandler handler = StoreHandler::cast(*this);
+      handler.StoreHandlerShortPrint(os);
+      os << ">";
+      break;
+    }
+    case LOAD_HANDLER_TYPE: {
+      os << "<LoadHandler ";
+      LoadHandler handler = LoadHandler::cast(*this);
+      handler.LoadHandlerShortPrint(os);
+      os << ">";
       break;
     }
     default:
