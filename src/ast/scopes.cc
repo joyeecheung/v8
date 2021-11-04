@@ -2680,15 +2680,21 @@ void ClassScope::PrepareReparseForInitialization(
   if (this->class_variable_ != nullptr) {
     class_var_index = this->class_variable_->index();
   }
-  scope_info_->Print();
   for (int i = 0; i < context_local_count; ++i) {
     // There are 6 types of variables that can be in a class scope:
     // 1. the brand variable, with the name ".brand"
     // 2. the class variable, with the same name as the class
-    // 3. private name variables, starting with "#"
-    // 4. computed field names with the format ".class-field-{index}"
-    // 5. the home object variable, with the name ".home_object"
-    // 6. the static home object variable, with the name "._static_home_object"
+    // 3. the home object variable, with the name ".home_object"
+    // 4. the static home object variable, with the name "._static_home_object"
+    // 5. computed field names with the format ".class-field-{index}"
+    // 6. private name variables, starting with "#"
+    // We don't care about 1-4 when reparsing the class for instance member
+    // initialization, though we need to watch out for duplicates in 1-2
+    // since they can be deserialized early. We need to deserialize and
+    // allocate 5-6 early for instance member initialization so that
+    // later we can reset the references to the field names in the
+    // AST and when DeclarationScope::Analyze is run on the initializer
+    // function the variables are resolved correctly.
     int slot_index = context_header_length + i;
     if (slot_index == brand_index || slot_index == class_var_index) {
       // The brand should be deserialized already if it is present.
@@ -2714,8 +2720,8 @@ void ClassScope::PrepareReparseForInitialization(
                                scope_info_->ContextLocalIsStaticFlag(i),
                                &was_added);
     } else {
-      var = Declare(zone(), string, scope_info_->ContextLocalMode(i), NORMAL_VARIABLE,
-                    scope_info_->ContextLocalInitFlag(i),
+      var = Declare(zone(), string, scope_info_->ContextLocalMode(i),
+                    NORMAL_VARIABLE, scope_info_->ContextLocalInitFlag(i),
                     scope_info_->ContextLocalMaybeAssignedFlag(i), &was_added);
     }
     DCHECK(was_added);
@@ -2723,7 +2729,7 @@ void ClassScope::PrepareReparseForInitialization(
   }
 }
 
-Variable* ClassScope::ReplaceReparsedVariable(Variable* reparsed_variable) {
+Variable* ClassScope::UpdateReparsedVariable(Variable* reparsed_variable) {
   const AstRawString* name = reparsed_variable->raw_name();
   Variable* var = nullptr;
   if (name->IsPrivateName()) {
@@ -2741,6 +2747,9 @@ void ClassScope::ReplaceReparsedClassScope(AstNodeFactory* ast_node_factory,
   DCHECK_EQ(outer_scope_, reparsed_scope->outer_scope());
   Scope* outer = outer_scope_;
 
+  // reparsed_scope->unresolved_list_ can be non-empty here, but that should
+  // only contain VariableProxies in the heritage position, which we don't
+  // need to care about during instance member initialization.
   DCHECK_IMPLIES(
       reparsed_scope->GetRareData() != nullptr,
       reparsed_scope->GetRareData()->unresolved_private_names.is_empty());
@@ -2749,6 +2758,7 @@ void ClassScope::ReplaceReparsedClassScope(AstNodeFactory* ast_node_factory,
   outer->RemoveInnerScope(this);
   outer->AddInnerScope(this);
 
+  DCHECK_NULL(inner_scope_);
   if (reparsed_scope->inner_scope_ != nullptr) {
     Scope* scope = reparsed_scope->inner_scope_;
     scope->outer_scope_ = this;

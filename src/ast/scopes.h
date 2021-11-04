@@ -1479,7 +1479,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
                                        AstValueFactory* ast_value_factory,
                                        ClassScope* reparsed_scope);
   // Called after the class is reparsed for instance member initialization.
-  Variable* ReplaceReparsedVariable(Variable* reparsed_variable);
+  Variable* UpdateReparsedVariable(Variable* reparsed_variable);
   void ReplaceReparsedClassScope(AstNodeFactory* ast_node_factory,
                                  ClassScope* reparsed_scope);
   V8_INLINE void set_forwarded_scope(ClassScope* scope) {

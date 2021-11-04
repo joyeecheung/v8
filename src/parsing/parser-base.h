@@ -299,22 +299,6 @@ class ParserBase {
 
   void ResetFunctionLiteralId() { function_literal_id_ = 0; }
 
-  enum ParsingMode { PARSE_LAZILY, PARSE_EAGERLY };
-  class V8_NODISCARD ParsingModeScope {
-   public:
-    ParsingModeScope(ParserBase* parser, ParsingMode mode)
-        : parser_(parser), old_mode_(parser->parsing_mode_) {
-      parser_->parsing_mode_ = mode;
-    }
-    ~ParsingModeScope() { parser_->parsing_mode_ = old_mode_; }
-
-   private:
-    ParserBase* parser_;
-    ParsingMode old_mode_;
-  };
-  bool parse_lazily() const { return parsing_mode_ == PARSE_LAZILY; }
-  void set_parsing_mode(ParsingMode mode) { parsing_mode_ = mode; }
-
   // The Zone where the parsing outputs are stored.
   Zone* main_zone() const { return ast_value_factory()->zone(); }
 
@@ -1642,9 +1626,6 @@ class ParserBase {
   bool accept_IN_ = true;
 
   bool allow_eval_cache_ = true;
-
-  ParsingMode parsing_mode_ =
-      PARSE_EAGERLY;  // Lazy mode must be set explicitly.
 };
 
 template <typename Impl>

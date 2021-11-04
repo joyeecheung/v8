@@ -428,6 +428,7 @@ Parser::Parser(ParseInfo* info)
       scanner_(info->character_stream(), flags()),
       preparser_zone_(info->zone()->allocator(), "pre-parser-zone"),
       reusable_preparser_(nullptr),
+      mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
       total_preparse_skipped_(0),
       consumed_preparse_data_(info->consumed_preparse_data()),
@@ -1091,12 +1092,16 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   }
   bool is_anonymous = class_name == nullptr || class_name->IsEmpty();
 
+  // Create a new ClassScope for the parser to create the inner scopes,
+  // the variable resolution would be done in the original scope, however.
   ClassScope* reparsed_scope =
       NewClassScope(original_scope->outer_scope(), is_anonymous);
 
 #ifdef DEBUG
   original_scope->SetScopeName(class_name);
 #endif
+  // Deserialize and pre-allocate the context-allocated variables stored in
+  // the ScopeInfo so that we can fix up the references later.
   original_scope->PrepareReparseForInitialization(isolate, ast_value_factory(),
                                                   reparsed_scope);
 
@@ -1115,11 +1120,13 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
 
   no_expression_scope.ValidateExpression();
 
+  // Fix up the scope chain and the references used by the instance member
+  // initializer.
   original_scope->ReplaceReparsedClassScope(factory(), reparsed_scope);
   for (int i = 0; i < literal->private_members()->length(); i++) {
     ClassLiteral::Property* property = literal->private_members()->at(i);
     property->set_private_name_var(
-        original_scope->ReplaceReparsedVariable(property->private_name_var()));
+        original_scope->UpdateReparsedVariable(property->private_name_var()));
   }
   for (int i = 0; i < literal->public_members()->length(); i++) {
     ClassLiteral::Property* property = literal->public_members()->at(i);
@@ -1127,7 +1134,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
       continue;
     }
     property->set_computed_name_var(
-        original_scope->ReplaceReparsedVariable(property->computed_name_var()));
+        original_scope->UpdateReparsedVariable(property->computed_name_var()));
   }
   return initializer;
 }
@@ -2874,7 +2881,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     // Make sure we don't re-preparse inner functions of the aborted function.
     // The error might be in an inner function.
     allow_lazy_ = false;
-    set_parsing_mode(PARSE_EAGERLY);
+    mode_ = PARSE_EAGERLY;
     DCHECK(!pending_error_handler()->stack_overflow());
     // If we encounter an error that the preparser can not identify we reset to
     // the state before preparsing. The caller may then fully parse the function
@@ -3149,10 +3156,9 @@ void Parser::DeclarePublicClassField(ClassScope* scope,
   if (is_computed_name) {
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
-    const AstRawString* property_name = ClassFieldVariableName(
-        ast_value_factory(), class_info->computed_field_count);
-
-    Variable* computed_name_var = CreateSyntheticContextVariable(property_name);
+    Variable* computed_name_var =
+        CreateSyntheticContextVariable(ClassFieldVariableName(
+            ast_value_factory(), class_info->computed_field_count));
     property->set_computed_name_var(computed_name_var);
     class_info->public_members->Add(property, zone());
   }
