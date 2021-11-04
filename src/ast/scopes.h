@@ -576,9 +576,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void CheckZones();
 #endif
 
-  bool IsReparsedClassScope() const;
-  bool IsReparsedInstanceInitializerScope() const;
-
   // Retrieve `IsSimpleParameterList` of current or outer function.
   bool HasSimpleParameters();
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
@@ -1475,18 +1472,16 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
-  void PrepareForReparseForInitialization(Isolate* isolate,
-                                          AstValueFactory* ast_value_factory,
-                                          ClassScope* reparsed_scope);
+  // Prepare the class scope for reparsing the initializer by restoring
+  // all private names and computed field names and allocate them using
+  // its ScopeInfo.
+  void PrepareReparseForInitialization(Isolate* isolate,
+                                       AstValueFactory* ast_value_factory,
+                                       ClassScope* reparsed_scope);
   // Called after the class is reparsed for instance member initialization.
-  void DoneReparseForInitialization();
   Variable* ReplaceReparsedVariable(Variable* reparsed_variable);
   void ReplaceReparsedClassScope(AstNodeFactory* ast_node_factory,
                                  ClassScope* reparsed_scope);
-
-  bool is_being_reparsed_for_initialization() const {
-    return is_being_reparsed_for_initialization_;
-  }
   V8_INLINE void set_forwarded_scope(ClassScope* scope) {
     forwarded_scope_ = scope;
   }
@@ -1529,7 +1524,8 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
 
   PointerWithPayload<RareData, bool, 1> rare_data_and_is_parsing_heritage_;
   Variable* class_variable_ = nullptr;
-  // Used during reparsing of the ClassScope.
+  // Used during reparsing of the ClassScope for instance member
+  // initialization.
   ClassScope* forwarded_scope_ = nullptr;
   // These are only maintained when the scope is parsed, not when the
   // scope is deserialized.
@@ -1539,9 +1535,6 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   // This is only maintained during reparsing, restored from the
   // preparsed data.
   bool should_save_class_variable_index_ = false;
-  // These are only maintained when reparsing the class body for
-  // instance initialization.
-  bool is_being_reparsed_for_initialization_ = false;
 };
 
 // Iterate over the private name scope chain. The iteration proceeds from the

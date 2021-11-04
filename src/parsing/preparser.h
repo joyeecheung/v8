@@ -1019,8 +1019,6 @@ class PreParser : public ParserBase<PreParser> {
       LanguageMode language_mode,
       ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
 
-  void DeclareClassMemeber();
-
   PreParserExpression InitializeObjectLiteral(PreParserExpression literal) {
     return literal;
   }

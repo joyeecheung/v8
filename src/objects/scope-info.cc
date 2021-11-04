@@ -919,37 +919,6 @@ int ScopeInfo::ContextSlotIndex(ScopeInfo scope_info, String name,
   return -1;
 }
 
-int ScopeInfo::NextPrivateName(ScopeInfo scope_info, int start, String* name,
-                               VariableLookupResult* lookup_result) {
-  if (scope_info.IsEmpty()) return -1;
-
-  DCHECK_NOT_NULL(lookup_result);
-  DCHECK_GE(start, 0);
-  int context_local_count = scope_info.context_local_count();
-  if (start >= context_local_count) {
-    return -1;
-  }
-  int var = start;
-  for (; var < context_local_count; ++var) {
-    *name = scope_info.context_local_names(var);
-    if (name->Get(0) != '#') {
-      continue;
-    }
-    lookup_result->mode = scope_info.ContextLocalMode(var);
-    lookup_result->is_static_flag = scope_info.ContextLocalIsStaticFlag(var);
-    lookup_result->init_flag = scope_info.ContextLocalInitFlag(var);
-    lookup_result->maybe_assigned_flag =
-        scope_info.ContextLocalMaybeAssignedFlag(var);
-    lookup_result->is_repl_mode = scope_info.IsReplModeScope();
-
-    lookup_result->slot_index = scope_info.ContextHeaderLength() + var;
-    DCHECK_LT(lookup_result->slot_index, scope_info.ContextLength());
-    return var + 1;
-  }
-
-  return -1;
-}
-
 int ScopeInfo::SavedClassVariableContextLocalIndex() const {
   if (HasSavedClassVariableIndexBit::decode(Flags())) {
     int index = saved_class_variable_info();

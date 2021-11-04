@@ -1093,8 +1093,12 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
 
   ClassScope* reparsed_scope =
       NewClassScope(original_scope->outer_scope(), is_anonymous);
-  original_scope->PrepareForReparseForInitialization(
-      isolate, ast_value_factory(), reparsed_scope);
+
+#ifdef DEBUG
+  original_scope->SetScopeName(class_name);
+#endif
+  original_scope->PrepareReparseForInitialization(isolate, ast_value_factory(),
+                                                  reparsed_scope);
 
   Expression* expr =
       DoParseClassLiteral(reparsed_scope, class_name, scanner()->location(),

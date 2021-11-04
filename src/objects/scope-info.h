@@ -170,8 +170,6 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   static int ContextSlotIndex(ScopeInfo scope_info, String name,
                               VariableLookupResult* lookup_result);
 
-  static int NextPrivateName(ScopeInfo scope_info, int start, String* name,
-                             VariableLookupResult* lookup_result);
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable
   // is never 0).
