@@ -4297,7 +4297,7 @@ UNINITIALIZED_TEST(ClassFieldsNested) {
           "class Outer {"
           "  #odata = 42;"
           "  #inner;"
-          "  constructor() {"
+          "  static getInner() {"
           "    class Inner {"
           "      #idata = 42;"
           "      #outer;"
@@ -4306,13 +4306,82 @@ UNINITIALIZED_TEST(ClassFieldsNested) {
           "        outer.#inner = this;"
           "      }"
           "      check() {"
-          "        return this.#idata === this.#outer.#odata && this === this.#outer.#inner;"
+          "        return this.#idata === this.#outer.#odata &&"
+          "               this === this.#outer.#inner;"
           "      }"
           "    }"
-          "    new Inner(this);"
+          "    return Inner;"
           "  }"
           "  check() {"
           "    return this.#inner.check();"
+          "  }"
+          "}"
+          "const Inner = Outer.getInner();");
+      creator.SetDefaultContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.snapshot_blob = &blob;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
+    ExpectTrue("(new Inner(new Outer)).check()");
+  }
+  isolate->Dispose();
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
+UNINITIALIZED_TEST(ClassPrivateMethods) {
+  DisableAlwaysOpt();
+  i::FLAG_rehash_snapshot = true;
+  i::FLAG_hash_seed = 42;
+  i::FLAG_allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun(
+          "class JustPrivateMethods {"
+          "  #method() { return this.val; }"
+          "  get #accessor() { return this.val; };"
+          "  set #accessor(val) { this.val = val; }"
+          "  method() { return this.#method(); } "
+          "  getter() { return this.#accessor; } "
+          "  setter(val) { this.#accessor = val } "
+          "}"
+          "class PrivateMethodsAndFields {"
+          "  #val = 1;"
+          "  #method() { return this.#val; }"
+          "  get #accessor() { return this.#val; };"
+          "  set #accessor(val) { this.#val = val; }"
+          "  method() { return this.#method(); } "
+          "  getter() { return this.#accessor; } "
+          "  setter(val) { this.#accessor = val } "
+          "}"
+          "class Nested {"
+          "  #val = 42;"
+          "  static #method(obj) { return obj.#val; }"
+          "  getInner() {"
+          "    class Inner {"
+          "      runEval(obj, str) {"
+          "        return eval(str);"
+          "      }"
+          "    }"
+          "    return Inner;"
           "  }"
           "}");
       creator.SetDefaultContext(context);
@@ -4331,7 +4400,14 @@ UNINITIALIZED_TEST(ClassFieldsNested) {
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     CHECK(!context.IsEmpty());
     v8::Context::Scope context_scope(context);
-    ExpectTrue("(new Outer).check()");
+    CompileRun("const a = new JustPrivateMethods(); a.setter(42);");
+    ExpectInt32("a.method()", 42);
+    ExpectInt32("a.getter()", 42);
+    CompileRun("const b = new PrivateMethodsAndFields(); b.setter(42);");
+    ExpectInt32("b.method()", 42);
+    ExpectInt32("b.getter()", 42);
+    CompileRun("const c = new (new Nested().getInner());");
+    ExpectInt32("c.runEval(new Nested(), 'Nested.#method(obj)')", 42);
   }
   isolate->Dispose();
   delete[] blob.data;
@@ -4432,6 +4508,7 @@ UNINITIALIZED_TEST(ClassFieldsWithInheritance) {
   delete[] blob.data;
   FreeCurrentEmbeddedBlob();
 }
+
 UNINITIALIZED_TEST(ClassFieldsRecalcPrivateNames) {
   DisableAlwaysOpt();
   i::FLAG_rehash_snapshot = true;
