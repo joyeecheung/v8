@@ -1054,29 +1054,17 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
 }
 
 FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
-    Isolate* isolate, ClassScope* class_scope, int initializer_pos,
+    Isolate* isolate, ClassScope* original_scope, int initializer_pos,
     int initializer_id) {
-  class_scope->PrepareForReparseForInitialization();
   int class_token_pos = initializer_pos;
 
   // Insert a FunctionState with the closest outer Declaration scope
-  DeclarationScope* nearest_decl_scope = nullptr;
-  Scope* scope = class_scope;
-  while (nearest_decl_scope == nullptr && scope->outer_scope() != nullptr) {
-    if (scope->outer_scope()->is_declaration_scope()) {
-      nearest_decl_scope = scope->outer_scope()->AsDeclarationScope();
-    } else {
-      scope = scope->outer_scope();
-    }
-  }
+  DeclarationScope* nearest_decl_scope = original_scope->GetDeclarationScope();
   DCHECK_NOT_NULL(nearest_decl_scope);
   FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
   // We will reindex the function literals later.
   ResetFunctionLiteralId();
 
-  // Start lazily, and change to eager when we encounter field initializers.
-  ClassLiteralParsingScope class_literal_parsing(
-      this, ParsingClassLiteralFlag::kParseForInstanceInitialization, isolate);
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
   ParsingModeScope mode(this, PARSE_LAZILY);
@@ -1103,12 +1091,18 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   }
   bool is_anonymous = class_name == nullptr || class_name->IsEmpty();
 
+  ClassScope* reparsed_scope =
+      NewClassScope(original_scope->outer_scope(), is_anonymous);
+  original_scope->PrepareForReparseForInitialization(
+      isolate, ast_value_factory(), reparsed_scope);
+
   Expression* expr =
-      DoParseClassLiteral(class_scope, class_name, scanner()->location(),
+      DoParseClassLiteral(reparsed_scope, class_name, scanner()->location(),
                           is_anonymous, class_token_pos);
   DCHECK(expr->IsClassLiteral());
+  ClassLiteral* literal = expr->AsClassLiteral();
   FunctionLiteral* initializer =
-      expr->AsClassLiteral()->instance_members_initializer_function();
+      literal->instance_members_initializer_function();
 
   // Reindex so that the function literal ids match.
   AstFunctionLiteralIdReindexer reindexer(
@@ -1116,6 +1110,21 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   reindexer.Reindex(expr);
 
   no_expression_scope.ValidateExpression();
+
+  original_scope->ReplaceReparsedClassScope(factory(), reparsed_scope);
+  for (int i = 0; i < literal->private_members()->length(); i++) {
+    ClassLiteral::Property* property = literal->private_members()->at(i);
+    property->set_private_name_var(
+        original_scope->ReplaceReparsedVariable(property->private_name_var()));
+  }
+  for (int i = 0; i < literal->public_members()->length(); i++) {
+    ClassLiteral::Property* property = literal->public_members()->at(i);
+    if (!property->is_computed_name()) {
+      continue;
+    }
+    property->set_computed_name_var(
+        original_scope->ReplaceReparsedVariable(property->computed_name_var()));
+  }
   return initializer;
 }
 
@@ -2795,30 +2804,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   return function_literal;
 }
 
-FunctionLiteral* Parser::ParseClassMethodOrAccessor(
-    const AstRawString* prop_name, FunctionKind function_kind,
-    int name_token_position) {
-  // If we are reparsing class body for the instance member initializer,
-  // there is no need to parse the entire method.
-  DCHECK_IMPLIES(parse_for_instance_initialization(), parse_lazily());
-
-  return ParseFunctionLiteral(
-      prop_name, scanner()->location(), kSkipFunctionNameCheck, function_kind,
-      name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
-      language_mode(), nullptr);
-}
-
-Expression* Parser::ParseClassMemberInitializerAssignment() {
-  if (parse_for_instance_initialization()) {
-    // Revert to the original mode.
-    ParsingModeScope mode(
-        this, class_literal_parsing_scope()->original_parsing_mode());
-    return ParseAssignmentExpression();
-  } else {
-    return ParseAssignmentExpression();
-  }
-}
-
 bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
                           FunctionSyntaxKind function_syntax_kind,
                           DeclarationScope* function_scope, int* num_parameters,
@@ -3160,17 +3145,10 @@ void Parser::DeclarePublicClassField(ClassScope* scope,
   if (is_computed_name) {
     // We create a synthetic variable name here so that scope
     // analysis doesn't dedupe the vars.
-    Variable* computed_name_var = nullptr;
     const AstRawString* property_name = ClassFieldVariableName(
         ast_value_factory(), class_info->computed_field_count);
-    if (parse_for_instance_initialization()) {
-      computed_name_var = scope->DeserializeVariable(
-          class_literal_parsing_scope()->isolate(), property_name);
-    }
-    if (computed_name_var == nullptr) {
-      computed_name_var = CreateSyntheticContextVariable(property_name);
-    }
 
+    Variable* computed_name_var = CreateSyntheticContextVariable(property_name);
     property->set_computed_name_var(computed_name_var);
     class_info->public_members->Add(property, zone());
   }
@@ -3190,18 +3168,11 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
     }
   }
 
-  Variable* private_name_var = nullptr;
-  if (parse_for_instance_initialization()) {
-    private_name_var = scope->DeserializeVariable(
-        class_literal_parsing_scope()->isolate(), property_name);
-  }
+  Variable* private_name_var = CreatePrivateNameVariable(
+      scope, GetVariableMode(kind),
+      is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
+      property_name);
 
-  if (private_name_var == nullptr) {
-    private_name_var = CreatePrivateNameVariable(
-        scope, GetVariableMode(kind),
-        is_static ? IsStaticFlag::kStatic : IsStaticFlag::kNotStatic,
-        property_name);
-  }
   int pos = property->value()->position();
   if (pos == kNoSourcePosition) {
     pos = property->key()->position();
@@ -3250,7 +3221,9 @@ FunctionLiteral* Parser::CreateInitializerFunction(
       FunctionSyntaxKind::kAccessorOrMethod,
       FunctionLiteral::kShouldEagerCompile, scope->start_position(), false,
       GetNextFunctionLiteralId());
-
+#ifdef DEBUG
+  scope->SetScopeName(ast_value_factory()->GetOneByteString(name));
+#endif
   RecordFunctionLiteralSourceRange(result);
 
   return result;
@@ -3296,7 +3269,6 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
         "<instance_members_initializer>", class_info->instance_members_scope,
         factory()->NewInitializeClassMembersStatement(
             class_info->instance_fields, kNoSourcePosition));
-    block_scope->set_initializer_scope(class_info->instance_members_scope);
     class_info->constructor->set_requires_instance_members_initializer(true);
     class_info->constructor->add_expected_properties(
         class_info->instance_fields->length());

@@ -641,7 +641,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // 2) a function/eval/module on the top-level
   // 3) a function/eval in a scope that was already resolved.
   // 4) a instance member initialization in a class scope that's not yet
-  // resolved.
+  //    resolved.
   DCHECK(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
          scope->outer_scope()->already_resolved_ ||
          scope->outer_scope()->IsReparsedClassScope());
@@ -667,9 +667,9 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   scope->CheckScopePositions();
   scope->CheckZones();
 #endif
-  if (scope->outer_scope() != nullptr &&
-      scope->outer_scope()->IsReparsedClassScope()) {
-    scope->outer_scope()->AsClassScope()->DoneReparseForInitialization(info);
+
+  if (scope->IsReparsedInstanceInitializerScope()) {
+    scope->outer_scope()->AsClassScope()->DoneReparseForInitialization();
   }
   return true;
 }
@@ -884,33 +884,7 @@ void Scope::ReplaceOuterScope(Scope* outer) {
   outer_scope_ = outer;
 }
 
-Variable* Scope::LookupLocal(const AstRawString* name) {
-  DCHECK(scope_info_.is_null() ||
-         (is_class_scope() && AsClassScope()->IsReparsedClassScope()));
-  return variables_.Lookup(name);
-}
-
-template <Scope::VariableNameInternalizeMode mode>
-Handle<String> Scope::GetVariableNameForLookup(Isolate* isolate,
-                                               const AstRawString* name) const {
-  DCHECK_IMPLIES(!name->is_internalized(), mode == kInternalizeVariableName);
-  DCHECK_IMPLIES(mode == kInternalizeVariableName, isolate != nullptr);
-  if (mode == kVariableNameAlreadyInternalized) {
-    return name->string();
-  } else {
-    return name->GetInternalized(isolate);
-  }
-}
-
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
-  DCHECK(name->is_internalized());
-  return LookupInScopeInfo<kVariableNameAlreadyInternalized>(nullptr, name,
-                                                             cache);
-}
-
-template <Scope::VariableNameInternalizeMode mode>
-Variable* Scope::LookupInScopeInfo(Isolate* isolate, const AstRawString* name,
-                                   Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK(this->IsOuterScopeOf(cache));
   DCHECK(!cache->deserialized_scope_uses_external_cache());
@@ -920,13 +894,9 @@ Variable* Scope::LookupInScopeInfo(Isolate* isolate, const AstRawString* name,
       cache != this,
       cache->outer_scope()->deserialized_scope_uses_external_cache());
   DCHECK_NULL(cache->variables_.Lookup(name));
-
-  // Heap allocation may happen if mode is kInternalizeVariableName
-  // and the name is not internalized yet.
-  Handle<String> name_string = GetVariableNameForLookup<mode>(isolate, name);
-
   DisallowGarbageCollection no_gc;
-  String name_handle = *(name_string);
+
+  String name_handle = *name->string();
   ScopeInfo scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
@@ -2009,11 +1979,11 @@ bool Scope::IsReparsedClassScope() const {
          AsClassScope()->is_being_reparsed_for_initialization();
 }
 
-DeclarationScope* Scope::GetClassInitializerScope() const {
-  if (!is_class_scope()) {
-    return nullptr;
-  }
-  return AsClassScope()->initializer_scope();
+bool Scope::IsReparsedInstanceInitializerScope() const {
+  return is_declaration_scope() &&
+         AsDeclarationScope()->function_kind() ==
+             FunctionKind::kClassMembersInitializerFunction &&
+         outer_scope()->IsReparsedClassScope();
 }
 
 Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
@@ -2566,8 +2536,7 @@ void Scope::AllocateVariablesRecursively() {
         (scope->is_function_scope() &&
          scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
         (scope->is_block_scope() && scope->is_declaration_scope() &&
-         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars()) ||
-        (scope->GetClassInitializerScope() != nullptr);
+         scope->AsDeclarationScope()->sloppy_eval_can_extend_vars());
 
     // If we didn't allocate any locals in the local context, then we only
     // need the minimal number of slots if we must have a context.
@@ -2714,45 +2683,79 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
   }
 }
 
-void ClassScope::PrepareForReparseForInitialization() {
-  // The scope must be deserialized during reparsing.
-  DCHECK(!scope_info_.is_null());
-#ifdef DEBUG
-  // Flip the already_resolved bit so that we can restore variables.
-  // We will flip it back once reparsing is done.
-  already_resolved_ = false;
-
-  // At this point, the class scope should contain no more than 2
-  // variables:
-  // 1) A local variable .brand, always context-allocated, if the class
-  //    has private methods/accessors.
-  // 2) A local variable for the class name variable if the class needs
-  //    to save it for inner access or static brand check.
-  DCHECK_LE(num_var(), 2);
-  RareData* rare_data = GetRareData();
-  if (rare_data != nullptr) {
-    DCHECK_EQ(rare_data->private_name_map.occupancy(), 0);
-  }
-#endif
+void ClassScope::PrepareForReparseForInitialization(
+    Isolate* isolate, AstValueFactory* ast_value_factory,
+    ClassScope* reparsed_scope) {
+  DisallowGarbageCollection no_gc;
+  reparsed_scope->forwarded_scope_ = this;
   is_being_reparsed_for_initialization_ = true;
+  PrintF("ClassScope::PrepareForReparseForInitialization %p\n", this);
+  DCHECK(!scope_info_->is_null());
+  int index = 0;
+  VariableLookupResult lookup_result;
+  String name;
+  while ((index = ScopeInfo::NextPrivateName(*scope_info_, index, &name,
+                                             &lookup_result)) != -1) {
+    DCHECK(IsConstVariableMode(lookup_result.mode));
+    DCHECK_EQ(lookup_result.init_flag,
+              InitializationFlag::kNeedsInitialization);
+    DCHECK_EQ(lookup_result.maybe_assigned_flag,
+              MaybeAssignedFlag::kNotAssigned);
+
+    PrintF("Restoring variable %s at %d (slot %d)\n", name.ToAsciiArray(),
+           index, lookup_result.slot_index);
+    bool was_added;
+    Variable* var = DeclarePrivateName(
+        ast_value_factory->GetString(handle(name, isolate)), lookup_result.mode,
+        lookup_result.is_static_flag, &was_added);
+    DCHECK(was_added);
+    var->AllocateTo(VariableLocation::CONTEXT, lookup_result.slot_index);
+  }
 }
 
-void ClassScope::DoneReparseForInitialization(ParseInfo* info) {
-  // The scope must be deserialized during reparsing.
-  DCHECK(!scope_info_.is_null());
-#ifdef DEBUG
-  already_resolved_ = true;
-  // Some variables might be declared but not serialized, but
-  // at least we should not miss any variables.
-  int serialized_count = scope_info_->ContextLocalCount();
-  int declared_count = variables_.occupancy();
-  RareData* rare_data = GetRareData();
-  if (rare_data != nullptr) {
-    declared_count += rare_data->private_name_map.occupancy();
-  }
-  DCHECK_GE(declared_count, serialized_count);
-#endif
+void ClassScope::DoneReparseForInitialization() {
   is_being_reparsed_for_initialization_ = false;
+}
+
+Variable* ClassScope::ReplaceReparsedVariable(Variable* reparsed_variable) {
+  PrintF("ReplaceReparsedVariable, %p -> ", reparsed_variable);
+  const AstRawString* name = reparsed_variable->raw_name();
+  Variable* var = nullptr;
+  if (name->IsPrivateName()) {
+    var = LookupLocalPrivateName(name);
+  } else {
+    var = LookupLocal(name);
+  }
+  DCHECK_NOT_NULL(var);
+  var->set_initializer_position(reparsed_variable->initializer_position());
+  PrintF("%p ", var);
+  PrintVar(0, var);
+  return var;
+}
+
+void ClassScope::ReplaceReparsedClassScope(AstNodeFactory* ast_node_factory,
+                                           ClassScope* reparsed_scope) {
+  DCHECK_EQ(outer_scope_, reparsed_scope->outer_scope());
+  Scope* outer = outer_scope_;
+
+  RareData* rare_data = reparsed_scope->GetRareData();
+  DCHECK_IMPLIES(rare_data != nullptr,
+                 rare_data->unresolved_private_names.is_empty());
+
+  outer->RemoveInnerScope(reparsed_scope);
+  outer->RemoveInnerScope(this);
+  outer->AddInnerScope(this);
+
+  if (reparsed_scope->inner_scope_ != nullptr) {
+    Scope* scope = reparsed_scope->inner_scope_;
+    scope->outer_scope_ = this;
+    while (scope->sibling_ != nullptr) {
+      scope = scope->sibling_;
+      scope->outer_scope_ = this;
+    }
+    scope->sibling_ = this->inner_scope_;
+    this->inner_scope_ = scope;
+  }
 }
 
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
@@ -2778,6 +2781,7 @@ Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
 }
 
 Variable* ClassScope::LookupLocalPrivateName(const AstRawString* name) {
+  DCHECK_NULL(forwarded_scope_);
   RareData* rare_data = GetRareData();
   if (rare_data == nullptr) {
     return nullptr;
@@ -2786,6 +2790,7 @@ Variable* ClassScope::LookupLocalPrivateName(const AstRawString* name) {
 }
 
 UnresolvedList::Iterator ClassScope::GetUnresolvedPrivateNameTail() {
+  DCHECK_NULL(forwarded_scope_);
   RareData* rare_data = GetRareData();
   if (rare_data == nullptr) {
     return UnresolvedList::Iterator();
@@ -2794,6 +2799,7 @@ UnresolvedList::Iterator ClassScope::GetUnresolvedPrivateNameTail() {
 }
 
 void ClassScope::ResetUnresolvedPrivateNameTail(UnresolvedList::Iterator tail) {
+  DCHECK_NULL(forwarded_scope_);
   RareData* rare_data = GetRareData();
   if (rare_data == nullptr ||
       rare_data->unresolved_private_names.end() == tail) {
@@ -2811,6 +2817,7 @@ void ClassScope::ResetUnresolvedPrivateNameTail(UnresolvedList::Iterator tail) {
 
 void ClassScope::MigrateUnresolvedPrivateNameTail(
     AstNodeFactory* ast_node_factory, UnresolvedList::Iterator tail) {
+  DCHECK_NULL(forwarded_scope_);
   RareData* rare_data = GetRareData();
   if (rare_data == nullptr ||
       rare_data->unresolved_private_names.end() == tail) {
@@ -2839,18 +2846,14 @@ void ClassScope::MigrateUnresolvedPrivateNameTail(
   rare_data->unresolved_private_names.Append(std::move(migrated_names));
 }
 
-template <Scope::VariableNameInternalizeMode mode>
-Variable* ClassScope::LookupPrivateNameInScopeInfo(Isolate* isolate,
-                                                   const AstRawString* name) {
+Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DCHECK(!scope_info_.is_null());
+  DCHECK_NULL(forwarded_scope_);
   DCHECK_NULL(LookupLocalPrivateName(name));
-  // Heap allocation may happen if mode is kInternalizeVariableName
-  // and the name is not internalized yet.
-  Handle<String> name_string = GetVariableNameForLookup<mode>(isolate, name);
-
   DisallowGarbageCollection no_gc;
+
+  String name_handle = *name->string();
   VariableLookupResult lookup_result;
-  String name_handle = *(name_string);
   int index =
       ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &lookup_result);
   if (index < 0) {
@@ -2871,49 +2874,8 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(Isolate* isolate,
   return var;
 }
 
-Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
-  return LookupPrivateNameInScopeInfo<Scope::kVariableNameAlreadyInternalized>(
-      nullptr, name);
-}
-
-Variable* ClassScope::DeserializeVariable(Isolate* isolate,
-                                          const AstRawString* name) {
-  Variable* var = nullptr;
-  DCHECK(!scope_info_.is_null());
-
-  bool is_private = name->IsPrivateName();
-  var = is_private ? LookupLocalPrivateName(name) : LookupLocal(name);
-  // It could be non-null when recompiling for the debugger.
-  constexpr Scope::VariableNameInternalizeMode mode =
-      Scope::kInternalizeVariableName;
-  if (var == nullptr) {
-    var = is_private ? LookupPrivateNameInScopeInfo<mode>(isolate, name)
-                     : LookupInScopeInfo<mode>(isolate, name, this);
-  }
-
-  return var;
-}
-
-void ClassScope::RestoreHomeVariables(Isolate* isolate,
-                                      AstValueFactory* ast_value_factory) {
-  Variable* home_object_variable =
-      DeserializeVariable(isolate, ast_value_factory->dot_home_object_string());
-  if (home_object_variable == nullptr) {
-    home_object_variable = DeclareHomeObjectVariable(ast_value_factory);
-  }
-  home_object_variable->set_is_used();
-  home_object_variable->ForceContextAllocation();
-  Variable* static_home_object_variable = DeserializeVariable(
-      isolate, ast_value_factory->dot_static_home_object_string());
-  if (static_home_object_variable == nullptr) {
-    static_home_object_variable =
-        DeclareStaticHomeObjectVariable(ast_value_factory);
-  }
-  static_home_object_variable->set_is_used();
-  static_home_object_variable->ForceContextAllocation();
-}
-
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
+  DCHECK_NULL(forwarded_scope_);
   DCHECK(!proxy->is_resolved());
 
   for (PrivateNameScopeIterator scope_iter(this); !scope_iter.Done();
@@ -2933,6 +2895,7 @@ Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
 }
 
 bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
+  DCHECK_NULL(forwarded_scope_);
   RareData* rare_data = GetRareData();
   if (rare_data == nullptr || rare_data->unresolved_private_names.is_empty()) {
     return true;
@@ -2962,6 +2925,10 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
 }
 
 VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
+  if (forwarded_scope_) {
+    return forwarded_scope_->ResolvePrivateNamesPartially();
+  }
+
   RareData* rare_data = GetRareData();
   if (rare_data == nullptr || rare_data->unresolved_private_names.is_empty()) {
     return nullptr;

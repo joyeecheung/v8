@@ -378,12 +378,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       LanguageMode language_mode,
       ZonePtrList<const AstRawString>* arguments_for_wrapped_function);
 
-  FunctionLiteral* ParseClassMethodOrAccessor(const AstRawString* prop_name,
-                                              FunctionKind function_kind,
-                                              int name_token_position);
-
-  Expression* ParseClassMemberInitializerAssignment();
-
   ObjectLiteral* InitializeObjectLiteral(ObjectLiteral* object_literal) {
     object_literal->CalculateEmitStore(main_zone());
     return object_literal;

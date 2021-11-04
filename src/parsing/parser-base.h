@@ -57,11 +57,6 @@ enum class ParseFunctionFlag : uint8_t {
 
 using ParseFunctionFlags = base::Flags<ParseFunctionFlag>;
 
-enum class ParsingClassLiteralFlag {
-  kParseAll,
-  kParseForInstanceInitialization
-};
-
 struct FormalParametersBase {
   explicit FormalParametersBase(DeclarationScope* scope) : scope(scope) {}
 
@@ -319,56 +314,6 @@ class ParserBase {
   };
   bool parse_lazily() const { return parsing_mode_ == PARSE_LAZILY; }
   void set_parsing_mode(ParsingMode mode) { parsing_mode_ = mode; }
-
-  // ClassLiteralParsingScope forms a stack of class literal parsing
-  // states. It is used to keep track of the parsing modes so that
-  // we can preparse the non-field-initializers when reparsing the
-  // class body for the synthetic instance initialzer function.
-  class V8_NODISCARD ClassLiteralParsingScope final {
-   public:
-    ClassLiteralParsingScope(ParserBase* parser,
-                             ParsingClassLiteralFlag class_literal_flag,
-                             Isolate* isolate)
-        : parser_(parser),
-          class_literal_flag_(class_literal_flag),
-          isolate_(isolate),
-          previous_class_literal_parsing_scope_(
-              parser->class_literal_parsing_scope_),
-          original_parsing_mode_(parser->parsing_mode_) {
-      parser_->class_literal_parsing_scope_ = this;
-    }
-
-    ~ClassLiteralParsingScope() {
-      parser_->class_literal_parsing_scope_ =
-          previous_class_literal_parsing_scope_;
-    }
-
-    Isolate* isolate() const { return isolate_; }
-    ParsingClassLiteralFlag class_literal_flag() const {
-      return class_literal_flag_;
-    }
-    ParsingMode original_parsing_mode() const { return original_parsing_mode_; }
-
-   private:
-    ParserBase* parser_;
-    ParsingClassLiteralFlag class_literal_flag_;
-    // It's necessary to keep a pointer to the current isolate to internalize
-    // strings of variable names so that we can look them up from the scope
-    // info when reparsing the class body to collect the instance initializers.
-    Isolate* isolate_;
-    ClassLiteralParsingScope* previous_class_literal_parsing_scope_;
-    ParsingMode original_parsing_mode_;
-  };
-
-  ClassLiteralParsingScope* class_literal_parsing_scope() const {
-    return class_literal_parsing_scope_;
-  }
-
-  bool parse_for_instance_initialization() const {
-    DCHECK_NOT_NULL(class_literal_parsing_scope_);
-    return class_literal_parsing_scope_->class_literal_flag() ==
-           ParsingClassLiteralFlag::kParseForInstanceInitialization;
-  }
 
   // The Zone where the parsing outputs are stored.
   Zone* main_zone() const { return ast_value_factory()->zone(); }
@@ -1700,7 +1645,6 @@ class ParserBase {
 
   ParsingMode parsing_mode_ =
       PARSE_EAGERLY;  // Lazy mode must be set explicitly.
-  ClassLiteralParsingScope* class_literal_parsing_scope_ = nullptr;
 };
 
 template <typename Impl>
@@ -2528,8 +2472,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
                            : FunctionKind::kBaseConstructor;
       }
 
-      ExpressionT value = impl()->ParseClassMethodOrAccessor(
-          prop_info->name, kind, name_token_position);
+      ExpressionT value = impl()->ParseFunctionLiteral(
+          prop_info->name, scanner()->location(), kSkipFunctionNameCheck, kind,
+          name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
+          language_mode(), nullptr);
 
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
           name_expression, value, ClassLiteralProperty::METHOD,
@@ -2564,8 +2510,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
                       : FunctionKind::kSetterFunction;
       }
 
-      FunctionLiteralT value = impl()->ParseClassMethodOrAccessor(
-          prop_info->name, kind, name_token_position);
+      FunctionLiteralT value = impl()->ParseFunctionLiteral(
+          prop_info->name, scanner()->location(), kSkipFunctionNameCheck, kind,
+          name_token_position, FunctionSyntaxKind::kAccessorOrMethod,
+          language_mode(), nullptr);
 
       ClassLiteralProperty::Kind property_kind =
           is_get ? ClassLiteralProperty::GETTER : ClassLiteralProperty::SETTER;
@@ -2611,7 +2559,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberInitializer(
                                     initializer_scope);
 
     AcceptINScope scope(this, true);
-    initializer = impl()->ParseClassMemberInitializerAssignment();
+    initializer = ParseAssignmentExpression();
   } else {
     initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
@@ -4763,8 +4711,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   }
 
   ClassScope* class_scope = NewClassScope(scope(), is_anonymous);
-  ClassLiteralParsingScope class_literal_parsing(
-      this, ParsingClassLiteralFlag::kParseAll, nullptr);
   return DoParseClassLiteral(class_scope, name, class_name_location,
                              is_anonymous, class_token_pos);
 }
@@ -4876,39 +4822,24 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
     return impl()->FailureExpression();
   }
 
-  bool reparsing = parse_for_instance_initialization();
   if (class_info.requires_brand) {
-    if (reparsing) {
-      DCHECK_NOT_NULL(class_scope->brand());
-    } else {
-      class_scope->DeclareBrandVariable(
-          ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
-    }
+    class_scope->DeclareBrandVariable(
+        ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
   }
 
   if (class_scope->needs_home_object()) {
-    if (reparsing) {
-      class_scope->RestoreHomeVariables(
-          class_literal_parsing_scope()->isolate(), ast_value_factory());
-    } else {
-      class_info.home_object_variable =
-          class_scope->DeclareHomeObjectVariable(ast_value_factory());
-      class_info.static_home_object_variable =
-          class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
-    }
+    class_info.home_object_variable =
+        class_scope->DeclareHomeObjectVariable(ast_value_factory());
+    class_info.static_home_object_variable =
+        class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
   }
 
   bool should_save_class_variable_index =
       class_scope->should_save_class_variable_index();
   if (!is_anonymous || should_save_class_variable_index) {
-    if (class_scope->class_variable() == nullptr) {
-      impl()->DeclareClassVariable(class_scope, name, &class_info,
-                                   class_token_pos);
-    } else {
-      DCHECK(reparsing);
-    }
+    impl()->DeclareClassVariable(class_scope, name, &class_info,
+                                 class_token_pos);
     if (should_save_class_variable_index) {
-      DCHECK_NOT_NULL(class_scope->class_variable());
       class_scope->class_variable()->set_is_used();
       class_scope->class_variable()->ForceContextAllocation();
     }
