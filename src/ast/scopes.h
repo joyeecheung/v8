@@ -549,6 +549,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
 
+  // Find the first constructor scope. Its outer scope is where the instance
+  // members that should be initialized right after super() is called
+  // are declared.
+  DeclarationScope* GetConstructorScope();
+
   // Find the first class scope or object literal block scope. This is where
   // 'super' is bound.
   Scope* GetHomeObjectScope();

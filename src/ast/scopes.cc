@@ -1471,6 +1471,21 @@ DeclarationScope* Scope::GetReceiverScope() {
   return scope->AsDeclarationScope();
 }
 
+DeclarationScope* Scope::GetConstructorScope() {
+  Scope* scope = this;
+  while (!(scope != nullptr && scope->is_declaration_scope() &&
+           IsClassConstructor(scope->AsDeclarationScope()->function_kind()))) {
+    scope = scope->outer_scope();
+  }
+  if (!scope->is_declaration_scope()) {
+    return nullptr;
+  }
+  if (!IsClassConstructor(scope->AsDeclarationScope()->function_kind())) {
+    return nullptr;
+  }
+  return scope->AsDeclarationScope();
+}
+
 Scope* Scope::GetHomeObjectScope() {
   Scope* scope = this;
   while (scope != nullptr && !scope->is_home_object_scope()) {
