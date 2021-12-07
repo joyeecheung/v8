@@ -5028,5 +5028,74 @@ UNINITIALIZED_TEST(SharedStrings) {
   FreeCurrentEmbeddedBlob();
 }
 
+UNINITIALIZED_TEST(ErrorStackTraceLimit) {
+  DisableAlwaysOpt();
+  i::FLAG_allow_natives_syntax = true;
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun(
+          "Error.stackTraceLimit = 3;"
+          "function test(recur = 1) {"
+          "  if (recur === 10) throw new Error('test');"
+          "  test(recur + 1);"
+          "}");
+      creator.SetDefaultContext(context);
+    }
+    blob = creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+  }
+
+  const char* get_stack_trace_size =
+      "(function () {"
+      "  let err;"
+      "  try { test(); } catch(e) { err = e; }"
+      // The first line is source line.
+      "  return err.stack.split('\\n').length - 1;"
+      "})()";
+  {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    create_params.snapshot_blob = &blob;
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      CHECK(!context.IsEmpty());
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("Error.stackTraceLimit", 3);
+      ExpectInt32(get_stack_trace_size, 3);
+    }
+    isolate->Dispose();
+  }
+
+  {
+    // Check that --stack-trace-limit doesn't reset the limit.
+    i::FLAG_stack_trace_limit = 5;
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    create_params.snapshot_blob = &blob;
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      CHECK(!context.IsEmpty());
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("Error.stackTraceLimit", 3);
+      ExpectInt32(get_stack_trace_size, 3);
+    }
+    isolate->Dispose();
+  }
+
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
 }  // namespace internal
 }  // namespace v8
