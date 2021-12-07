@@ -2702,8 +2702,10 @@ void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
   Scope* outer = outer_scope_;
 
   outer->RemoveInnerScope(old_scope);
-  outer->RemoveInnerScope(this);
-  outer->AddInnerScope(this);
+  // The outer scope should only have this deserialized inner scope,
+  // otherwise we have to update the sibling scopes.
+  DCHECK_EQ(outer->inner_scope_, this);
+  DCHECK_NULL(sibling_);
 
   DCHECK_NULL(old_scope->inner_scope_);
 
@@ -2711,7 +2713,10 @@ void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
   DCHECK(!scope_info.is_null());
   DCHECK(!scope_info->IsEmpty());
 
-  // Restore the allocated variables from the ScopeInfo.
+  // Restore variable allocation results for context-allocated variables in
+  // the class scope from ScopeInfo, so that we don't need to run
+  // resolution and allocation on these variables again when generating
+  // code for the initializer function.
   int context_local_count = scope_info->ContextLocalCount();
   int context_header_length = scope_info->ContextHeaderLength();
   DisallowGarbageCollection no_gc;
