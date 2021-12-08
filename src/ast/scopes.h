@@ -1477,9 +1477,12 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
-  void ReplaceReparsedClassScope(Isolate* isolate,
-                                 AstValueFactory* ast_value_factory,
-                                 ClassScope* old_scope);
+#ifdef DEBUG
+  void ReopenForInitializerReparsing();
+#endif
+
+  void FinalizeForInitializerReparsing(Isolate* isolate,
+                                       AstValueFactory* ast_value_factory);
 #ifdef DEBUG
   bool is_reparsed_class_scope() const { return is_reparsed_class_scope_; }
 #endif

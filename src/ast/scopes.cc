@@ -2695,36 +2695,27 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
   }
 }
 
-void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
-                                           AstValueFactory* ast_value_factory,
-                                           ClassScope* old_scope) {
-  DCHECK_EQ(outer_scope_, old_scope->outer_scope());
-  Scope* outer = outer_scope_;
+#ifdef DEBUG
+void ClassScope::ReopenForInitializerReparsing() { already_resolved_ = false; }
+#endif
 
-  outer->RemoveInnerScope(old_scope);
-  // The outer scope should only have this deserialized inner scope,
-  // otherwise we have to update the sibling scopes.
-  DCHECK_EQ(outer->inner_scope_, this);
-  DCHECK_NULL(sibling_);
-
-  DCHECK_NULL(old_scope->inner_scope_);
-
-  Handle<ScopeInfo> scope_info = old_scope->scope_info_;
-  DCHECK(!scope_info.is_null());
-  DCHECK(!scope_info->IsEmpty());
+void ClassScope::FinalizeForInitializerReparsing(
+    Isolate* isolate, AstValueFactory* ast_value_factory) {
+  DCHECK(!scope_info_.is_null());
+  DCHECK(!scope_info_->IsEmpty());
 
   // Restore variable allocation results for context-allocated variables in
   // the class scope from ScopeInfo, so that we don't need to run
   // resolution and allocation on these variables again when generating
   // code for the initializer function.
-  int context_local_count = scope_info->ContextLocalCount();
-  int context_header_length = scope_info->ContextHeaderLength();
+  int context_local_count = scope_info_->ContextLocalCount();
+  int context_header_length = scope_info_->ContextHeaderLength();
   DisallowGarbageCollection no_gc;
   for (int i = 0; i < context_local_count; ++i) {
     int slot_index = context_header_length + i;
-    DCHECK_LT(slot_index, scope_info->ContextLength());
+    DCHECK_LT(slot_index, scope_info_->ContextLength());
 
-    String name = scope_info->ContextLocalName(i);
+    String name = scope_info_->ContextLocalName(i);
     const AstRawString* string = ast_value_factory->GetString(
         name, SharedStringAccessGuardIfNeeded(isolate));
     Variable* var = nullptr;
@@ -2735,11 +2726,10 @@ void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
     var->AllocateTo(VariableLocation::CONTEXT, slot_index);
   }
 
-  scope_info_ = scope_info;
-
   // Set this bit so that DelcarationScope::Analyze recognizes
   // the reparsed instance member initializer scope.
 #ifdef DEBUG
+  already_resolved_ = true;
   is_reparsed_class_scope_ = true;
 #endif
 }

@@ -1095,17 +1095,15 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   }
   bool is_anonymous = class_name == nullptr || class_name->IsEmpty();
 
-  // Create a new ClassScope for the parser to create the inner scopes,
-  // the variable resolution would be done in the original scope, however.
-  ClassScope* reparsed_scope =
-      NewClassScope(original_scope->outer_scope(), is_anonymous);
-
+  // Reset the state of the scope so that the parser can declare variables
+  // in it.
 #ifdef DEBUG
+  original_scope->ReopenForInitializerReparsing();
   original_scope->SetScopeName(class_name);
 #endif
 
   Expression* expr =
-      DoParseClassLiteral(reparsed_scope, class_name, scanner()->location(),
+      DoParseClassLiteral(original_scope, class_name, scanner()->location(),
                           is_anonymous, class_token_pos);
   DCHECK(expr->IsClassLiteral());
   ClassLiteral* literal = expr->AsClassLiteral();
@@ -1121,9 +1119,8 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
 
   // Fix up the scope chain and the references used by the instance member
   // initializer.
-  reparsed_scope->ReplaceReparsedClassScope(isolate, ast_value_factory(),
-                                            original_scope);
-  original_scope_ = reparsed_scope;
+  original_scope->FinalizeForInitializerReparsing(isolate, ast_value_factory());
+
   return initializer;
 }
 
