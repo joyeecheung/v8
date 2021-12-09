@@ -1036,8 +1036,14 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info, ParseInfo* info,
     int start_position, int end_position, int function_literal_id,
     const AstRawString* raw_name) {
+  // original_scope_->is_class_scope() might be false when reparsing to find
+  // destructuring assignment errors for a nicer message, then the outer scope
+  // would be the script scope and we have no way to collect the initializers.
+  // In that case just parse as usual, which would produce a message not as
+  // specific but that's what we can do for the initializers.
   if (flags().function_kind() !=
-      FunctionKind::kClassMembersInitializerFunction) {
+          FunctionKind::kClassMembersInitializerFunction ||
+      !original_scope_->is_class_scope()) {
     return DoParseFunction(isolate, info, start_position, end_position,
                            function_literal_id, raw_name);
   }
