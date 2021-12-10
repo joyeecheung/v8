@@ -1036,14 +1036,8 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info, ParseInfo* info,
     int start_position, int end_position, int function_literal_id,
     const AstRawString* raw_name) {
-  // original_scope_->is_class_scope() might be false when reparsing to find
-  // destructuring assignment errors for a nicer message, then the outer scope
-  // would be the script scope and we have no way to collect the initializers.
-  // In that case just parse as usual, which would produce a message not as
-  // specific but that's what we can do for the initializers.
   if (flags().function_kind() !=
-          FunctionKind::kClassMembersInitializerFunction ||
-      !original_scope_->is_class_scope()) {
+      FunctionKind::kClassMembersInitializerFunction) {
     return DoParseFunction(isolate, info, start_position, end_position,
                            function_literal_id, raw_name);
   }
@@ -1052,8 +1046,7 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
   // ClassLiteralProperty and create a InitializeClassMembersStatement for
   // the synthetic instance initializer function.
   FunctionLiteral* result = ParseClassForInstanceMemberInitialization(
-      isolate, original_scope_->AsClassScope(), start_position,
-      function_literal_id);
+      isolate, start_position, function_literal_id);
   DCHECK_EQ(result->kind(), FunctionKind::kClassMembersInitializerFunction);
   DCHECK_EQ(result->function_literal_id(), function_literal_id);
   DCHECK_EQ(result->end_position(), shared_info->EndPosition());
@@ -1064,12 +1057,11 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
 }
 
 FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
-    Isolate* isolate, ClassScope* original_scope, int initializer_pos,
-    int initializer_id) {
+    Isolate* isolate, int initializer_pos, int initializer_id) {
   int class_token_pos = initializer_pos;
 
   // Insert a FunctionState with the closest outer Declaration scope
-  DeclarationScope* nearest_decl_scope = original_scope->GetDeclarationScope();
+  DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
   DCHECK_NOT_NULL(nearest_decl_scope);
   FunctionState function_state(&function_state_, &scope_, nearest_decl_scope);
   // We will reindex the function literals later.
@@ -1101,16 +1093,16 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   }
   bool is_anonymous = class_name == nullptr || class_name->IsEmpty();
 
-  // Create a new ClassScope for the parser to create the inner scopes,
-  // the variable resolution would be done in the original scope, however.
-  // TODO(joyee): see if we can reset the original scope to a state that
-  // can be reused directly and avoid creating this temporary scope.
-  ClassScope* reparsed_scope =
-      NewClassScope(original_scope->outer_scope(), is_anonymous);
-
-#ifdef DEBUG
-  original_scope->SetScopeName(class_name);
-#endif
+  // If the class scope didn't need a context, original_scope_ might
+  // actually be the outer scope of the class scope
+  // If original_scope_->is_class_scope() is false then that's certainly
+  // the case. Otherwise, we' use original_scope_->outer_scope() as the
+  // outer scope for now and fix up the heirarchy later if necessary
+  // based on what gets decalared in the reparsed_scope by the parser.
+  Scope* outer = original_scope_->is_class_scope()
+                     ? original_scope_->outer_scope()
+                     : original_scope_;
+  ClassScope* reparsed_scope = NewClassScope(outer, is_anonymous);
 
   Expression* expr =
       DoParseClassLiteral(reparsed_scope, class_name, scanner()->location(),
@@ -1129,8 +1121,40 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
 
   // Fix up the scope chain and the references used by the instance member
   // initializer.
-  reparsed_scope->ReplaceReparsedClassScope(isolate, ast_value_factory(),
-                                            original_scope);
+  // There are 5 types of variables that can be declared in the class scope:
+  // 1. private names.
+  // 2. private brands (their existence implies that there are also
+  //    private names).
+  // 3. home object and static object variables.
+  // 4. syntethic computed field keys
+  // 5. class variables.
+  // Existence of 1-4 result in context allocation for the class scope.
+  // 5 may result in context allocation too if it's used. We'll handle
+  // that in FinalizeReparsedClassScope().
+  if (original_scope_->is_class_scope()) {
+    bool needs_allocation_fixup = false;
+    // If the class scope declares private names, computed fields or the home
+    // objects, then we will restore allocation info of them.
+    if (literal->private_members()->length() > 0 ||
+        literal->home_object() != nullptr ||
+        literal->static_home_object() != nullptr) {
+      needs_allocation_fixup = true;
+    } else {
+      for (int i = 0; i < literal->public_members()->length(); i++) {
+        if (literal->public_members()->at(i)->is_computed_name()) {
+          needs_allocation_fixup = true;
+          break;
+        }
+      }
+    }
+    reparsed_scope->FinalizeReparsedClassScope(isolate, ast_value_factory(),
+                                               original_scope_->AsClassScope(),
+                                               needs_allocation_fixup);
+  } else {
+    reparsed_scope->FinalizeReparsedClassScope(isolate, ast_value_factory(),
+                                               nullptr, false);
+  }
+
   original_scope_ = reparsed_scope;
   return initializer;
 }

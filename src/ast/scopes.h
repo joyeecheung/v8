@@ -1477,9 +1477,17 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     should_save_class_variable_index_ = true;
   }
 
-  void ReplaceReparsedClassScope(Isolate* isolate,
-                                 AstValueFactory* ast_value_factory,
-                                 ClassScope* old_scope);
+  // Replace deserialized original scope with the reparsed class scope,
+  // called when reparsing the class scope for the initializer member
+  // function.
+  // If the deserialized scope isn't a class scope, original_scope is
+  // nullptr.
+  // If the reparsed scope declares any variable that needs allocation
+  // fixup using the scope info, needs_allocation_fixup is true.
+  void FinalizeReparsedClassScope(Isolate* isolate,
+                                  AstValueFactory* ast_value_factory,
+                                  ClassScope* original_scope,
+                                  bool needs_allocation_fixup);
 #ifdef DEBUG
   bool is_reparsed_class_scope() const { return is_reparsed_class_scope_; }
 #endif

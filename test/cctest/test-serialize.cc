@@ -4307,10 +4307,16 @@ UNINITIALIZED_TEST(ClassFieldsReferenceClassVariable) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       CompileRun(
-          "class Klass {"
-          "  #consturctor = Klass;"
+          "class PrivateFieldClass {"
+          "  #consturctor = PrivateFieldClass;"
           "  func() {"
           "    return this.#consturctor;"
+          "  }"
+          "}"
+          "class PublicFieldClass {"
+          "  ctor = PublicFieldClass;"
+          "  func() {"
+          "    return this.ctor;"
           "  }"
           "}");
       creator.SetDefaultContext(context);
@@ -4329,7 +4335,8 @@ UNINITIALIZED_TEST(ClassFieldsReferenceClassVariable) {
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     CHECK(!context.IsEmpty());
     v8::Context::Scope context_scope(context);
-    ExpectTrue("new Klass().func() === Klass");
+    ExpectTrue("new PrivateFieldClass().func() === PrivateFieldClass");
+    ExpectTrue("new PublicFieldClass().func() === PublicFieldClass");
   }
   isolate->Dispose();
   delete[] blob.data;

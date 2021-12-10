@@ -2697,21 +2697,71 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
   }
 }
 
-void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
-                                           AstValueFactory* ast_value_factory,
-                                           ClassScope* old_scope) {
-  DCHECK_EQ(outer_scope_, old_scope->outer_scope());
+void ClassScope::FinalizeReparsedClassScope(Isolate* isolate,
+                                            AstValueFactory* ast_value_factory,
+                                            ClassScope* original_scope,
+                                            bool needs_allocation_fixup) {
+  // Set this bit so that DelcarationScope::Analyze recognizes
+  // the reparsed instance member initializer scope.
+#ifdef DEBUG
+  is_reparsed_class_scope_ = true;
+#endif
+
+  if (original_scope == nullptr) {
+    return;
+  }
+
+  DCHECK_EQ(outer_scope_, original_scope->outer_scope());
   Scope* outer = outer_scope_;
 
-  outer->RemoveInnerScope(old_scope);
+  Handle<ScopeInfo> scope_info = original_scope->scope_info_;
+  int context_local_count = scope_info->ContextLocalCount();
+  DisallowGarbageCollection no_gc;
+
+  if (!needs_allocation_fixup) {
+    if (context_local_count == 1 && num_var() == 1) {
+      String name = scope_info->ContextLocalName(0);
+      const AstRawString* name_in_context = ast_value_factory->GetString(
+          name, SharedStringAccessGuardIfNeeded(isolate));
+      const AstRawString* name_in_map = locals_.first()->raw_name();
+      // There are two possibilities:
+      // 1. the class scope contains just one context-allocated class variable.
+      // 2. the class scope doesn't need a context, but the closest outer
+      //   scope that needs a context is a class scope with the same name that
+      //   contains just one context-allocated class variable.
+      // In either case, we'll remove this one class variable, and attach the
+      // scope info to the reparsed class scope, then the reparsed class scope
+      // becomes the same as the original scope, and we don't have to fix
+      // up references to the class scope in the AST created during reparsing.
+      // If the class variable is resolved to during scope resolution,
+      // the allocation info will be restored from the scope info as usual.
+      if (AstRawString::Compare(name_in_context, name_in_map) == 0) {
+        scope_info_ = scope_info;
+        variables_.Remove(locals_.first());
+        locals_.Clear();
+        return;
+      }
+    }
+
+    // Ruling out the unlikely case above, we know that the original scope
+    // isn't the same as the reparsed scope, so it must be the outer scope
+    // of the reparsed scope and the reparsed scope doesn't need a context.
+    // Fix up the scope chain.
+    outer->RemoveInnerScope(this);
+    original_scope->AddInnerScope(this);
+    return;
+  }
+
+  // Now we are certain that the original scope and the reparsed scope
+  // are the same scope.
+  outer->RemoveInnerScope(original_scope);
   // The outer scope should only have this deserialized inner scope,
   // otherwise we have to update the sibling scopes.
   DCHECK_EQ(outer->inner_scope_, this);
   DCHECK_NULL(sibling_);
 
-  DCHECK_NULL(old_scope->inner_scope_);
+  DCHECK_NULL(original_scope->inner_scope_);
 
-  Handle<ScopeInfo> scope_info = old_scope->scope_info_;
   DCHECK(!scope_info.is_null());
   DCHECK(!scope_info->IsEmpty());
 
@@ -2719,9 +2769,7 @@ void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
   // the class scope from ScopeInfo, so that we don't need to run
   // resolution and allocation on these variables again when generating
   // code for the initializer function.
-  int context_local_count = scope_info->ContextLocalCount();
   int context_header_length = scope_info->ContextHeaderLength();
-  DisallowGarbageCollection no_gc;
   for (int i = 0; i < context_local_count; ++i) {
     int slot_index = context_header_length + i;
     DCHECK_LT(slot_index, scope_info->ContextLength());
@@ -2729,21 +2777,12 @@ void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
     String name = scope_info->ContextLocalName(i);
     const AstRawString* string = ast_value_factory->GetString(
         name, SharedStringAccessGuardIfNeeded(isolate));
-    Variable* var = nullptr;
-
-    var = string->IsPrivateName() ? LookupLocalPrivateName(string)
-                                  : LookupLocal(string);
+    Variable* var = string->IsPrivateName() ? LookupLocalPrivateName(string)
+                                            : LookupLocal(string);
     DCHECK_NOT_NULL(var);
     var->AllocateTo(VariableLocation::CONTEXT, slot_index);
   }
-
   scope_info_ = scope_info;
-
-  // Set this bit so that DelcarationScope::Analyze recognizes
-  // the reparsed instance member initializer scope.
-#ifdef DEBUG
-  is_reparsed_class_scope_ = true;
-#endif
 }
 
 Variable* ClassScope::DeclarePrivateName(const AstRawString* name,
