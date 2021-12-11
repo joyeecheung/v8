@@ -1123,39 +1123,36 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   // initializer.
   // There are 5 types of variables that can be declared in the class scope:
   // 1. private names.
-  // 2. private brands (their existence implies that there are also
-  //    private names).
-  // 3. home object and static object variables.
+  // 2. private brands (1 must also exist if 2 exists).
+  // 3. home object and static home object variables.
   // 4. syntethic computed field keys
   // 5. class variables.
-  // Existence of 1-4 result in context allocation for the class scope.
-  // 5 may result in context allocation too if it's used. We'll handle
-  // that in FinalizeReparsedClassScope().
-  if (original_scope_->is_class_scope()) {
-    bool needs_allocation_fixup = false;
-    // If the class scope declares private names, computed fields or the home
-    // objects, then we will restore allocation info of them.
-    if (literal->private_members()->length() > 0 ||
-        literal->home_object() != nullptr ||
-        literal->static_home_object() != nullptr) {
-      needs_allocation_fixup = true;
-    } else {
-      for (int i = 0; i < literal->public_members()->length(); i++) {
-        if (literal->public_members()->at(i)->is_computed_name()) {
-          needs_allocation_fixup = true;
-          break;
-        }
+  // Existence of 1-4 result in context allocation for the class scope,
+  // and we should fix up their indices.
+  // 5 may result in context allocation too if it's referenced, but if that's
+  // the only thing resulting in a context allocation, we can simply
+  // delete it from the scope so that its allocation info gets deserialized
+  // during scope resolution. We'll handle that in ReplaceReparsedClassScope().
+  bool needs_allocation_fixup = false;
+  // If the class scope declares private names, computed fields or the home
+  // objects, then we will restore allocation info of them.
+  if (literal->private_members()->length() > 0 ||
+      literal->home_object() != nullptr ||
+      literal->static_home_object() != nullptr) {
+    needs_allocation_fixup = true;
+  } else {
+    for (int i = 0; i < literal->public_members()->length(); i++) {
+      if (literal->public_members()->at(i)->is_computed_name()) {
+        needs_allocation_fixup = true;
+        break;
       }
     }
-    reparsed_scope->FinalizeReparsedClassScope(isolate, ast_value_factory(),
-                                               original_scope_->AsClassScope(),
-                                               needs_allocation_fixup);
-  } else {
-    reparsed_scope->FinalizeReparsedClassScope(isolate, ast_value_factory(),
-                                               nullptr, false);
   }
-
-  original_scope_ = reparsed_scope;
+  reparsed_scope->ReplaceReparsedClassScope(
+      isolate, ast_value_factory(), original_scope_, needs_allocation_fixup);
+  if (original_scope_->is_class_scope()) {
+    original_scope_ = reparsed_scope;
+  }
   return initializer;
 }
 
