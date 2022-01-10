@@ -1560,6 +1560,7 @@ class PrivateNameScopeIterator {
 
   // Add an unresolved private name to the current scope.
   void AddUnresolvedPrivateName(VariableProxy* proxy);
+  void RecordNestedSuperCall();
 
   ClassScope* GetScope() const {
     DCHECK(!Done());

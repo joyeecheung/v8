@@ -70,3 +70,51 @@
   const b = new (A.B)();
   assertThrows(() => A.run(b));
 }
+
+{
+  class C {
+    static A = class A extends class B extends Object {
+      constructor() {
+        (() => super())();
+      }
+    } {};
+    #c() { }
+    static run(obj) { obj.#c(); }
+  }
+  const a = new (C.A);
+  assertThrows(() => C.run(a));
+}
+
+{
+  class C {
+    static A = class A extends class B extends Object {
+      constructor() {
+        (() => {
+          eval("super()");
+        })();
+      }
+    } {};
+    #c() { }
+    static run(obj) { obj.#c(); }
+  }
+  const a = new (C.A);
+  assertThrows(() => C.run(a));
+}
+
+{
+  class C {
+    static A = class A extends class B extends Object {
+      constructor() {
+        (() => {
+          {
+            super();
+          }
+        })();
+      }
+    } {};
+    #c() { }
+    static run(obj) { obj.#c(); }
+  }
+  const a = new (C.A);
+  assertThrows(() => C.run(a));
+}

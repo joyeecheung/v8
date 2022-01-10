@@ -3745,8 +3745,8 @@ ParserBase<Impl>::ParseSuperExpression() {
   Consume(Token::SUPER);
   int pos = position();
 
-  DeclarationScope* scope = GetReceiverScope();
-  FunctionKind kind = scope->function_kind();
+  DeclarationScope* receiver_scope = GetReceiverScope();
+  FunctionKind kind = receiver_scope->function_kind();
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
       IsClassConstructor(kind)) {
     if (Token::IsProperty(peek())) {
@@ -3762,7 +3762,7 @@ ParserBase<Impl>::ParseSuperExpression() {
         impl()->ReportMessage(MessageTemplate::kOptionalChainingNoSuper);
         return impl()->FailureExpression();
       }
-      Scope* home_object_scope = scope->RecordSuperPropertyUsage();
+      Scope* home_object_scope = receiver_scope->RecordSuperPropertyUsage();
       UseThis();
       return impl()->NewSuperPropertyReference(home_object_scope, pos);
     }
@@ -3774,6 +3774,10 @@ ParserBase<Impl>::ParseSuperExpression() {
       // method here.
       expression_scope()->RecordThisUse();
       UseThis();
+      if (scope() != receiver_scope) {
+        PrivateNameScopeIterator iter(scope());
+        iter.RecordNestedSuperCall();
+      }
       return impl()->NewSuperCallReference(pos);
     }
   }

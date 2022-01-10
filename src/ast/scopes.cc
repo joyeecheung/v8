@@ -2628,6 +2628,7 @@ void DeclarationScope::RecalcPrivateNameContextChain() {
   // This method fixes both cases by, in outermost to innermost order, copying
   // the value of the skip bit from outer scopes that don't require a Context.
   DCHECK(needs_private_name_context_chain_recalc_);
+
   this->ForEach([](Scope* scope) {
     Scope* outer = scope->outer_scope();
     if (!outer) return Iteration::kDescend;
@@ -3094,5 +3095,8 @@ void PrivateNameScopeIterator::AddUnresolvedPrivateName(VariableProxy* proxy) {
   }
 }
 
+void PrivateNameScopeIterator::RecordNestedSuperCall() {
+  start_scope_->GetClosureScope()->RecordNeedsPrivateNameContextChainRecalc();
+}
 }  // namespace internal
 }  // namespace v8
