@@ -196,12 +196,11 @@ Maybe<bool> JSReceiver::CheckIfCanDefine(Isolate* isolate, LookupIterator* it,
           isolate, GetShouldThrow(isolate, should_throw),
           NewTypeError(MessageTemplate::kRedefineDisallowed, it->GetName()));
     }
-  } else {
-    if (!JSObject::IsExtensible(Handle<JSObject>::cast(it->GetReceiver()))) {
-      RETURN_FAILURE(
-          isolate, GetShouldThrow(isolate, should_throw),
-          NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
-    }
+  } else if (!JSObject::IsExtensible(
+                 Handle<JSObject>::cast(it->GetReceiver()))) {
+    RETURN_FAILURE(
+        isolate, GetShouldThrow(isolate, should_throw),
+        NewTypeError(MessageTemplate::kDefineDisallowed, it->GetName()));
   }
   return Just(true);
 }

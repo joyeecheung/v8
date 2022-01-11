@@ -1745,9 +1745,9 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
                                   Handle<Object> value,
                                   Maybe<ShouldThrow> should_throw,
                                   StoreOrigin store_origin) {
-  if (!Object::CheckContextualStoreToJSGlobalObject(it, should_throw)) {
-    return Nothing<bool>();
-  }
+  // It should not be possible to call DefineOwnDataProperty in a
+  // contextual store (indicated by IsJSGlobalObject()).
+  DCHECK(!it->GetReceiver()->IsJSGlobalObject(it->isolate()));
 
   switch (it->state()) {
     case LookupIterator::JSPROXY: {
