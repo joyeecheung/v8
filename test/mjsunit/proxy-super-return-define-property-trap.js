@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --no-lazy-feedback-allocation
 Proxy.prototype = Object.prototype;
 
-const logs = [];
+let logs = [];
 
 class Z extends Proxy {
   constructor() {
@@ -23,5 +24,8 @@ class Z extends Proxy {
 }
 
 new Z();
+assertEquals(["defineProperty"], logs);
 
+logs = [];
+new Z();
 assertEquals(["defineProperty"], logs);
