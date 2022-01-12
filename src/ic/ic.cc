@@ -1749,6 +1749,8 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
   // contextual store (indicated by IsJSGlobalObject()).
   DCHECK(!it->GetReceiver()->IsJSGlobalObject(it->isolate()));
 
+  // Handle special cases that can't be handled by
+  // DefineOwnPropertyIgnoreAttributes first.
   switch (it->state()) {
     case LookupIterator::JSPROXY: {
       PropertyDescriptor new_desc;
@@ -1782,12 +1784,58 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
                                          Nothing<ShouldThrow>(), store_origin);
       }
     }
+    case LookupIterator::ACCESS_CHECK: {
+      if (!it->HasAccess()) {
+        it->isolate()->ReportFailedAccessCheck(it->GetHolder<JSObject>());
+        RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
+        return Just(true);
+      }
+      break;
+    }
     case LookupIterator::NOT_FOUND:
     case LookupIterator::DATA:
-    case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::ACCESSOR:
     case LookupIterator::INTERCEPTOR:
+    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      break;
+  }
+
+  // We need to restart to handle interceptors properly.
+  it->Restart();
+
+  switch (it->state()) {
+    case LookupIterator::JSPROXY:
+    case LookupIterator::TRANSITION:
+      UNREACHABLE();
+    // TODO(joyee): fix DefineOwnPropertyIgnoreAttributes to invoke
+    // the definer interceptor instead of the setter interceptor (this
+    // behavior may need deprecation) so that we can reuse it here.
+    case LookupIterator::INTERCEPTOR: {
+      if (it->HolderIsReceiverOrHiddenPrototype()) {
+        PropertyDescriptor descriptor;
+        descriptor.set_configurable(true);
+        descriptor.set_enumerable(true);
+        descriptor.set_writable(true);
+        descriptor.set_value(value);
+        Maybe<bool> result = JSObject::DefinePropertyWithInterceptorInternal(
+            it, it->GetInterceptor(), should_throw, &descriptor);
+        if (result.IsNothing() || result.FromJust()) {
+          return result;
+        }
+      }
+      it->Restart();
+      Maybe<bool> can_define =
+          JSReceiver::CheckIfCanDefine(it->isolate(), it, value, should_throw);
+      if (can_define.IsNothing() || !can_define.FromJust()) {
+        return can_define;
+      }
+      V8_FALLTHROUGH;
+    }
+    case LookupIterator::NOT_FOUND:
+    case LookupIterator::DATA:
     case LookupIterator::ACCESSOR:
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
+    case LookupIterator::ACCESS_CHECK:
       return JSObject::DefineOwnPropertyIgnoreAttributes(it, value, NONE,
                                                          should_throw);
   }
@@ -1867,9 +1915,15 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // because we need to check the attributes before UpdateCaches updates
   // the state of the LookupIterator.
   LookupIterator::State original_state = it.state();
-  // We'll defer the check for JSProxy, because the defineProperty
-  // traps need to be called first if they are present.
-  if (IsStoreOwnIC() && !object->IsJSProxy()) {
+  // We'll defer the check for JSProxy and objects with named interceptors,
+  // because the defineProperty traps need to be called first if they are
+  // present.
+  if (IsStoreOwnIC() && !object->IsJSProxy() &&
+      (!Handle<JSObject>::cast(object)->HasNamedInterceptor() ||
+       Handle<JSObject>::cast(object)
+           ->GetNamedInterceptor()
+           .definer()
+           .IsUndefined(it.isolate()))) {
     Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
         isolate(), &it, value, Nothing<ShouldThrow>());
     if (can_define.IsNothing() || !can_define.FromJust()) {
@@ -1977,11 +2031,14 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
       // If the interceptor is on the receiver...
       if (lookup->HolderIsReceiverOrHiddenPrototype() && !info.non_masking()) {
-        // ...return a store interceptor Smi handler if there is one...
-        if (!info.setter().IsUndefined(isolate())) {
+        // ...return a store interceptor Smi handler if there is a setter
+        // interceptor and it's not StoreOwnIC (which should call the
+        // definer)...
+        if (!info.setter().IsUndefined(isolate()) && !IsStoreOwnIC()) {
           return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
         }
-        // ...otherwise return a slow-case Smi handler.
+        // ...otherwise return a slow-case Smi handler, which invokes the
+        // definer for StoreOwnIC.
         return MaybeObjectHandle(StoreHandler::StoreSlow(isolate()));
       }
 
@@ -2880,6 +2937,7 @@ RUNTIME_FUNCTION(Runtime_StoreOwnIC_Slow) {
 
   PropertyKey lookup_key(isolate, key);
   LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+
   MAYBE_RETURN(
       JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()),
       ReadOnlyRoots(isolate).exception());

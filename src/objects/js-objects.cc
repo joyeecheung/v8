@@ -1247,8 +1247,9 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
   return Just(result);
 }
+}  // namespace
 
-Maybe<bool> DefinePropertyWithInterceptorInternal(
+Maybe<bool> JSObject::DefinePropertyWithInterceptorInternal(
     LookupIterator* it, Handle<InterceptorInfo> interceptor,
     Maybe<ShouldThrow> should_throw, PropertyDescriptor* desc) {
   Isolate* isolate = it->isolate();
@@ -1303,8 +1304,6 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
   return Just(result);
 }
 
-}  // namespace
-
 // ES6 9.1.6.1
 // static
 Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
@@ -1321,7 +1320,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(
   for (; it->IsFound(); it->Next()) {
     if (it->state() == LookupIterator::INTERCEPTOR) {
       if (it->HolderIsReceiverOrHiddenPrototype()) {
-        Maybe<bool> result = DefinePropertyWithInterceptorInternal(
+        Maybe<bool> result = JSObject::DefinePropertyWithInterceptorInternal(
             it, it->GetInterceptor(), should_throw, desc);
         if (result.IsNothing() || result.FromJust()) {
           return result;

@@ -396,6 +396,12 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
 
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool>
+  DefinePropertyWithInterceptorInternal(LookupIterator* it,
+                                        Handle<InterceptorInfo> interceptor,
+                                        Maybe<ShouldThrow> should_throw,
+                                        PropertyDescriptor* desc);
+
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithInterceptor(
       LookupIterator* it, Maybe<ShouldThrow> should_throw,
       Handle<Object> value);
