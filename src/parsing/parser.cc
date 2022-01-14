@@ -1097,8 +1097,8 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   // actually be the outer scope of the class scope
   // If original_scope_->is_class_scope() is false then that's certainly
   // the case. Otherwise, we' use original_scope_->outer_scope() as the
-  // outer scope for now and fix up the heirarchy later if necessary
-  // based on what gets decalared in the reparsed_scope by the parser.
+  // outer scope for now and fix up the hierarchy later if necessary
+  // based on what gets declared in the reparsed_scope by the parser.
   Scope* outer = original_scope_->is_class_scope()
                      ? original_scope_->outer_scope()
                      : original_scope_;
@@ -1126,7 +1126,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   // 2. private brands (1 must also exist if 2 exists).
   // 3. home object and static home object variables.
   // 4. syntethic computed field keys
-  // 5. class variables.
+  // 5. class variable.
   // Existence of 1-4 result in context allocation for the class scope,
   // and we should fix up their indices.
   // 5 may result in context allocation too if it's referenced, but if that's

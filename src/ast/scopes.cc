@@ -2711,7 +2711,7 @@ void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
   Scope* outer = outer_scope_;
   if (original_scope->is_class_scope()) {
     // Remove the original scope from the scope chain so that it is
-    // replaced with the eparsed scope.
+    // replaced with the reparsed scope.
     DCHECK_EQ(outer, original_scope->outer_scope());
     DCHECK_NULL(original_scope->inner_scope_);
     outer->RemoveInnerScope(original_scope);
