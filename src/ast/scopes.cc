@@ -2703,67 +2703,37 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
   }
 }
 
-void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
-                                           AstValueFactory* ast_value_factory,
-                                           Scope* original_scope,
-                                           bool needs_allocation_fixup) {
+void ClassScope::FinalizeReparsedClassScope(
+    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_scope_info,
+    AstValueFactory* ast_value_factory, bool needs_allocation_fixup) {
   // Set this bit so that DelcarationScope::Analyze recognizes
   // the reparsed instance member initializer scope.
 #ifdef DEBUG
   is_reparsed_class_scope_ = true;
 #endif
 
-  Handle<ScopeInfo> scope_info = original_scope->scope_info_;
-  Scope* outer = outer_scope_;
-  if (original_scope->outer_scope() == outer) {
-    // Remove the original scope from the scope chain so that it is
-    // replaced with the reparsed scope.
-    // DCHECK_EQ(outer, original_scope->outer_scope());
-    DCHECK_NULL(original_scope->inner_scope_);
-    outer->RemoveInnerScope(original_scope);
-    // The outer scope should only have this deserialized inner scope,
-    // otherwise we have to update the sibling scopes.
-    DCHECK_EQ(outer->inner_scope_, this);
-    DCHECK_NULL(sibling_);
-  } else {
-    // Here we know for certain that the original scope does not match
-    // the reparsed scope, and we created the class scope as an inner
-    // scope of of the original scope.
-    DCHECK_EQ(outer, original_scope);
-    // The reparsed scope shouldn't need a context, so no allocation fixup is
-    // necessary.
-    DCHECK(!needs_allocation_fixup);
-  }
-
   if (!needs_allocation_fixup) {
-    // There are two possibilities:
-    // 1. the class scope contains just one context-allocated class variable.
-    // 2. the class scope didn't need a context, but the closest outer
-    //   scope that needs a context is a class scope.
-    // In either case, we can clear up the variables declared during reparsing,
-    // and attach the scope info to the reparsed class scope, then the reparsed
-    // class scope becomes the same as the original scope, with all the possible
-    // AST references pointing to it.
-    // In case 1 if anything in the scope is referenced from the reparsed AST,
-    // the allocation info will be restored from the scope info as usual during
-    // scope resolution.
-    // In case 2 nothing in the reparsed class scope should be referenced
-    // (otherwise the context would've been allocated) so we can just replace
-    // the original scope with a cleared reparsed scope that looks like it.
-    scope_info_ = scope_info;
+    if (!maybe_scope_info.is_null()) {
+      Handle<ScopeInfo> scope_info = maybe_scope_info.ToHandleChecked();
+      if (scope_info->scope_type() == CLASS_SCOPE &&
+          scope_info->StartPosition() == start_position_) {
+        scope_info_ = maybe_scope_info.ToHandleChecked();
+      }
+    }
     variables_.Clear();
     locals_.Clear();
     return;
   }
 
-  // Now we are certain that the original scope and the reparsed scope
-  // are the same scope.
   // Restore variable allocation results for context-allocated variables in
   // the class scope from ScopeInfo, so that we don't need to run
   // resolution and allocation on these variables again when generating
   // code for the initializer function.
-  DCHECK(!scope_info.is_null());
-  DCHECK(!scope_info->IsEmpty());
+  DCHECK(!maybe_scope_info.is_null());
+  Handle<ScopeInfo> scope_info = maybe_scope_info.ToHandleChecked();
+  DCHECK_EQ(scope_info->scope_type(), CLASS_SCOPE);
+  DCHECK_EQ(scope_info->StartPosition(), start_position_);
+
   int context_local_count = scope_info->ContextLocalCount();
   int context_header_length = scope_info->ContextHeaderLength();
   DisallowGarbageCollection no_gc;
