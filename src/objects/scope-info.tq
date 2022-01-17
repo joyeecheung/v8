@@ -6,7 +6,8 @@ extern macro EmptyScopeInfoConstant(): ScopeInfo;
 const kEmptyScopeInfo: ScopeInfo = EmptyScopeInfoConstant();
 
 extern enum ScopeType extends uint32 {
-  CLASS_SCOPE,  // Also used for the empty scope (for NativeContext & builtins).
+  EMPTY_SCOPE,
+  CLASS_SCOPE,
   EVAL_SCOPE,
   FUNCTION_SCOPE,
   MODULE_SCOPE,
@@ -139,7 +140,8 @@ extern class ScopeInfo extends HeapObject {
       [flags.scope_type == ScopeType::FUNCTION_SCOPE ||
        flags.scope_type == ScopeType::SCRIPT_SCOPE ||
        flags.scope_type == ScopeType::EVAL_SCOPE ||
-       flags.scope_type == ScopeType::MODULE_SCOPE]: PositionInfo;
+       flags.scope_type == ScopeType::MODULE_SCOPE ||
+       flags.scope_type == ScopeType::CLASS_SCOPE]: PositionInfo;
 
   outer_scope_info?[flags.has_outer_scope_info]: ScopeInfo|TheHole;
 

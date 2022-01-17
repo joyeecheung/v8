@@ -224,6 +224,10 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
     var->AllocateTo(VariableLocation::CONTEXT,
                     Context::MIN_CONTEXT_SLOTS + index);
   }
+
+  DCHECK(scope_info->HasPositionInfo());
+  set_start_position(scope_info->StartPosition());
+  set_end_position(scope_info->EndPosition());
 }
 template ClassScope::ClassScope(Isolate* isolate, Zone* zone,
                                 AstValueFactory* ast_value_factory,
@@ -1750,6 +1754,8 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
     case SCRIPT_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
     case BLOCK_SCOPE: return is_declaration_scope ? "varblock" : "block";
+    case EMPTY_SCOPE:
+      return "empty";
     case CLASS_SCOPE:
       return "class";
     case WITH_SCOPE: return "with";
@@ -2709,10 +2715,10 @@ void ClassScope::ReplaceReparsedClassScope(Isolate* isolate,
 
   Handle<ScopeInfo> scope_info = original_scope->scope_info_;
   Scope* outer = outer_scope_;
-  if (original_scope->is_class_scope()) {
+  if (original_scope->outer_scope() == outer) {
     // Remove the original scope from the scope chain so that it is
     // replaced with the reparsed scope.
-    DCHECK_EQ(outer, original_scope->outer_scope());
+    // DCHECK_EQ(outer, original_scope->outer_scope());
     DCHECK_NULL(original_scope->inner_scope_);
     outer->RemoveInnerScope(original_scope);
     // The outer scope should only have this deserialized inner scope,

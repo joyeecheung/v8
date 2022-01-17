@@ -1154,6 +1154,7 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
 }
 
 enum ScopeType : uint8_t {
+  EMPTY_SCOPE,     // The scope introduced by NativeContext and builtins.
   CLASS_SCOPE,     // The scope introduced by a class.
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.
@@ -1180,6 +1181,8 @@ inline std::ostream& operator<<(std::ostream& os, ScopeType type) {
       return os << "BLOCK_SCOPE";
     case ScopeType::CLASS_SCOPE:
       return os << "CLASS_SCOPE";
+    case ScopeType::EMPTY_SCOPE:
+      return os << "EMPTY_SCOPE";
     case ScopeType::WITH_SCOPE:
       return os << "WITH_SCOPE";
   }

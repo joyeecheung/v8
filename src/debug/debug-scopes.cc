@@ -512,6 +512,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
         return ScopeTypeCatch;
       case BLOCK_SCOPE:
       case CLASS_SCOPE:
+      case EMPTY_SCOPE:
         DCHECK_IMPLIES(NeedsAndHasContext(), context_->IsBlockContext());
         return ScopeTypeBlock;
       case EVAL_SCOPE:

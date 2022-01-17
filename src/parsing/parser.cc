@@ -1099,7 +1099,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   // the case. Otherwise, we' use original_scope_->outer_scope() as the
   // outer scope for now and fix up the hierarchy later if necessary
   // based on what gets declared in the reparsed_scope by the parser.
-  Scope* outer = original_scope_->is_class_scope()
+  Scope* outer = original_scope_->start_position() == class_token_pos
                      ? original_scope_->outer_scope()
                      : original_scope_;
   ClassScope* reparsed_scope = NewClassScope(outer, is_anonymous);
