@@ -1078,7 +1078,7 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
 }
 
 FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
-    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
     int initializer_pos, int initializer_id) {
   int class_token_pos = initializer_pos;
 
@@ -1132,36 +1132,14 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
 
   no_expression_scope.ValidateExpression();
 
-  // Fix up the scope chain and the references used by the instance member
-  // initializer.
-  // There are 5 types of variables that can be declared in the class scope:
-  // 1. private names.
-  // 2. private brands (1 must also exist if 2 exists).
-  // 3. home object and static home object variables.
-  // 4. syntethic computed field keys
-  // 5. class variable.
-  // Existence of 1-4 result in context allocation for the class scope,
-  // and we should fix up their indices.
-  // 5 may result in context allocation too if it's referenced, but if that's
-  // the only thing resulting in a context allocation, we can simply
-  // delete it from the scope so that its allocation info gets deserialized
-  // during scope resolution. We'll handle that in FinalizeReparsedClassScope().
-  bool needs_allocation_fixup = false;
-  // If the class scope declares private names, computed fields or the home
-  // objects, then we will restore allocation info of them.
-  if (literal->private_members()->length() > 0 ||
-      literal->home_object() != nullptr ||
-      literal->static_home_object() != nullptr) {
-    needs_allocation_fixup = true;
-  } else {
-    for (int i = 0; i < literal->public_members()->length(); i++) {
-      if (literal->public_members()->at(i)->is_computed_name()) {
-        needs_allocation_fixup = true;
-        break;
-      }
-    }
-  }
-  reparsed_scope->FinalizeReparsedClassScope(isolate, maybe_outer_scope_info,
+  // If the class scope was not optimized away, we know that it allocated
+  // some variables and we need to fix up the allocation info for them.
+  bool needs_allocation_fixup =
+      !maybe_class_scope_info.is_null() &&
+      maybe_class_scope_info.ToHandleChecked()->StartPosition() ==
+          class_token_pos;
+
+  reparsed_scope->FinalizeReparsedClassScope(isolate, maybe_class_scope_info,
                                              ast_value_factory(),
                                              needs_allocation_fixup);
   original_scope_ = reparsed_scope;

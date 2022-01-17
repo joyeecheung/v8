@@ -2713,15 +2713,6 @@ void ClassScope::FinalizeReparsedClassScope(
 #endif
 
   if (!needs_allocation_fixup) {
-    if (!maybe_scope_info.is_null()) {
-      Handle<ScopeInfo> scope_info = maybe_scope_info.ToHandleChecked();
-      if (scope_info->scope_type() == CLASS_SCOPE &&
-          scope_info->StartPosition() == start_position_) {
-        scope_info_ = maybe_scope_info.ToHandleChecked();
-      }
-    }
-    variables_.Clear();
-    locals_.Clear();
     return;
   }
 
