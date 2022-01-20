@@ -1777,6 +1777,7 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     //
     // Here, we check if this is a new private name reference in a top
     // level function and throw an error if so.
+    PrintF("\nParsePropertyOrPrivatePropertyName()\n");
     PrivateNameScopeIterator private_name_scope_iter(scope());
     // Parse the identifier so that we can display it in the error message
     name = impl()->GetIdentifier();
@@ -3775,6 +3776,7 @@ ParserBase<Impl>::ParseSuperExpression() {
       expression_scope()->RecordThisUse();
       UseThis();
       if (scope() != receiver_scope) {
+        PrintF("\nFound nested super in ParseSuperExpression()\n");
         PrivateNameScopeIterator iter(scope());
         iter.RecordNestedSuperCall();
       }

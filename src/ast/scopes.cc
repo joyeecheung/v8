@@ -1327,6 +1327,7 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   // to ensure that UpdateNeedsHoleCheck() can detect import variables.
   if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
 
+  PrintF("\nDeclarationScope::AllocateVariables()\n");
   PrivateNameScopeIterator private_name_scope_iter(this);
   if (!private_name_scope_iter.Done() &&
       !private_name_scope_iter.GetScope()->ResolvePrivateNames(info)) {
@@ -2592,6 +2593,7 @@ void Scope::AllocateScopeInfosRecursively(IsolateT* isolate,
   MaybeHandle<ScopeInfo> next_outer_scope = outer_scope;
 
   if (NeedsScopeInfo()) {
+    PrintF("Allocate scope info because it needs it\n");
     scope_info_ = ScopeInfo::Create(isolate, zone(), this, outer_scope);
     // The ScopeInfo chain should mirror the context chain, so we only link to
     // the next outer scope that needs a context.
@@ -2628,10 +2630,21 @@ void DeclarationScope::RecalcPrivateNameContextChain() {
   // This method fixes both cases by, in outermost to innermost order, copying
   // the value of the skip bit from outer scopes that don't require a Context.
   DCHECK(needs_private_name_context_chain_recalc_);
+  PrintF("RecalcPrivateNameContextChain for");
+  Print(0);
 
   this->ForEach([](Scope* scope) {
+    PrintF("checking..");
+    scope->Print(0);
     Scope* outer = scope->outer_scope();
-    if (!outer) return Iteration::kDescend;
+    if (!outer) {
+      PrintF("no outer scope, descend\n");
+      return Iteration::kDescend;
+    }
+
+    PrintF("outer NeedsContext = %s ",
+           outer->NeedsContext() ? "true" : "false");
+    outer->Print(0);
     if (!outer->NeedsContext() &&
         !(scope->is_class_scope() &&
           scope->private_name_lookup_skips_outer_class())) {
@@ -2640,19 +2653,24 @@ void DeclarationScope::RecalcPrivateNameContextChain() {
     }
     if (!scope->is_function_scope() ||
         scope->AsDeclarationScope()->ShouldEagerCompile()) {
+      PrintF("scope is not a function scope to be compiled, descend\n");
       return Iteration::kDescend;
     }
+    PrintF("continue...\n");
     return Iteration::kContinue;
   });
 }
 
 void DeclarationScope::RecordNeedsPrivateNameContextChainRecalc() {
   DCHECK_EQ(GetClosureScope(), this);
+  PrintF("RecordNeedsPrivateNameContextChainRecalc()\n");
   DeclarationScope* scope;
   for (scope = this; scope != nullptr;
        scope = scope->outer_scope() != nullptr
                    ? scope->outer_scope()->GetClosureScope()
                    : nullptr) {
+    PrintF("loop in ");
+    scope->Print(0);
     if (scope->needs_private_name_context_chain_recalc_) return;
     scope->needs_private_name_context_chain_recalc_ = true;
   }
@@ -2682,6 +2700,7 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, IsolateT* isolate) {
   // it has one, even if it doesn't need a scope info.
   // TODO(yangguo): Remove this requirement.
   if (scope->scope_info_.is_null()) {
+    PrintF("Allocate scope info directly\n");
     scope->scope_info_ =
         ScopeInfo::Create(isolate, scope->zone(), scope, outer_scope);
   }
@@ -2916,6 +2935,9 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
 Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
 
+  PrintF("\nClassScope::LookupPrivateName ");
+  PrintName(proxy->raw_name());
+  PrintF("\n");
   for (PrivateNameScopeIterator scope_iter(this); !scope_iter.Done();
        scope_iter.Next()) {
     ClassScope* scope = scope_iter.GetScope();
@@ -2967,6 +2989,7 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
     return nullptr;
   }
 
+  PrintF("\nClassScope::ResolvePrivateNamesPartially()\n");
   PrivateNameScopeIterator private_name_scope_iter(this);
   private_name_scope_iter.Next();
   UnresolvedList& unresolved = rare_data->unresolved_private_names;
@@ -3058,6 +3081,8 @@ Variable* ClassScope::DeclareClassVariable(AstValueFactory* ast_value_factory,
 
 PrivateNameScopeIterator::PrivateNameScopeIterator(Scope* start)
     : start_scope_(start), current_scope_(start) {
+  PrintF("\nPrivateNameScopeIterator with \n");
+  start->Print(0);
   if (!start->is_class_scope() || start->AsClassScope()->IsParsingHeritage()) {
     Next();
   }
@@ -3065,16 +3090,30 @@ PrivateNameScopeIterator::PrivateNameScopeIterator(Scope* start)
 
 void PrivateNameScopeIterator::Next() {
   DCHECK(!Done());
+  PrintF("\nPrivateNameScopeIterator::Next()\n");
   Scope* inner = current_scope_;
   Scope* scope = inner->outer_scope();
   while (scope != nullptr) {
+    PrintF("loop with inner = ");
+    inner->Print(0);
+    PrintF("scope = ");
+    scope->Print(0);
+
     if (scope->is_class_scope()) {
       if (!inner->private_name_lookup_skips_outer_class()) {
+        PrintF(
+            "scope->is_class_scope() && "
+            "!inner->private_name_lookup_skips_outer_class()\n");
         current_scope_ = scope;
         return;
       }
+      PrintF(
+          "scope->is_class_scope() && "
+          "inner->private_name_lookup_skips_outer_class(), setting "
+          "skipped_any_scopes_ = true\n");
       skipped_any_scopes_ = true;
     }
+
     inner = scope;
     scope = scope->outer_scope();
   }
@@ -3098,6 +3137,11 @@ void PrivateNameScopeIterator::AddUnresolvedPrivateName(VariableProxy* proxy) {
 }
 
 void PrivateNameScopeIterator::RecordNestedSuperCall() {
+  PrintF("\nRecordNestedSuper() with ");
+  start_scope_->Print(0);
+
+  // TODO(joyee): make sure that the constructor scope sets the
+  // skip bit so that it gets passed down during code generation.
   start_scope_->GetClosureScope()->RecordNeedsPrivateNameContextChainRecalc();
 }
 }  // namespace internal
