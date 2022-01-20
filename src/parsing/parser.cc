@@ -1057,30 +1057,25 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
     Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
     ParseInfo* info, int start_position, int end_position,
     int function_literal_id, const AstRawString* raw_name) {
-  if (flags().function_kind() !=
+  if (flags().function_kind() ==
       FunctionKind::kClassMembersInitializerFunction) {
-    return DoParseFunction(isolate, info, start_position, end_position,
-                           function_literal_id, raw_name);
+    return ParseClassForInstanceMemberInitialization(
+        isolate, maybe_outer_scope_info, start_position, function_literal_id,
+        end_position);
   }
 
-  // Reparse the outer class while skipping the non-fields to get a list of
-  // ClassLiteralProperty and create a InitializeClassMembersStatement for
-  // the synthetic instance initializer function.
-  FunctionLiteral* result = ParseClassForInstanceMemberInitialization(
-      isolate, maybe_outer_scope_info, start_position, function_literal_id);
-  DCHECK_EQ(result->kind(), FunctionKind::kClassMembersInitializerFunction);
-  DCHECK_EQ(result->function_literal_id(), function_literal_id);
-  DCHECK_EQ(result->end_position(), end_position);
-
-  // The private_name_lookup_skips_outer_class bit should be set by
-  // PostProcessParseResult() during scope analysis later.
-  return result;
+  return DoParseFunction(isolate, info, start_position, end_position,
+                         function_literal_id, raw_name);
 }
 
 FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
     Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
-    int initializer_pos, int initializer_id) {
+    int initializer_pos, int initializer_id, int initializer_end_pos) {
+  // When the function is a kClassMembersInitializerFunction, we record the
+  // source range of the entire class as its positions in its SFI, so at this
+  // point the scanner should be rewound to the position of the class token.
   int class_token_pos = initializer_pos;
+  DCHECK_EQ(position(), class_token_pos);
 
   // Insert a FunctionState with the closest outer Declaration scope
   DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
@@ -1095,31 +1090,10 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
 
   ExpressionParsingScope no_expression_scope(impl());
 
-  // We will reparse the entire class because we want to know if
-  // the class is anonymous.
-  // When the function is a kClassMembersInitializerFunction, we record the
-  // source range of the entire class as its positions in its SFI, so at this
-  // point the scanner should be rewound to the position of the class token.
-  DCHECK_EQ(peek(), Token::CLASS);
-  Expect(Token::CLASS);
+  // Reparse the class as an expression to build the instance member
+  // initializer function.
+  Expression* expr = ParseClassExpression(original_scope_);
 
-  const AstRawString* class_name = NullIdentifier();
-  const AstRawString* variable_name = NullIdentifier();
-  // It's a reparse so we don't need to check for default export or
-  // whether the names are reserved.
-  if (peek() == Token::EXTENDS || peek() == Token::LBRACE) {
-    GetDefaultStrings(&class_name, &variable_name);
-  } else {
-    class_name = ParseIdentifier();
-    variable_name = class_name;
-  }
-  bool is_anonymous = class_name == nullptr || class_name->IsEmpty();
-
-  ClassScope* reparsed_scope = NewClassScope(original_scope_, is_anonymous);
-
-  Expression* expr =
-      DoParseClassLiteral(reparsed_scope, class_name, scanner()->location(),
-                          is_anonymous, class_token_pos);
   DCHECK(expr->IsClassLiteral());
   ClassLiteral* literal = expr->AsClassLiteral();
   FunctionLiteral* initializer =
@@ -1139,10 +1113,17 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
       maybe_class_scope_info.ToHandleChecked()->StartPosition() ==
           class_token_pos;
 
+  ClassScope* reparsed_scope = literal->scope();
   reparsed_scope->FinalizeReparsedClassScope(isolate, maybe_class_scope_info,
                                              ast_value_factory(),
                                              needs_allocation_fixup);
   original_scope_ = reparsed_scope;
+
+  DCHECK_EQ(initializer->kind(),
+            FunctionKind::kClassMembersInitializerFunction);
+  DCHECK_EQ(initializer->function_literal_id(), initializer_id);
+  DCHECK_EQ(initializer->end_position(), initializer_end_pos);
+
   return initializer;
 }
 

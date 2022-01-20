@@ -1234,13 +1234,11 @@ class ParserBase {
   ExpressionT ParseArrowFunctionLiteral(const FormalParametersT& parameters);
   void ParseAsyncFunctionBody(Scope* scope, StatementListT* body);
   ExpressionT ParseAsyncFunctionLiteral();
-  ExpressionT ParseClassLiteral(IdentifierT name,
+  ExpressionT ParseClassExpression(Scope* outer_scope);
+  ExpressionT ParseClassLiteral(Scope* outer_scope, IdentifierT name,
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved,
                                 int class_token_pos);
-  ExpressionT DoParseClassLiteral(ClassScope* class_scope, IdentifierT name,
-                                  Scanner::Location class_name_location,
-                                  bool is_anonymous, int class_token_pos);
 
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool tagged);
   ExpressionT ParseSuperExpression();
@@ -2006,19 +2004,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     }
 
     case Token::CLASS: {
-      Consume(Token::CLASS);
-      int class_token_pos = position();
-      IdentifierT name = impl()->NullIdentifier();
-      bool is_strict_reserved_name = false;
-      Scanner::Location class_name_location = Scanner::Location::invalid();
-      if (peek_any_identifier()) {
-        name = ParseAndClassifyIdentifier(Next());
-        class_name_location = scanner()->location();
-        is_strict_reserved_name =
-            Token::IsStrictReservedWord(scanner()->current_token());
-      }
-      return ParseClassLiteral(name, class_name_location,
-                               is_strict_reserved_name, class_token_pos);
+      return ParseClassExpression(scope());
     }
 
     case Token::TEMPLATE_SPAN:
@@ -4262,7 +4248,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseClassDeclaration(
   }
 
   ExpressionParsingScope no_expression_scope(impl());
-  ExpressionT value = ParseClassLiteral(name, scanner()->location(),
+  ExpressionT value = ParseClassLiteral(scope(), name, scanner()->location(),
                                         is_strict_reserved, class_token_pos);
   no_expression_scope.ValidateExpression();
   int end_pos = position();
@@ -4668,8 +4654,26 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 }
 
 template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassExpression(
+    Scope* outer_scope) {
+  Consume(Token::CLASS);
+  int class_token_pos = position();
+  IdentifierT name = impl()->NullIdentifier();
+  bool is_strict_reserved_name = false;
+  Scanner::Location class_name_location = Scanner::Location::invalid();
+  if (peek_any_identifier()) {
+    name = ParseAndClassifyIdentifier(Next());
+    class_name_location = scanner()->location();
+    is_strict_reserved_name =
+        Token::IsStrictReservedWord(scanner()->current_token());
+  }
+  return ParseClassLiteral(outer_scope, name, class_name_location,
+                           is_strict_reserved_name, class_token_pos);
+}
+
+template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
-    IdentifierT name, Scanner::Location class_name_location,
+    Scope* outer_scope, IdentifierT name, Scanner::Location class_name_location,
     bool name_is_strict_reserved, int class_token_pos) {
   bool is_anonymous = impl()->IsNull(name);
 
@@ -4687,16 +4691,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     }
   }
 
-  ClassScope* class_scope = NewClassScope(scope(), is_anonymous);
-  return DoParseClassLiteral(class_scope, name, class_name_location,
-                             is_anonymous, class_token_pos);
-}
-
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::DoParseClassLiteral(
-    ClassScope* class_scope, IdentifierT name,
-    Scanner::Location class_name_location, bool is_anonymous,
-    int class_token_pos) {
+  ClassScope* class_scope = NewClassScope(outer_scope, is_anonymous);
   BlockState block_state(&scope_, class_scope);
   RaiseLanguageMode(LanguageMode::kStrict);
 

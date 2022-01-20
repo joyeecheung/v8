@@ -243,8 +243,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       int function_literal_id, const AstRawString* raw_name);
 
   FunctionLiteral* ParseClassForInstanceMemberInitialization(
-      Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
-      int initializer_pos, int initializer_id);
+      Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
+      int initializer_pos, int initializer_id, int initializer_end_pos);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(Isolate* isolate, ParseInfo* info);
