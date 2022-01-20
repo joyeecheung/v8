@@ -4,62 +4,76 @@
 
 'use strict';
 
-class C {
-  field = c.concat();
+{
+  class C {
+    field = c.concat();
+  }
+
+  var c;
+  assertThrows(() => {
+    c = new C();
+  }, TypeError);
 }
 
-var c;
-assertThrows(() => {
-  c = new C();
-}, TypeError);
+// Anonymous class
+// {
+//   const C = class {
+//     field = c.concat();
+//   }
 
-class D {
-  field = ({ d } = undefined);
-}
+//   var c;
+//   assertThrows(() => {
+//     c = new C();
+//   }, TypeError);
+// }
 
-var d;
-assertThrows(
-  () => {
-    d = new D();
-  },
-  TypeError,
-  /Cannot destructure property 'd' of 'undefined' as it is undefined/);
+// class D {
+//   field = ({ d } = undefined);
+// }
 
-class B {
-  static B = class B {
-    field = b.concat();
-  }
-  static func() {
-    return B;  // keep the context for class B
-  }
-}
-var b;
-assertThrows(() => {
-  b = new B.B();
-}, TypeError);
+// var d;
+// assertThrows(
+//   () => {
+//     d = new D();
+//   },
+//   TypeError,
+//   /Cannot destructure property 'd' of 'undefined' as it is undefined/);
 
-class A {
-  static B = class B {
-    field = a.concat();
-  }
-  static func() {
-    return A;  // keep the context for class A
-  }
-}
-var a;
-assertThrows(() => {
-  a = new A.B();
-}, TypeError);
+// class B {
+//   static B = class B {
+//     field = b.concat();
+//   }
+//   static func() {
+//     return B;  // keep the context for class B
+//   }
+// }
+// var b;
+// assertThrows(() => {
+//   b = new B.B();
+// }, TypeError);
 
-class E {
-  #x = 1;
-  static B = class B {
-    field = this.#x;
-  }
-}
+// class A {
+//   static B = class B {
+//     field = a.concat();
+//   }
+//   static func() {
+//     return A;  // keep the context for class A
+//   }
+// }
+// var a;
+// assertThrows(() => {
+//   a = new A.B();
+// }, TypeError);
 
-var e;
-assertThrows(
-  () => { e = new E.B(); },
-  TypeError,
-  /Cannot read private member #x from an object whose class did not declare it/);
+// class E {
+//   #x = 1;
+//   static B = class B {
+//     field = this.#x;
+//   }
+// }
+
+// var e;
+// assertThrows(
+//   () => { e = new E.B(); },
+//   TypeError,
+//   /Cannot read private member #x from an object whose class did not declare it/);

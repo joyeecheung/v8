@@ -839,11 +839,11 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   if (flags().function_kind() ==
           FunctionKind::kClassMembersInitializerFunction &&
       shared_info->HasOuterScopeInfo() &&
+      maybe_outer_scope_info.ToHandleChecked()->scope_type() == CLASS_SCOPE &&
       maybe_outer_scope_info.ToHandleChecked()->StartPosition() ==
           start_position) {
     Handle<ScopeInfo> outer_scope_info =
         maybe_outer_scope_info.ToHandleChecked();
-    DCHECK_EQ(outer_scope_info->scope_type(), CLASS_SCOPE);
     if (outer_scope_info->HasOuterScopeInfo()) {
       deserialize_start_scope =
           handle(outer_scope_info->OuterScopeInfo(), isolate);
@@ -1075,7 +1075,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   // source range of the entire class as its positions in its SFI, so at this
   // point the scanner should be rewound to the position of the class token.
   int class_token_pos = initializer_pos;
-  DCHECK_EQ(position(), class_token_pos);
+  DCHECK_EQ(peek_position(), class_token_pos);
 
   // Insert a FunctionState with the closest outer Declaration scope
   DeclarationScope* nearest_decl_scope = original_scope_->GetDeclarationScope();
@@ -1110,6 +1110,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   // some variables and we need to fix up the allocation info for them.
   bool needs_allocation_fixup =
       !maybe_class_scope_info.is_null() &&
+      maybe_class_scope_info.ToHandleChecked()->HasPositionInfo() &&
       maybe_class_scope_info.ToHandleChecked()->StartPosition() ==
           class_token_pos;
 
