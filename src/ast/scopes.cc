@@ -1754,8 +1754,6 @@ const char* Header(ScopeType scope_type, FunctionKind function_kind,
     case SCRIPT_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
     case BLOCK_SCOPE: return is_declaration_scope ? "varblock" : "block";
-    case EMPTY_SCOPE:
-      return "empty";
     case CLASS_SCOPE:
       return "class";
     case WITH_SCOPE: return "with";
