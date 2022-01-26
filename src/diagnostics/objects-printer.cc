@@ -1588,6 +1588,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   if (has_static_private_methods_or_accessors()) {
     os << "\n - has_static_private_methods_or_accessors";
   }
+  if (private_name_lookup_skips_outer_class()) {
+    os << "\n - private_name_lookup_skips_outer_class";
+  }
   os << "\n - kind: " << kind();
   os << "\n - syntax kind: " << syntax_kind();
   os << "\n - function_map_index: " << function_map_index();
@@ -2382,6 +2385,8 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   }
   if (IsAsmModule()) os << "\n - asm module";
   if (HasSimpleParameters()) os << "\n - simple parameters";
+  if (PrivateNameLookupSkipsOuterClass())
+    os << "\n - private name lookup skips outer class";
   os << "\n - function kind: " << function_kind();
   if (HasOuterScopeInfo()) {
     os << "\n - outer scope info: " << Brief(OuterScopeInfo());
