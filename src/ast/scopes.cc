@@ -2632,7 +2632,9 @@ void DeclarationScope::RecalcPrivateNameContextChain() {
   this->ForEach([](Scope* scope) {
     Scope* outer = scope->outer_scope();
     if (!outer) return Iteration::kDescend;
-    if (!outer->NeedsContext()) {
+    if (!outer->NeedsContext() &&
+        !(scope->is_class_scope() &&
+          scope->private_name_lookup_skips_outer_class())) {
       scope->private_name_lookup_skips_outer_class_ =
           outer->private_name_lookup_skips_outer_class();
     }
