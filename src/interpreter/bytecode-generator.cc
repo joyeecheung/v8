@@ -2907,8 +2907,8 @@ void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver,
         .LoadAccumulatorWithRegister(class_context->reg())
         .DefineKeyedProperty(receiver, brand_reg, feedback_index(slot));
   } else {
-    // we are in the slow case where the super() is called from a nested
-    // arrow function or a eval()
+    // We are in the slow case where the super() is called from a nested
+    // arrow function or a eval().
     DCHECK_NE(info()->literal()->scope(), brand->scope());
     RegisterList brand_args = register_allocator()->NewRegisterList(4);
     builder()

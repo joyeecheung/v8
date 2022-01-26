@@ -486,8 +486,6 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   CONVERT_ARG_HANDLE_CHECKED(Context, context, 2);
   CONVERT_ARG_HANDLE_CHECKED(Smi, depth_smi, 3);
   DCHECK(brand->is_private_name());
-  int depth = depth_smi->value();
-  DCHECK_GE(depth, 0);
 
   LookupIterator it(isolate, receiver, brand, LookupIterator::OWN);
 
@@ -501,6 +499,8 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
+  int depth = depth_smi->value();
+  DCHECK_GE(depth, 0);
   for (; depth > 0; depth--) {
     context =
         handle(Context::cast(context->get(Context::PREVIOUS_INDEX)), isolate);
