@@ -60,9 +60,6 @@ bool ScopeInfo::Equals(ScopeInfo other) const {
 template <typename IsolateT>
 Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
                                     MaybeHandle<ScopeInfo> outer_scope) {
-  PrintF("\nScopeInfo::Create for ");
-  scope->Print(0);
-
   // Collect variables.
   int context_local_count = 0;
   int module_vars_count = 0;
@@ -370,9 +367,6 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   DCHECK_EQ(index, scope_info_handle->length());
   DCHECK_EQ(parameter_count, scope_info_handle->ParameterCount());
   DCHECK_EQ(scope->num_heap_slots(), scope_info_handle->ContextLength());
-
-  PrintF("Created scope info\n");
-  scope_info_handle->Print();
   return scope_info_handle;
 }
 

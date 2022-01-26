@@ -901,7 +901,6 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     result->set_inferred_name(inferred_name);
     // Fix the function_literal_id in case we changed it earlier.
     result->set_function_literal_id(shared_info->function_literal_id());
-    // TODO(joyee): fix up private name skip bit here?
   }
   PostProcessParseResult(isolate, info, result);
   if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
@@ -2854,7 +2853,6 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
   bookmark.Set(function_scope->start_position());
 
   UnresolvedList::Iterator unresolved_private_tail;
-  PrintF("\nParser::SkipFunction()\n");
   PrivateNameScopeIterator private_name_scope_iter(function_scope);
   if (!private_name_scope_iter.Done()) {
     unresolved_private_tail =
