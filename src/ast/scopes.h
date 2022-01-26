@@ -454,6 +454,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     kDescend
   };
 
+  bool IsConstructorScope() const;
+
   // Check is this scope is an outer scope of the given scope.
   bool IsOuterScopeOf(Scope* other) const;
 

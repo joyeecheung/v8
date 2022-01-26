@@ -5648,23 +5648,38 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   builder()->StoreAccumulatorInRegister(instance);
 
   ClassScope* class_scope_with_brand = nullptr;
-  if (info()->literal()->class_scope_has_private_brand()) {
-    class_scope_with_brand = info()->scope()->outer_scope()->AsClassScope();
-    DCHECK_NOT_NULL(class_scope_with_brand->brand());
-  }
-
-  DeclarationScope* constructor_scope = info()->scope()->GetConstructorScope();
-  // The constructor scope should not be optimized away because it has
-  // .new.target and .this_function variables.
-  DCHECK_NOT_NULL(constructor_scope);
-
-  if (!IsDerivedConstructor(info()->literal()->kind()) &&
-      constructor_scope->outer_scope()->is_class_scope() &&
-      !constructor_scope->private_name_lookup_skips_outer_class()) {
+  // If it's a class constructor, we can rely on the
+  // class_scope_has_private_brand bit to tell if it needs private brand
+  // initialization, and if that's the case we are certain that its outer
+  // scope requires a context to keep the brand variable.
+  if (IsClassConstructor(info()->literal()->kind())) {
+    if (info()->literal()->class_scope_has_private_brand()) {
+      class_scope_with_brand = info()->scope()->outer_scope()->AsClassScope();
+      DCHECK_NOT_NULL(class_scope_with_brand->brand());
+    }
+  } else {
+    // If it's not a class constructor, then it could be the arrow function
+    // or eval() in the constructor. The constructor scope should require a
+    // context because it has .new.target and .this_function variables.
+    DeclarationScope* constructor_scope =
+        info()->scope()->GetConstructorScope();
+    DCHECK_NOT_NULL(constructor_scope);
+    // It can't be a constructor scope, so the class_scope_has_private_brand
+    // bit is always false.
     DCHECK(!info()->literal()->class_scope_has_private_brand());
-    ClassScope* outer = constructor_scope->outer_scope()->AsClassScope();
-    if (outer->brand() != nullptr) {
-      class_scope_with_brand = outer;
+    // If the outer scope of the constructor scope isn't a class scope, the
+    // class scope doesn't need a context so it must be without a brand.
+    // If the outer scope is a class scope, it could still be an outer
+    // class scope in heritage position wrapping the actual class scope
+    // for the constructor, which is indicated by the
+    // private_name_lookup_skips_outer_class bit, in that case we don't look
+    // at the outer scope to avoid install the brand of that outer class scope.
+    if (constructor_scope->outer_scope()->is_class_scope() &&
+        !constructor_scope->private_name_lookup_skips_outer_class()) {
+      ClassScope* outer = constructor_scope->outer_scope()->AsClassScope();
+      if (outer->brand() != nullptr) {
+        class_scope_with_brand = outer;
+      }
     }
   }
 

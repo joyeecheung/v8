@@ -1473,14 +1473,10 @@ DeclarationScope* Scope::GetReceiverScope() {
 
 DeclarationScope* Scope::GetConstructorScope() {
   Scope* scope = this;
-  while (!(scope != nullptr && scope->is_declaration_scope() &&
-           IsClassConstructor(scope->AsDeclarationScope()->function_kind()))) {
+  while (scope != nullptr && !scope->IsConstructorScope()) {
     scope = scope->outer_scope();
   }
-  if (!scope->is_declaration_scope()) {
-    return nullptr;
-  }
-  if (!IsClassConstructor(scope->AsDeclarationScope()->function_kind())) {
+  if (scope == nullptr || !scope->IsConstructorScope()) {
     return nullptr;
   }
   return scope->AsDeclarationScope();
@@ -1551,6 +1547,11 @@ void Scope::ForEach(FunctionType callback) {
       scope = scope->sibling_;
     }
   }
+}
+
+bool Scope::IsConstructorScope() const {
+  return is_declaration_scope() &&
+         IsClassConstructor(AsDeclarationScope()->function_kind());
 }
 
 bool Scope::IsOuterScopeOf(Scope* other) const {
@@ -2632,6 +2633,9 @@ void DeclarationScope::RecalcPrivateNameContextChain() {
   this->ForEach([](Scope* scope) {
     Scope* outer = scope->outer_scope();
     if (!outer) return Iteration::kDescend;
+    // When the class scopes are directly nested, like this
+    // class A extends class B { /* something that requires context */ } {}
+    // We shouldn't reset B's skip bit with A's bit.
     if (!outer->NeedsContext() &&
         !(scope->is_class_scope() &&
           scope->private_name_lookup_skips_outer_class())) {
@@ -3098,6 +3102,10 @@ void PrivateNameScopeIterator::AddUnresolvedPrivateName(VariableProxy* proxy) {
 }
 
 void PrivateNameScopeIterator::RecordNestedSuperCall() {
+  // This can be called when the class is parsed for the first time and the
+  // derived class scope has not done parsing yet so we don't know if
+  // it needs a context or not. Record a recalculation bit so that it gets
+  // marked properly later.
   start_scope_->GetClosureScope()->RecordNeedsPrivateNameContextChainRecalc();
 }
 }  // namespace internal
