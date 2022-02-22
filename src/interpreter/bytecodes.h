@@ -144,17 +144,17 @@ namespace interpreter {
     OperandType::kImm, OperandType::kUImm)                                     \
                                                                                \
   /* Propery stores (StoreIC) operations */                                    \
-  V(StaNamedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
+  V(StaSetNamedProperty, ImplicitRegisterUse::kReadWriteAccumulator,           \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(StaNamedOwnProperty, ImplicitRegisterUse::kReadWriteAccumulator,           \
+  V(StaDefineNamedOwnProperty, ImplicitRegisterUse::kReadWriteAccumulator,     \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(StaKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
+  V(StaSetKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,           \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
-  V(StaKeyedPropertyAsDefine, ImplicitRegisterUse::kReadWriteAccumulator,      \
+  V(StaDefineKeyedOwnProperty, ImplicitRegisterUse::kReadWriteAccumulator,     \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
   V(StaInArrayLiteral, ImplicitRegisterUse::kReadWriteAccumulator,             \
     OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
-  V(StaDataPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,           \
+  V(StaDefineKeyedOwnPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator, \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
     OperandType::kIdx)                                                         \
   V(CollectTypeProfile, ImplicitRegisterUse::kReadAccumulator,                 \

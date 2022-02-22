@@ -867,10 +867,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::StoreDataPropertyInLiteral(
+BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnPropertyInLiteral(
     Register object, Register name, DataPropertyInLiteralFlags flags,
     int feedback_slot) {
-  OutputStaDataPropertyInLiteral(object, name, flags, feedback_slot);
+  OutputStaDefineKeyedOwnPropertyInLiteral(object, name, flags, feedback_slot);
   return *this;
 }
 
@@ -879,54 +879,54 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CollectTypeProfile(int position) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetNamedProperty(
     Register object, size_t name_index, int feedback_slot,
     LanguageMode language_mode) {
   // Ensure that language mode is in sync with the IC slot kind.
   DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
                 FeedbackVector::ToSlot(feedback_slot))),
             language_mode);
-  OutputStaNamedProperty(object, name_index, feedback_slot);
+  OutputStaSetNamedProperty(object, name_index, feedback_slot);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetNamedProperty(
     Register object, const AstRawString* name, int feedback_slot,
     LanguageMode language_mode) {
   size_t name_index = GetConstantPoolEntry(name);
-  return StoreNamedProperty(object, name_index, feedback_slot, language_mode);
+  return SetNamedProperty(object, name_index, feedback_slot, language_mode);
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedOwnProperty(
+BytecodeArrayBuilder& BytecodeArrayBuilder::DefineNamedOwnProperty(
     Register object, const AstRawString* name, int feedback_slot) {
   size_t name_index = GetConstantPoolEntry(name);
   // Ensure that the store operation is in sync with the IC slot kind.
   DCHECK_EQ(
-      FeedbackSlotKind::kStoreOwnNamed,
+      FeedbackSlotKind::kDefineNamedOwn,
       feedback_vector_spec()->GetKind(FeedbackVector::ToSlot(feedback_slot)));
-  OutputStaNamedOwnProperty(object, name_index, feedback_slot);
+  OutputStaDefineNamedOwnProperty(object, name_index, feedback_slot);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetKeyedProperty(
     Register object, Register key, int feedback_slot,
     LanguageMode language_mode) {
   // Ensure that language mode is in sync with the IC slot kind.
   DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
                 FeedbackVector::ToSlot(feedback_slot))),
             language_mode);
-  OutputStaKeyedProperty(object, key, feedback_slot);
+  OutputStaSetKeyedProperty(object, key, feedback_slot);
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedProperty(
+BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnProperty(
     Register object, Register key, int feedback_slot) {
   // Ensure that the IC uses a strict language mode, as this is the only
   // supported mode for this use case.
   DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
                 FeedbackVector::ToSlot(feedback_slot))),
             LanguageMode::kStrict);
-  OutputStaKeyedPropertyAsDefine(object, key, feedback_slot);
+  OutputStaDefineKeyedOwnProperty(object, key, feedback_slot);
   return *this;
 }
 
@@ -939,8 +939,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreInArrayLiteral(
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreClassFieldsInitializer(
     Register constructor, int feedback_slot) {
   size_t name_index = ClassFieldsSymbolConstantPoolEntry();
-  return StoreNamedProperty(constructor, name_index, feedback_slot,
-                            LanguageMode::kStrict);
+  return SetNamedProperty(constructor, name_index, feedback_slot,
+                          LanguageMode::kStrict);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadClassFieldsInitializer(

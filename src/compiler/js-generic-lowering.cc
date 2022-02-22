@@ -404,8 +404,8 @@ void JSGenericLowering::LowerJSGetIterator(Node* node) {
   ReplaceWithBuiltinCall(node, Builtin::kGetIteratorWithFeedback);
 }
 
-void JSGenericLowering::LowerJSStoreProperty(Node* node) {
-  JSStorePropertyNode n(node);
+void JSGenericLowering::LowerJSSetKeyedPropertyProperty(Node* node) {
+  JSSetKeyedPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
@@ -422,8 +422,8 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   }
 }
 
-void JSGenericLowering::LowerJSDefineProperty(Node* node) {
-  JSDefinePropertyNode n(node);
+void JSGenericLowering::LowerJSDefineKeyedOwnProperty(Node* node) {
+  JSDefineKeyedOwnPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
@@ -432,16 +432,16 @@ void JSGenericLowering::LowerJSDefineProperty(Node* node) {
     n->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtin::kKeyedDefineOwnICTrampoline);
+    ReplaceWithBuiltinCall(node, Builtin::kDefineKeyedOwnICTrampoline);
   } else {
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    ReplaceWithBuiltinCall(node, Builtin::kKeyedDefineOwnIC);
+    ReplaceWithBuiltinCall(node, Builtin::kDefineKeyedOwnIC);
   }
 }
 
-void JSGenericLowering::LowerJSStoreNamed(Node* node) {
-  JSStoreNamedNode n(node);
+void JSGenericLowering::LowerJSSetNamedProperty(Node* node) {
+  JSSetNamedNode n(node);
   NamedAccess const& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
@@ -464,10 +464,10 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   }
 }
 
-void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
+void JSGenericLowering::LowerJSDefineNamedOwnProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  JSStoreNamedOwnNode n(node);
-  StoreNamedOwnParameters const& p = n.Parameters();
+  JSDefineNamedOwnPropertyNode n(node);
+  DefineNamedOwnPropertyParameters const& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
   STATIC_ASSERT(n.FeedbackVectorIndex() == 2);
@@ -476,13 +476,13 @@ void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
     node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::StoreOwnIC(isolate());
+    Callable callable = CodeFactory::DefineNamedOwnIC(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   } else {
     node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
-    Callable callable = CodeFactory::StoreOwnICInOptimizedCode(isolate());
+    Callable callable = CodeFactory::DefineNamedOwnICInOptimizedCode(isolate());
     ReplaceWithBuiltinCall(node, callable, flags);
   }
 }
@@ -507,8 +507,8 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
   }
 }
 
-void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
-  JSStoreDataPropertyInLiteralNode n(node);
+void JSGenericLowering::LowerJSDefineKeyedOwnPropertyInLiteral(Node* node) {
+  JSDefineKeyedOwnPropertyInLiteralNode n(node);
   FeedbackParameter const& p = n.Parameters();
   STATIC_ASSERT(n.FeedbackVectorIndex() == 4);
   RelaxControls(node);

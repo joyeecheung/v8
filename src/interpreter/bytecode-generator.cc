@@ -942,8 +942,8 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
   enum class SlotKind {
     kStoreGlobalSloppy,
     kStoreGlobalStrict,
-    kStoreNamedStrict,
-    kStoreNamedSloppy,
+    kSetNamedStrict,
+    kSetNamedSloppy,
     kLoadProperty,
     kLoadSuperProperty,
     kLoadGlobalNotInsideTypeof,
@@ -2770,9 +2770,12 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
       DataPropertyInLiteralFlags data_property_flags =
           DataPropertyInLiteralFlag::kNoFlags;
       FeedbackSlot slot =
-          feedback_spec()->AddStoreDataPropertyInLiteralICSlot();
-      builder()->LoadAccumulatorWithRegister(name).StoreDataPropertyInLiteral(
-          class_constructor, key, data_property_flags, feedback_index(slot));
+          feedback_spec()->AddDefineKeyedOwnPropertyInLiteralICSlot();
+      builder()
+          ->LoadAccumulatorWithRegister(name)
+          .DefineKeyedOwnPropertyInLiteral(class_constructor, key,
+                                           data_property_flags,
+                                           feedback_index(slot));
     }
 
     RegisterList args = register_allocator()->NewRegisterList(1);
@@ -2846,15 +2849,15 @@ void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
   VisitForAccumulatorValue(property->value());
 
   if (is_literal_store) {
-    FeedbackSlot slot = feedback_spec()->AddStoreOwnICSlot();
-    builder()->StoreNamedOwnProperty(
+    FeedbackSlot slot = feedback_spec()->AddDefineNamedOwnICSlot();
+    builder()->DefineNamedOwnProperty(
         builder()->Receiver(),
         property->key()->AsLiteral()->AsRawPropertyName(),
         feedback_index(slot));
   } else {
-    FeedbackSlot slot = feedback_spec()->AddKeyedDefineOwnICSlot();
-    builder()->DefineKeyedProperty(builder()->Receiver(), key,
-                                   feedback_index(slot));
+    FeedbackSlot slot = feedback_spec()->AddDefineKeyedOwnICSlot();
+    builder()->DefineKeyedOwnProperty(builder()->Receiver(), key,
+                                      feedback_index(slot));
   }
 }
 
@@ -2901,11 +2904,11 @@ void BytecodeGenerator::BuildPrivateBrandInitialization(Register receiver,
   ContextScope* class_context = execution_context()->Previous(depth);
   if (class_context) {
     Register brand_reg = register_allocator()->NewRegister();
-    FeedbackSlot slot = feedback_spec()->AddKeyedDefineOwnICSlot();
+    FeedbackSlot slot = feedback_spec()->AddDefineKeyedOwnICSlot();
     builder()
         ->StoreAccumulatorInRegister(brand_reg)
         .LoadAccumulatorWithRegister(class_context->reg())
-        .DefineKeyedProperty(receiver, brand_reg, feedback_index(slot));
+        .DefineKeyedOwnProperty(receiver, brand_reg, feedback_index(slot));
   } else {
     // We are in the slow case where super() is called from a nested
     // arrow function or a eval(), so the class scope context isn't
@@ -3117,13 +3120,13 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         if (property->emit_store()) {
           VisitForAccumulatorValue(property->value());
           if (key->IsStringLiteral()) {
-            FeedbackSlot slot = feedback_spec()->AddStoreOwnICSlot();
-            builder()->StoreNamedOwnProperty(literal, key->AsRawPropertyName(),
-                                             feedback_index(slot));
+            FeedbackSlot slot = feedback_spec()->AddDefineNamedOwnICSlot();
+            builder()->DefineNamedOwnProperty(literal, key->AsRawPropertyName(),
+                                              feedback_index(slot));
           } else {
-            FeedbackSlot slot = feedback_spec()->AddKeyedDefineOwnICSlot();
-            builder()->DefineKeyedProperty(literal, key_reg,
-                                           feedback_index(slot));
+            FeedbackSlot slot = feedback_spec()->AddDefineKeyedOwnICSlot();
+            builder()->DefineKeyedOwnProperty(literal, key_reg,
+                                              feedback_index(slot));
           }
         } else {
           VisitForEffect(property->value());
@@ -3224,7 +3227,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
         // Static class fields require the name property to be set on
         // the class, meaning we can't wait until the
-        // StoreDataPropertyInLiteral call later to set the name.
+        // DefineKeyedOwnPropertyInLiteral call later to set the name.
         if (property->value()->IsClassLiteral() &&
             property->value()->AsClassLiteral()->static_initializer() !=
                 nullptr) {
@@ -3242,11 +3245,11 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         }
 
         FeedbackSlot slot =
-            feedback_spec()->AddStoreDataPropertyInLiteralICSlot();
+            feedback_spec()->AddDefineKeyedOwnPropertyInLiteralICSlot();
         builder()
             ->LoadAccumulatorWithRegister(value)
-            .StoreDataPropertyInLiteral(literal, key, data_property_flags,
-                                        feedback_index(slot));
+            .DefineKeyedOwnPropertyInLiteral(literal, key, data_property_flags,
+                                             feedback_index(slot));
         break;
       }
       case ObjectLiteral::Property::GETTER:
@@ -3478,8 +3481,8 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
           ->LoadAccumulatorWithRegister(index)
           .UnaryOperation(Token::INC, feedback_index(index_slot.Get()))
           .StoreAccumulatorInRegister(index)
-          .StoreNamedProperty(array, length, feedback_index(length_slot.Get()),
-                              LanguageMode::kStrict);
+          .SetNamedProperty(array, length, feedback_index(length_slot.Get()),
+                            LanguageMode::kStrict);
     }
   }
 
@@ -3825,9 +3828,9 @@ void BytecodeGenerator::BuildLoadNamedProperty(const Expression* object_expr,
   builder()->LoadNamedProperty(object, name, feedback_index(slot));
 }
 
-void BytecodeGenerator::BuildStoreNamedProperty(const Expression* object_expr,
-                                                Register object,
-                                                const AstRawString* name) {
+void BytecodeGenerator::BuildSetNamedProperty(const Expression* object_expr,
+                                              Register object,
+                                              const AstRawString* name) {
   Register value;
   if (!execution_result()->IsEffect()) {
     value = register_allocator()->NewRegister();
@@ -3835,8 +3838,8 @@ void BytecodeGenerator::BuildStoreNamedProperty(const Expression* object_expr,
   }
 
   FeedbackSlot slot = GetCachedStoreICSlot(object_expr, name);
-  builder()->StoreNamedProperty(object, name, feedback_index(slot),
-                                language_mode());
+  builder()->SetNamedProperty(object, name, feedback_index(slot),
+                              language_mode());
 
   if (!execution_result()->IsEffect()) {
     builder()->LoadAccumulatorWithRegister(value);
@@ -4463,8 +4466,8 @@ void BytecodeGenerator::BuildAssignment(
       break;
     }
     case NAMED_PROPERTY: {
-      BuildStoreNamedProperty(lhs_data.object_expr(), lhs_data.object(),
-                              lhs_data.name());
+      BuildSetNamedProperty(lhs_data.object_expr(), lhs_data.object(),
+                            lhs_data.name());
       break;
     }
     case KEYED_PROPERTY: {
@@ -4474,8 +4477,8 @@ void BytecodeGenerator::BuildAssignment(
         value = register_allocator()->NewRegister();
         builder()->StoreAccumulatorInRegister(value);
       }
-      builder()->StoreKeyedProperty(lhs_data.object(), lhs_data.key(),
-                                    feedback_index(slot), language_mode());
+      builder()->SetKeyedProperty(lhs_data.object(), lhs_data.key(),
+                                  feedback_index(slot), language_mode());
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
@@ -6027,8 +6030,8 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
         value = register_allocator()->NewRegister();
         builder()->StoreAccumulatorInRegister(value);
       }
-      builder()->StoreNamedProperty(object, name, feedback_index(slot),
-                                    language_mode());
+      builder()->SetNamedProperty(object, name, feedback_index(slot),
+                                  language_mode());
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
@@ -6041,8 +6044,8 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
         value = register_allocator()->NewRegister();
         builder()->StoreAccumulatorInRegister(value);
       }
-      builder()->StoreKeyedProperty(object, key, feedback_index(slot),
-                                    language_mode());
+      builder()->SetKeyedProperty(object, key, feedback_index(slot),
+                                  language_mode());
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
@@ -7273,9 +7276,8 @@ FeedbackSlot BytecodeGenerator::GetCachedStoreICSlot(const Expression* expr,
     return feedback_spec()->AddStoreICSlot(language_mode());
   }
   FeedbackSlotCache::SlotKind slot_kind =
-      is_strict(language_mode())
-          ? FeedbackSlotCache::SlotKind::kStoreNamedStrict
-          : FeedbackSlotCache::SlotKind::kStoreNamedSloppy;
+      is_strict(language_mode()) ? FeedbackSlotCache::SlotKind::kSetNamedStrict
+                                 : FeedbackSlotCache::SlotKind::kSetNamedSloppy;
   if (!expr->IsVariableProxy()) {
     return feedback_spec()->AddStoreICSlot(language_mode());
   }

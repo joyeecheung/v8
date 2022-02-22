@@ -58,7 +58,7 @@ void Builtins::Generate_KeyedStoreIC_Megamorphic(
   KeyedStoreGenericGenerator::Generate(state);
 }
 
-void Builtins::Generate_KeyedDefineOwnIC_Megamorphic(
+void Builtins::Generate_DefineKeyedOwnIC_Megamorphic(
     compiler::CodeAssemblerState* state) {
   KeyedDefineOwnGenericGenerator::Generate(state);
 }
@@ -68,9 +68,9 @@ void Builtins::Generate_StoreIC_NoFeedback(
   StoreICNoFeedbackGenerator::Generate(state);
 }
 
-void Builtins::Generate_StoreOwnIC_NoFeedback(
+void Builtins::Generate_DefineNamedOwnIC_NoFeedback(
     compiler::CodeAssemblerState* state) {
-  StoreOwnICNoFeedbackGenerator::Generate(state);
+  DefineNamedOwnICNoFeedbackGenerator::Generate(state);
 }
 
 // All possible fast-to-fast transitions. Transitions to dictionary mode are not

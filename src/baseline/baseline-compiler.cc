@@ -921,7 +921,7 @@ void BaselineCompiler::VisitStaModuleVariable() {
   __ StoreTaggedFieldWithWriteBarrier(scratch, Cell::kValueOffset, value);
 }
 
-void BaselineCompiler::VisitStaNamedProperty() {
+void BaselineCompiler::VisitStaSetNamedProperty() {
   CallBuiltin<Builtin::kStoreICBaseline>(
       RegisterOperand(0),               // object
       Constant<Name>(1),                // name
@@ -929,15 +929,15 @@ void BaselineCompiler::VisitStaNamedProperty() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaNamedOwnProperty() {
-  CallBuiltin<Builtin::kStoreOwnICBaseline>(
+void BaselineCompiler::VisitStaDefineNamedOwnProperty() {
+  CallBuiltin<Builtin::kDefineNamedOwnICBaseline>(
       RegisterOperand(0),               // object
       Constant<Name>(1),                // name
       kInterpreterAccumulatorRegister,  // value
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaKeyedProperty() {
+void BaselineCompiler::VisitStaSetKeyedProperty() {
   CallBuiltin<Builtin::kKeyedStoreICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key
@@ -945,8 +945,8 @@ void BaselineCompiler::VisitStaKeyedProperty() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaKeyedPropertyAsDefine() {
-  CallBuiltin<Builtin::kKeyedDefineOwnICBaseline>(
+void BaselineCompiler::VisitStaDefineKeyedOwnProperty() {
+  CallBuiltin<Builtin::kDefineKeyedOwnICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key
       kInterpreterAccumulatorRegister,  // value
@@ -961,10 +961,11 @@ void BaselineCompiler::VisitStaInArrayLiteral() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaDataPropertyInLiteral() {
-  // Here we should save the accumulator, since StaDataPropertyInLiteral doesn't
-  // write the accumulator, but Runtime::kDefineDataPropertyInLiteral returns
-  // the value that we got from the accumulator so this still works.
+void BaselineCompiler::VisitStaDefineKeyedOwnPropertyInLiteral() {
+  // Here we should save the accumulator, since
+  // StaDefineKeyedOwnPropertyInLiteral doesn't write the accumulator, but
+  // Runtime::kDefineDataPropertyInLiteral returns the value that we got from
+  // the accumulator so this still works.
   CallRuntime(Runtime::kDefineDataPropertyInLiteral,
               RegisterOperand(0),               // object
               RegisterOperand(1),               // name

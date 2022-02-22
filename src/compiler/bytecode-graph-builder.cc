@@ -226,8 +226,8 @@ class BytecodeGraphBuilder {
   enum class StoreMode {
     // Check the prototype chain before storing.
     kNormal,
-    // Store value to the receiver without checking the prototype chain.
-    kOwn,
+    // Define value to the receiver without checking the prototype chain.
+    kDefineOwn,
   };
   void BuildNamedStore(StoreMode store_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
@@ -276,7 +276,7 @@ class BytecodeGraphBuilder {
       const Operator* op, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedLoadKeyed(
       const Operator* op, Node* receiver, Node* key, FeedbackSlot slot);
-  JSTypeHintLowering::LoweringResult TryBuildSimplifiedStoreNamed(
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedStoreNamedProperty(
       const Operator* op, Node* receiver, Node* value, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedStoreKeyed(
       const Operator* op, Node* receiver, Node* key, Node* value,
@@ -1600,7 +1600,7 @@ void BytecodeGraphBuilder::VisitStaInArrayLiteral() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
+void BytecodeGraphBuilder::VisitStaDefineKeyedOwnPropertyInLiteral() {
   PrepareEagerCheckpoint();
 
   Node* object =
@@ -1611,7 +1611,7 @@ void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
   int flags = bytecode_iterator().GetFlagOperand(2);
   FeedbackSource feedback =
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(3));
-  const Operator* op = javascript()->StoreDataPropertyInLiteral(feedback);
+  const Operator* op = javascript()->DefineKeyedOwnPropertyInLiteral(feedback);
 
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedStoreKeyed(op, object, name, value, feedback.slot);
@@ -2038,20 +2038,20 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op;
-  if (store_mode == StoreMode::kOwn) {
-    DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+  if (store_mode == StoreMode::kDefineOwn) {
+    DCHECK_EQ(FeedbackSlotKind::kDefineNamedOwn,
               broker()->GetFeedbackSlotKind(feedback));
 
-    op = javascript()->StoreNamedOwn(name, feedback);
+    op = javascript()->DefineNamedOwnProperty(name, feedback);
   } else {
     DCHECK_EQ(StoreMode::kNormal, store_mode);
     LanguageMode language_mode =
         GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(feedback));
-    op = javascript()->StoreNamed(language_mode, name, feedback);
+    op = javascript()->SetNamedProperty(language_mode, name, feedback);
   }
 
   JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedStoreNamed(op, object, value, feedback.slot);
+      TryBuildSimplifiedStoreNamedProperty(op, object, value, feedback.slot);
   if (lowering.IsExit()) return;
 
   Node* node = nullptr;
@@ -2065,15 +2065,15 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitStaNamedProperty() {
+void BytecodeGraphBuilder::VisitStaSetNamedProperty() {
   BuildNamedStore(StoreMode::kNormal);
 }
 
-void BytecodeGraphBuilder::VisitStaNamedOwnProperty() {
-  BuildNamedStore(StoreMode::kOwn);
+void BytecodeGraphBuilder::VisitStaDefineNamedOwnProperty() {
+  BuildNamedStore(StoreMode::kDefineOwn);
 }
 
-void BytecodeGraphBuilder::VisitStaKeyedProperty() {
+void BytecodeGraphBuilder::VisitStaSetKeyedProperty() {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* object =
@@ -2084,7 +2084,7 @@ void BytecodeGraphBuilder::VisitStaKeyedProperty() {
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(2));
   LanguageMode language_mode =
       GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(source));
-  const Operator* op = javascript()->StoreProperty(language_mode, source);
+  const Operator* op = javascript()->SetKeyedProperty(language_mode, source);
 
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedStoreKeyed(op, object, key, value, source.slot);
@@ -2095,10 +2095,10 @@ void BytecodeGraphBuilder::VisitStaKeyedProperty() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    STATIC_ASSERT(JSStorePropertyNode::ObjectIndex() == 0);
-    STATIC_ASSERT(JSStorePropertyNode::KeyIndex() == 1);
-    STATIC_ASSERT(JSStorePropertyNode::ValueIndex() == 2);
-    STATIC_ASSERT(JSStorePropertyNode::FeedbackVectorIndex() == 3);
+    STATIC_ASSERT(JSSetKeyedPropertyNode::ObjectIndex() == 0);
+    STATIC_ASSERT(JSSetKeyedPropertyNode::KeyIndex() == 1);
+    STATIC_ASSERT(JSSetKeyedPropertyNode::ValueIndex() == 2);
+    STATIC_ASSERT(JSSetKeyedPropertyNode::FeedbackVectorIndex() == 3);
     DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, key, value, feedback_vector_node());
   }
@@ -2106,7 +2106,7 @@ void BytecodeGraphBuilder::VisitStaKeyedProperty() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitStaKeyedPropertyAsDefine() {
+void BytecodeGraphBuilder::VisitStaDefineKeyedOwnProperty() {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* object =
@@ -2118,7 +2118,8 @@ void BytecodeGraphBuilder::VisitStaKeyedPropertyAsDefine() {
   LanguageMode language_mode =
       GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(source));
 
-  const Operator* op = javascript()->DefineProperty(language_mode, source);
+  const Operator* op =
+      javascript()->DefineKeyedOwnProperty(language_mode, source);
 
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedStoreKeyed(op, object, key, value, source.slot);
@@ -2129,10 +2130,10 @@ void BytecodeGraphBuilder::VisitStaKeyedPropertyAsDefine() {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    STATIC_ASSERT(JSDefinePropertyNode::ObjectIndex() == 0);
-    STATIC_ASSERT(JSDefinePropertyNode::KeyIndex() == 1);
-    STATIC_ASSERT(JSDefinePropertyNode::ValueIndex() == 2);
-    STATIC_ASSERT(JSDefinePropertyNode::FeedbackVectorIndex() == 3);
+    STATIC_ASSERT(JSDefineKeyedOwnPropertyNode::ObjectIndex() == 0);
+    STATIC_ASSERT(JSDefineKeyedOwnPropertyNode::KeyIndex() == 1);
+    STATIC_ASSERT(JSDefineKeyedOwnPropertyNode::ValueIndex() == 2);
+    STATIC_ASSERT(JSDefineKeyedOwnPropertyNode::FeedbackVectorIndex() == 3);
     DCHECK(IrOpcode::IsFeedbackCollectingOpcode(op->opcode()));
     node = NewNode(op, object, key, value, feedback_vector_node());
   }
@@ -4152,9 +4153,10 @@ BytecodeGraphBuilder::TryBuildSimplifiedLoadKeyed(const Operator* op,
 }
 
 JSTypeHintLowering::LoweringResult
-BytecodeGraphBuilder::TryBuildSimplifiedStoreNamed(const Operator* op,
-                                                   Node* receiver, Node* value,
-                                                   FeedbackSlot slot) {
+BytecodeGraphBuilder::TryBuildSimplifiedStoreNamedProperty(const Operator* op,
+                                                           Node* receiver,
+                                                           Node* value,
+                                                           FeedbackSlot slot) {
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =

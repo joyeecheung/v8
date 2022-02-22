@@ -336,7 +336,7 @@ namespace internal {
   F(DefineObjectOwnProperty, 3, 1)                              \
   F(SetNamedProperty, 3, 1)                                     \
   F(SetOwnPropertyIgnoreAttributes, 4, 1)                       \
-  F(StoreDataPropertyInLiteral, 3, 1)                           \
+  F(DefineKeyedOwnPropertyInLiteral, 3, 1)                      \
   F(ShrinkNameDictionary, 1, 1)                                 \
   F(ShrinkSwissNameDictionary, 1, 1)                            \
   F(ToFastProperties, 1, 1)                                     \
@@ -640,11 +640,11 @@ namespace internal {
   F(ElementsTransitionAndStoreIC_Miss, 6, 1) \
   F(KeyedLoadIC_Miss, 4, 1)                  \
   F(KeyedStoreIC_Miss, 5, 1)                 \
-  F(KeyedDefineOwnIC_Miss, 5, 1)             \
+  F(DefineKeyedOwnIC_Miss, 5, 1)             \
   F(StoreInArrayLiteralIC_Miss, 5, 1)        \
-  F(StoreOwnIC_Slow, 3, 1)                   \
+  F(DefineNamedOwnIC_Slow, 3, 1)             \
   F(KeyedStoreIC_Slow, 3, 1)                 \
-  F(KeyedDefineOwnIC_Slow, 3, 1)             \
+  F(DefineKeyedOwnIC_Slow, 3, 1)             \
   F(LoadElementWithInterceptor, 2, 1)        \
   F(LoadGlobalIC_Miss, 4, 1)                 \
   F(LoadGlobalIC_Slow, 3, 1)                 \
@@ -658,7 +658,7 @@ namespace internal {
   F(StoreGlobalICNoFeedback_Miss, 2, 1)      \
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
-  F(StoreOwnIC_Miss, 5, 1)                   \
+  F(DefineNamedOwnIC_Miss, 5, 1)             \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
   F(StorePropertyWithInterceptor, 5, 1)      \
   F(CloneObjectIC_Miss, 4, 1)                \

@@ -923,7 +923,7 @@ RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
 // and does not have a flags parameter for performing SetFunctionName().
 //
 // Currently, this is used for ObjectLiteral spread properties.
-RUNTIME_FUNCTION(Runtime_StoreDataPropertyInLiteral) {
+RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 
@@ -1175,8 +1175,9 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
                                                     Just(kDontThrow))
             .IsJust());
 
-  // Return the value so that BaselineCompiler::VisitStaDataPropertyInLiteral
-  // doesn't have to save the accumulator.
+  // Return the value so that
+  // BaselineCompiler::VisitStaDefineKeyedOwnPropertyInLiteral doesn't have to
+  // save the accumulator.
   return *value;
 }
 

@@ -589,14 +589,14 @@ IGNITION_HANDLER(LdaKeyedProperty, InterpreterAssembler) {
   Dispatch();
 }
 
-class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
+class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
  public:
-  InterpreterStoreNamedPropertyAssembler(CodeAssemblerState* state,
-                                         Bytecode bytecode,
-                                         OperandScale operand_scale)
+  InterpreterSetNamedPropertyAssembler(CodeAssemblerState* state,
+                                       Bytecode bytecode,
+                                       OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void StaNamedProperty(Callable ic, NamedPropertyType property_type) {
+  void StaSetNamedProperty(Callable ic, NamedPropertyType property_type) {
     TNode<Object> object = LoadRegisterAtOperandIndex(0);
     TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
     TNode<Object> value = GetAccumulator();
@@ -616,31 +616,33 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
   }
 };
 
-// StaNamedProperty <object> <name_index> <slot>
+// StaSetNamedProperty <object> <name_index> <slot>
 //
 // Calls the StoreIC at FeedBackVector slot <slot> for <object> and
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
-IGNITION_HANDLER(StaNamedProperty, InterpreterStoreNamedPropertyAssembler) {
+IGNITION_HANDLER(StaSetNamedProperty, InterpreterSetNamedPropertyAssembler) {
   Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreIC);
-  StaNamedProperty(ic, NamedPropertyType::kNotOwn);
+  StaSetNamedProperty(ic, NamedPropertyType::kNotOwn);
 }
 
-// StaNamedOwnProperty <object> <name_index> <slot>
+// StaDefineNamedOwnProperty <object> <name_index> <slot>
 //
-// Calls the StoreOwnIC at FeedBackVector slot <slot> for <object> and
+// Calls the DefineNamedOwnIC at FeedBackVector slot <slot> for <object> and
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
-IGNITION_HANDLER(StaNamedOwnProperty, InterpreterStoreNamedPropertyAssembler) {
-  Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreOwnIC);
-  StaNamedProperty(ic, NamedPropertyType::kOwn);
+IGNITION_HANDLER(StaDefineNamedOwnProperty,
+                 InterpreterSetNamedPropertyAssembler) {
+  Callable ic = Builtins::CallableFor(isolate(), Builtin::kDefineNamedOwnIC);
+  StaSetNamedProperty(ic, NamedPropertyType::kOwn);
 }
 
-// StaKeyedProperty <object> <key> <slot>
+// StaSetKeyedProperty <object> <key> <slot>
 //
 // Calls the KeyedStoreIC at FeedbackVector slot <slot> for <object> and
-// the key <key> with the value in the accumulator.
-IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
+// the key <key> with the value in the accumulator. This could trigger
+// the setter and the set traps if necessary.
+IGNITION_HANDLER(StaSetKeyedProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();
@@ -659,14 +661,15 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   Dispatch();
 }
 
-// StaKeyedPropertyAsDefine <object> <key> <slot>
+// StaDefineKeyedOwnProperty <object> <key> <slot>
 //
-// Calls the KeyedDefineOwnIC at FeedbackVector slot <slot> for <object> and
+// Calls the DefineKeyedOwnIC at FeedbackVector slot <slot> for <object> and
 // the key <key> with the value in the accumulator.
 //
-// This is similar to StaKeyedProperty, but avoids checking the prototype chain,
-// and in the case of private names, throws if the private name already exists.
-IGNITION_HANDLER(StaKeyedPropertyAsDefine, InterpreterAssembler) {
+// This is similar to StaSetKeyedProperty, but avoids checking the prototype
+// chain, and in the case of private names, throws if the private name already
+// exists.
+IGNITION_HANDLER(StaDefineKeyedOwnProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();
@@ -675,7 +678,7 @@ IGNITION_HANDLER(StaKeyedPropertyAsDefine, InterpreterAssembler) {
   TNode<Context> context = GetContext();
 
   TVARIABLE(Object, var_result);
-  var_result = CallBuiltin(Builtin::kKeyedDefineOwnIC, context, object, name,
+  var_result = CallBuiltin(Builtin::kDefineKeyedOwnIC, context, object, name,
                            value, slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
@@ -710,7 +713,7 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
-// StaDataPropertyInLiteral <object> <name> <flags> <slot>
+// StaDefineKeyedOwnPropertyInLiteral <object> <name> <flags> <slot>
 //
 // Define a property <name> with value from the accumulator in <object>.
 // Property attributes and whether set_function_name are stored in
@@ -718,7 +721,7 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
 //
 // This definition is not observable and is used only for definitions
 // in object or class literals.
-IGNITION_HANDLER(StaDataPropertyInLiteral, InterpreterAssembler) {
+IGNITION_HANDLER(StaDefineKeyedOwnPropertyInLiteral, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();
