@@ -102,8 +102,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSHasProperty(node);
     case IrOpcode::kJSLoadProperty:
       return ReduceJSLoadProperty(node);
-    case IrOpcode::kJSSetKeyedPropertyProperty:
-      return ReduceJSSetKeyedPropertyProperty(node);
+    case IrOpcode::kJSSetKeyedProperty:
+      return ReduceJSSetKeyedProperty(node);
     case IrOpcode::kJSDefineKeyedOwnProperty:
       return ReduceJSDefineKeyedOwnProperty(node);
     case IrOpcode::kJSDefineNamedOwnProperty:
@@ -1092,7 +1092,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSSetNamedProperty ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSSetKeyedPropertyProperty ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
          node->opcode() == IrOpcode::kJSDefineNamedOwnProperty ||
          node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
@@ -1676,7 +1676,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* node, Node* index, Node* value,
     ElementAccessFeedback const& feedback) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSSetKeyedPropertyProperty ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
          node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
@@ -1992,7 +1992,7 @@ Reduction JSNativeContextSpecialization::ReducePropertyAccess(
     FeedbackSource const& source, AccessMode access_mode) {
   DCHECK_EQ(key == nullptr, static_name.has_value());
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSSetKeyedPropertyProperty ||
+         node->opcode() == IrOpcode::kJSSetKeyedProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
          node->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          node->opcode() == IrOpcode::kJSHasProperty ||
@@ -2177,8 +2177,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
                               FeedbackSource(p.feedback()), AccessMode::kLoad);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSSetKeyedPropertyProperty(
-    Node* node) {
+Reduction JSNativeContextSpecialization::ReduceJSSetKeyedProperty(Node* node) {
   JSSetKeyedPropertyNode n(node);
   PropertyAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();

@@ -550,7 +550,7 @@ JSTypeHintLowering::ReduceStoreKeyedOperation(const Operator* op, Node* obj,
                                               Node* key, Node* val,
                                               Node* effect, Node* control,
                                               FeedbackSlot slot) const {
-  DCHECK(op->opcode() == IrOpcode::kJSSetKeyedPropertyProperty ||
+  DCHECK(op->opcode() == IrOpcode::kJSSetKeyedProperty ||
          op->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
          op->opcode() == IrOpcode::kJSDefineKeyedOwnPropertyInLiteral ||
          op->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);

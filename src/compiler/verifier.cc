@@ -739,7 +739,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Any());
       CHECK(LoadGlobalParametersOf(node->op()).feedback().IsValid());
       break;
-    case IrOpcode::kJSSetKeyedPropertyProperty:
+    case IrOpcode::kJSSetKeyedProperty:
       CheckNotTyped(node);
       CHECK(PropertyAccessOf(node->op()).feedback().IsValid());
       break;

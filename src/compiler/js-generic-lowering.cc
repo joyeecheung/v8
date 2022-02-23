@@ -404,7 +404,7 @@ void JSGenericLowering::LowerJSGetIterator(Node* node) {
   ReplaceWithBuiltinCall(node, Builtin::kGetIteratorWithFeedback);
 }
 
-void JSGenericLowering::LowerJSSetKeyedPropertyProperty(Node* node) {
+void JSGenericLowering::LowerJSSetKeyedProperty(Node* node) {
   JSSetKeyedPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
   FrameState frame_state = n.frame_state();

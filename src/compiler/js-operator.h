@@ -532,7 +532,7 @@ class StoreGlobalParameters final {
 const StoreGlobalParameters& StoreGlobalParametersOf(const Operator* op);
 
 // Defines the property of an object for a keyed access. This is used
-// as a parameter by the JSLoadProperty and JSSetKeyedPropertyProperty
+// as a parameter by the JSLoadProperty and JSSetKeyedProperty
 // operators.
 class PropertyAccess final {
  public:
@@ -1303,7 +1303,7 @@ class JSSetKeyedPropertyNode final : public JSNodeWrapperBase {
  public:
   explicit constexpr JSSetKeyedPropertyNode(Node* node)
       : JSNodeWrapperBase(node) {
-    DCHECK_EQ(IrOpcode::kJSSetKeyedPropertyProperty, node->opcode());
+    DCHECK_EQ(IrOpcode::kJSSetKeyedProperty, node->opcode());
   }
 
   const PropertyAccess& Parameters() const {

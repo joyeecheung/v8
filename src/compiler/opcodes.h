@@ -174,7 +174,7 @@
   V(JSLoadNamed)                       \
   V(JSLoadNamedFromSuper)              \
   V(JSLoadGlobal)                      \
-  V(JSSetKeyedPropertyProperty)        \
+  V(JSSetKeyedProperty)                \
   V(JSDefineKeyedOwnProperty)          \
   V(JSSetNamedProperty)                \
   V(JSDefineNamedOwnProperty)          \
@@ -1151,7 +1151,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSStoreInArrayLiteral:
       case kJSSetNamedProperty:
       case kJSDefineNamedOwnProperty:
-      case kJSSetKeyedPropertyProperty:
+      case kJSSetKeyedProperty:
         return true;
       default:
         return false;

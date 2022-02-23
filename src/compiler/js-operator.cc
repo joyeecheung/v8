@@ -316,7 +316,7 @@ bool operator!=(PropertyAccess const& lhs, PropertyAccess const& rhs) {
 PropertyAccess const& PropertyAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSHasProperty ||
          op->opcode() == IrOpcode::kJSLoadProperty ||
-         op->opcode() == IrOpcode::kJSSetKeyedPropertyProperty ||
+         op->opcode() == IrOpcode::kJSSetKeyedProperty ||
          op->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   return OpParameter<PropertyAccess>(op);
 }
@@ -1119,11 +1119,11 @@ const Operator* JSOperatorBuilder::SetNamedProperty(
 const Operator* JSOperatorBuilder::SetKeyedProperty(
     LanguageMode language_mode, FeedbackSource const& feedback) {
   PropertyAccess access(language_mode, feedback);
-  return zone()->New<Operator1<PropertyAccess>>(                       // --
-      IrOpcode::kJSSetKeyedPropertyProperty, Operator::kNoProperties,  // opcode
-      "JSSetKeyedPropertyProperty",                                    // name
-      4, 1, 1, 0, 1, 2,                                                // counts
-      access);  // parameter
+  return zone()->New<Operator1<PropertyAccess>>(               // --
+      IrOpcode::kJSSetKeyedProperty, Operator::kNoProperties,  // opcode
+      "JSSetKeyedProperty",                                    // name
+      4, 1, 1, 0, 1, 2,                                        // counts
+      access);                                                 // parameter
 }
 
 const Operator* JSOperatorBuilder::DefineKeyedOwnProperty(
