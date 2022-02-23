@@ -1099,11 +1099,11 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
          node->opcode() == IrOpcode::kJSLoadNamedFromSuper ||
          node->opcode() == IrOpcode::kJSDefineKeyedOwnProperty);
   STATIC_ASSERT(JSLoadNamedNode::ObjectIndex() == 0 &&
-                JSSetNamedNode::ObjectIndex() == 0 &&
+                JSSetNamedPropertyNode::ObjectIndex() == 0 &&
                 JSLoadPropertyNode::ObjectIndex() == 0 &&
                 JSSetKeyedPropertyNode::ObjectIndex() == 0 &&
                 JSDefineNamedOwnPropertyNode::ObjectIndex() == 0 &&
-                JSSetNamedNode::ObjectIndex() == 0 &&
+                JSSetNamedPropertyNode::ObjectIndex() == 0 &&
                 JSDefineKeyedOwnPropertyInLiteralNode::ObjectIndex() == 0 &&
                 JSHasPropertyNode::ObjectIndex() == 0 &&
                 JSDefineKeyedOwnPropertyNode::ObjectIndex() == 0);
@@ -1578,7 +1578,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSSetNamedProperty(Node* node) {
-  JSSetNamedNode n(node);
+  JSSetNamedPropertyNode n(node);
   NamedAccess const& p = n.Parameters();
   if (!p.feedback().IsValid()) return NoChange();
   return ReducePropertyAccess(node, nullptr, p.name(broker()), n.value(),

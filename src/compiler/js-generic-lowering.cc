@@ -441,7 +441,7 @@ void JSGenericLowering::LowerJSDefineKeyedOwnProperty(Node* node) {
 }
 
 void JSGenericLowering::LowerJSSetNamedProperty(Node* node) {
-  JSSetNamedNode n(node);
+  JSSetNamedPropertyNode n(node);
   NamedAccess const& p = n.Parameters();
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();

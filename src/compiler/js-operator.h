@@ -1580,9 +1580,10 @@ class JSLoadNamedFromSuperNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
-class JSSetNamedNode final : public JSNodeWrapperBase {
+class JSSetNamedPropertyNode final : public JSNodeWrapperBase {
  public:
-  explicit constexpr JSSetNamedNode(Node* node) : JSNodeWrapperBase(node) {
+  explicit constexpr JSSetNamedPropertyNode(Node* node)
+      : JSNodeWrapperBase(node) {
     DCHECK_EQ(IrOpcode::kJSSetNamedProperty, node->opcode());
   }
 

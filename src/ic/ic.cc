@@ -1811,11 +1811,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
         isolate(), object, key,
         IsAnyDefineOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
     DCHECK_IMPLIES(IsDefineNamedOwnIC(), it.IsFound() && it.HolderIsReceiver());
-    // TODO(joyee): separate [[DefineOwnProperty]] semantics out of StoreIC.
+    // TODO(joyee): separate DefinedNamedOwnIC out of StoreIC.
     if (IsDefineNamedOwnIC()) {
-      // Private property should be defined via KeyedStoreIC with private
-      // symbols.
-      DCHECK(!name->IsPrivate());
       MAYBE_RETURN_NULL(
           JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
     } else {
@@ -1893,11 +1890,12 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                       : TraceIC("StoreIC", name);
   }
 
-  // TODO(joyee): separate [[DefineOwnProperty]] semantics out of StoreIC.
+  // TODO(joyee): separate DefinedNamedOwnIC out of StoreIC.
   // ES #sec-definefield
   // ES #sec-runtime-semantics-propertydefinitionevaluation
   if (IsDefineNamedOwnIC()) {
-    // Private property should be defined via KeyedStoreIC with private symbols.
+    // Private property should be defined via DefinedKeyedOwnIC or
+    // KeyedStoreIC with private symbols.
     DCHECK(!name->IsPrivate());
     MAYBE_RETURN_NULL(DefineOwnDataProperty(
         &it, original_state, value, Nothing<ShouldThrow>(), store_origin));
@@ -2831,7 +2829,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
 
   // When there is no feedback vector it is OK to use the SetNamedStrict as
-  // the feedback slot kind. We only need if it is DefineNamedOwnICKind when
+  // the feedback slot kind. We only reuse this for DefineNamedOwnIC when
   // installing the handler for storing const properties. This will happen only
   // when feedback vector is available.
   FeedbackSlotKind kind = FeedbackSlotKind::kSetNamedStrict;

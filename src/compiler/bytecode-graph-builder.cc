@@ -276,7 +276,7 @@ class BytecodeGraphBuilder {
       const Operator* op, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedLoadKeyed(
       const Operator* op, Node* receiver, Node* key, FeedbackSlot slot);
-  JSTypeHintLowering::LoweringResult TryBuildSimplifiedStoreNamedProperty(
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedStoreNamed(
       const Operator* op, Node* receiver, Node* value, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedStoreKeyed(
       const Operator* op, Node* receiver, Node* key, Node* value,
@@ -2051,7 +2051,7 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
   }
 
   JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedStoreNamedProperty(op, object, value, feedback.slot);
+      TryBuildSimplifiedStoreNamed(op, object, value, feedback.slot);
   if (lowering.IsExit()) return;
 
   Node* node = nullptr;
@@ -4153,10 +4153,9 @@ BytecodeGraphBuilder::TryBuildSimplifiedLoadKeyed(const Operator* op,
 }
 
 JSTypeHintLowering::LoweringResult
-BytecodeGraphBuilder::TryBuildSimplifiedStoreNamedProperty(const Operator* op,
-                                                           Node* receiver,
-                                                           Node* value,
-                                                           FeedbackSlot slot) {
+BytecodeGraphBuilder::TryBuildSimplifiedStoreNamed(const Operator* op,
+                                                   Node* receiver, Node* value,
+                                                   FeedbackSlot slot) {
   Node* effect = environment()->GetEffectDependency();
   Node* control = environment()->GetControlDependency();
   JSTypeHintLowering::LoweringResult result =
