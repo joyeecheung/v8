@@ -223,13 +223,13 @@ class BytecodeGraphBuilder {
   Node* BuildLoadGlobal(NameRef name, uint32_t feedback_slot_index,
                         TypeofMode typeof_mode);
 
-  enum class StoreMode {
+  enum class NamedStoreMode {
     // Check the prototype chain before storing.
-    kNormal,
+    kSet,
     // Define value to the receiver without checking the prototype chain.
     kDefineOwn,
   };
-  void BuildNamedStore(StoreMode store_mode);
+  void BuildNamedStore(NamedStoreMode store_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
@@ -2028,7 +2028,7 @@ void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
+void BytecodeGraphBuilder::BuildNamedStore(NamedStoreMode store_mode) {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* object =
@@ -2038,13 +2038,13 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
       CreateFeedbackSource(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op;
-  if (store_mode == StoreMode::kDefineOwn) {
+  if (store_mode == NamedStoreMode::kDefineOwn) {
     DCHECK_EQ(FeedbackSlotKind::kDefineNamedOwn,
               broker()->GetFeedbackSlotKind(feedback));
 
     op = javascript()->DefineNamedOwnProperty(name, feedback);
   } else {
-    DCHECK_EQ(StoreMode::kNormal, store_mode);
+    DCHECK_EQ(NamedStoreMode::kSet, store_mode);
     LanguageMode language_mode =
         GetLanguageModeFromSlotKind(broker()->GetFeedbackSlotKind(feedback));
     op = javascript()->SetNamedProperty(language_mode, name, feedback);
@@ -2066,11 +2066,11 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
 }
 
 void BytecodeGraphBuilder::VisitStaSetNamedProperty() {
-  BuildNamedStore(StoreMode::kNormal);
+  BuildNamedStore(NamedStoreMode::kSet);
 }
 
 void BytecodeGraphBuilder::VisitStaDefineNamedOwnProperty() {
-  BuildNamedStore(StoreMode::kDefineOwn);
+  BuildNamedStore(NamedStoreMode::kDefineOwn);
 }
 
 void BytecodeGraphBuilder::VisitStaSetKeyedProperty() {
