@@ -170,9 +170,9 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "StoreGlobalSloppy";
     case FeedbackSlotKind::kStoreGlobalStrict:
       return "StoreGlobalStrict";
-    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedSloppy:
       return "StoreKeyedSloppy";
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetKeyedStrict:
       return "StoreKeyedStrict";
     case FeedbackSlotKind::kStoreInArrayLiteral:
       return "StoreInArrayLiteral";
@@ -305,8 +305,8 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kSetNamedStrict:
       case FeedbackSlotKind::kDefineNamedOwn:
       case FeedbackSlotKind::kDefineKeyedOwn:
-      case FeedbackSlotKind::kStoreKeyedSloppy:
-      case FeedbackSlotKind::kStoreKeyedStrict:
+      case FeedbackSlotKind::kSetKeyedSloppy:
+      case FeedbackSlotKind::kSetKeyedStrict:
       case FeedbackSlotKind::kStoreInArrayLiteral:
       case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
       case FeedbackSlotKind::kTypeProfile:
@@ -567,8 +567,8 @@ void FeedbackNexus::ConfigureUninitialized() {
     }
     case FeedbackSlotKind::kSetNamedSloppy:
     case FeedbackSlotKind::kSetNamedStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kDefineNamedOwn:
     case FeedbackSlotKind::kDefineKeyedOwn:
@@ -606,8 +606,8 @@ bool FeedbackNexus::Clear() {
 
     case FeedbackSlotKind::kSetNamedSloppy:
     case FeedbackSlotKind::kSetNamedStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kDefineNamedOwn:
     case FeedbackSlotKind::kDefineKeyedOwn:
@@ -703,8 +703,8 @@ InlineCacheState FeedbackNexus::ic_state() const {
 
     case FeedbackSlotKind::kSetNamedSloppy:
     case FeedbackSlotKind::kSetNamedStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kSetKeyedSloppy:
+    case FeedbackSlotKind::kSetKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kDefineNamedOwn:
     case FeedbackSlotKind::kDefineKeyedOwn:

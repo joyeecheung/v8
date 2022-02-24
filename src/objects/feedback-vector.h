@@ -37,8 +37,8 @@ enum class FeedbackSlotKind : uint8_t {
   // Sloppy kinds come first, for easy language mode testing.
   kStoreGlobalSloppy,
   kSetNamedSloppy,
-  kStoreKeyedSloppy,
-  kLastSloppyKind = kStoreKeyedSloppy,
+  kSetKeyedSloppy,
+  kLastSloppyKind = kSetKeyedSloppy,
 
   // Strict and language mode unaware kinds.
   kCall,
@@ -51,7 +51,7 @@ enum class FeedbackSlotKind : uint8_t {
   kSetNamedStrict,
   kDefineNamedOwn,
   kDefineKeyedOwn,
-  kStoreKeyedStrict,
+  kSetKeyedStrict,
   kStoreInArrayLiteral,
   kBinaryOp,
   kCompareOp,
@@ -112,8 +112,8 @@ inline bool IsDefineKeyedOwnPropertyInLiteralKind(FeedbackSlotKind kind) {
 }
 
 inline bool IsKeyedStoreICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::kStoreKeyedSloppy ||
-         kind == FeedbackSlotKind::kStoreKeyedStrict;
+  return kind == FeedbackSlotKind::kSetKeyedSloppy ||
+         kind == FeedbackSlotKind::kSetKeyedStrict;
 }
 
 inline bool IsStoreInArrayLiteralICKind(FeedbackSlotKind kind) {
@@ -145,7 +145,7 @@ inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
          IsDefineKeyedOwnICKind(kind));
   STATIC_ASSERT(FeedbackSlotKind::kStoreGlobalSloppy <=
                 FeedbackSlotKind::kLastSloppyKind);
-  STATIC_ASSERT(FeedbackSlotKind::kStoreKeyedSloppy <=
+  STATIC_ASSERT(FeedbackSlotKind::kSetKeyedSloppy <=
                 FeedbackSlotKind::kLastSloppyKind);
   STATIC_ASSERT(FeedbackSlotKind::kSetNamedSloppy <=
                 FeedbackSlotKind::kLastSloppyKind);
@@ -443,8 +443,8 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
 
   FeedbackSlotKind GetKeyedStoreICSlotKind(LanguageMode language_mode) {
     STATIC_ASSERT(LanguageModeSize == 2);
-    return is_strict(language_mode) ? FeedbackSlotKind::kStoreKeyedStrict
-                                    : FeedbackSlotKind::kStoreKeyedSloppy;
+    return is_strict(language_mode) ? FeedbackSlotKind::kSetKeyedStrict
+                                    : FeedbackSlotKind::kSetKeyedSloppy;
   }
 
   FeedbackSlot AddKeyedStoreICSlot(LanguageMode language_mode) {

@@ -2996,7 +2996,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   // installed in feedback vectors. In such cases, we need to get the kind from
   // feedback vector slot since the handlers are used for both for StoreKeyed
   // and StoreInArrayLiteral kinds.
-  FeedbackSlotKind kind = FeedbackSlotKind::kStoreKeyedStrict;
+  FeedbackSlotKind kind = FeedbackSlotKind::kSetKeyedStrict;
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!maybe_vector->IsUndefined()) {
     DCHECK(maybe_vector->IsFeedbackVector());

@@ -710,7 +710,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreKeyedSloppy);
+    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kSetKeyedSloppy);
     CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kLoadKeyed);
   }
 
@@ -732,7 +732,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreKeyedStrict);
+    CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kSetKeyedStrict);
     CHECK_SLOT_KIND(helper, 2, FeedbackSlotKind::kLoadKeyed);
   }
 
