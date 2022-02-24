@@ -368,7 +368,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   const AstRawString* wide_name = ast_factory.GetOneByteString("var_wide_name");
 
   builder.DefineKeyedOwnPropertyInLiteral(
-      reg, reg, DataPropertyInLiteralFlag::kNoFlags, 0);
+      reg, reg, DefineKeyedOwnPropertyInLiteralFlag::kNoFlags, 0);
 
   // Emit wide context operations.
   builder.LoadContextSlot(reg, 1024, 0, BytecodeArrayBuilder::kMutableSlot)
