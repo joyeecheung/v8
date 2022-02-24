@@ -2633,9 +2633,10 @@ JSNativeContextSpecialization::ReduceJSDefineKeyedOwnPropertyInLiteral(
 
   NumberMatcher mflags(n.flags());
   CHECK(mflags.HasResolvedValue());
-  DataPropertyInLiteralFlags cflags(mflags.ResolvedValue());
-  DCHECK(!(cflags & DataPropertyInLiteralFlag::kDontEnum));
-  if (cflags & DataPropertyInLiteralFlag::kSetFunctionName) return NoChange();
+  DefineKeyedOwnPropertyInLiteralFlags cflags(mflags.ResolvedValue());
+  DCHECK(!(cflags & DefineKeyedOwnPropertyInLiteralFlag::kDontEnum));
+  if (cflags & DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName)
+    return NoChange();
 
   return ReducePropertyAccess(node, n.name(), base::nullopt, n.value(),
                               FeedbackSource(p.feedback()),

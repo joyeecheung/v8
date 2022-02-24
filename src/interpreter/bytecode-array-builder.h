@@ -157,8 +157,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.
   BytecodeArrayBuilder& DefineKeyedOwnPropertyInLiteral(
-      Register object, Register name, DataPropertyInLiteralFlags flags,
-      int feedback_slot);
+      Register object, Register name,
+      DefineKeyedOwnPropertyInLiteralFlags flags, int feedback_slot);
 
   // Collect type information for developer tools. The value for which we
   // record the type is stored in the accumulator.

@@ -919,11 +919,12 @@ RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
                                           StoreOrigin::kNamed));
 }
 
-// Similar to DefineDataPropertyInLiteral, but does not update feedback, and
+// Similar to DefineKeyedOwnPropertyInLiteral, but does not update feedback, and
 // and does not have a flags parameter for performing SetFunctionName().
 //
 // Currently, this is used for ObjectLiteral spread properties in CloneObjectIC
 // and for array literal creations in StoreInArrayLiteralIC.
+// TODO(joyee): merge this into DefineKeyedOwnPropertyInLiteral.
 RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral_Simple) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -1121,7 +1122,7 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
+RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(6, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
@@ -1149,12 +1150,13 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
     }
   }
 
-  DataPropertyInLiteralFlags flags(flag);
-  PropertyAttributes attrs = (flags & DataPropertyInLiteralFlag::kDontEnum)
-                                 ? PropertyAttributes::DONT_ENUM
-                                 : PropertyAttributes::NONE;
+  DefineKeyedOwnPropertyInLiteralFlags flags(flag);
+  PropertyAttributes attrs =
+      (flags & DefineKeyedOwnPropertyInLiteralFlag::kDontEnum)
+          ? PropertyAttributes::DONT_ENUM
+          : PropertyAttributes::NONE;
 
-  if (flags & DataPropertyInLiteralFlag::kSetFunctionName) {
+  if (flags & DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName) {
     DCHECK(value->IsJSFunction());
     Handle<JSFunction> function = Handle<JSFunction>::cast(value);
     DCHECK(!function->shared().HasSharedName());

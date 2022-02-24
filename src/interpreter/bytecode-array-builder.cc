@@ -868,7 +868,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnPropertyInLiteral(
-    Register object, Register name, DataPropertyInLiteralFlags flags,
+    Register object, Register name, DefineKeyedOwnPropertyInLiteralFlags flags,
     int feedback_slot) {
   OutputStaDefineKeyedOwnPropertyInLiteral(object, name, flags, feedback_slot);
   return *this;

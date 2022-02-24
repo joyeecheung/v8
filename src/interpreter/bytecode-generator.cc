@@ -2767,8 +2767,8 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
           ->LoadLiteral(ast_string_constants()->name_string())
           .StoreAccumulatorInRegister(key);
 
-      DataPropertyInLiteralFlags data_property_flags =
-          DataPropertyInLiteralFlag::kNoFlags;
+      DefineKeyedOwnPropertyInLiteralFlags data_property_flags =
+          DefineKeyedOwnPropertyInLiteralFlag::kNoFlags;
       FeedbackSlot slot =
           feedback_spec()->AddDefineKeyedOwnPropertyInLiteralICSlot();
       builder()
@@ -3238,10 +3238,11 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           value = VisitForRegisterValue(property->value());
         }
 
-        DataPropertyInLiteralFlags data_property_flags =
-            DataPropertyInLiteralFlag::kNoFlags;
+        DefineKeyedOwnPropertyInLiteralFlags data_property_flags =
+            DefineKeyedOwnPropertyInLiteralFlag::kNoFlags;
         if (property->NeedsSetFunctionName()) {
-          data_property_flags |= DataPropertyInLiteralFlag::kSetFunctionName;
+          data_property_flags |=
+              DefineKeyedOwnPropertyInLiteralFlag::kSetFunctionName;
         }
 
         FeedbackSlot slot =

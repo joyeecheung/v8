@@ -298,7 +298,7 @@ namespace internal {
   I(CreateIterResultObject, 2, 1)                               \
   F(CreatePrivateAccessors, 2, 1)                               \
   F(DefineAccessorPropertyUnchecked, 5, 1)                      \
-  F(DefineDataPropertyInLiteral, 6, 1)                          \
+  F(DefineKeyedOwnPropertyInLiteral, 6, 1)                      \
   F(DefineGetterPropertyUnchecked, 4, 1)                        \
   F(DefineSetterPropertyUnchecked, 4, 1)                        \
   F(DeleteProperty, 3, 1)                                       \

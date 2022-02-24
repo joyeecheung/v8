@@ -964,9 +964,9 @@ void BaselineCompiler::VisitStaInArrayLiteral() {
 void BaselineCompiler::VisitStaDefineKeyedOwnPropertyInLiteral() {
   // Here we should save the accumulator, since
   // StaDefineKeyedOwnPropertyInLiteral doesn't write the accumulator, but
-  // Runtime::kDefineDataPropertyInLiteral returns the value that we got from
-  // the accumulator so this still works.
-  CallRuntime(Runtime::kDefineDataPropertyInLiteral,
+  // Runtime::kDefineKeyedOwnPropertyInLiteral returns the value that we got
+  // from the accumulator so this still works.
+  CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,
               RegisterOperand(0),               // object
               RegisterOperand(1),               // name
               kInterpreterAccumulatorRegister,  // value

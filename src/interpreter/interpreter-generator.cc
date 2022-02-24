@@ -717,7 +717,7 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
 //
 // Define a property <name> with value from the accumulator in <object>.
 // Property attributes and whether set_function_name are stored in
-// DataPropertyInLiteralFlags <flags>.
+// DefineKeyedOwnPropertyInLiteralFlags <flags>.
 //
 // This definition is not observable and is used only for definitions
 // in object or class literals.
@@ -732,7 +732,7 @@ IGNITION_HANDLER(StaDefineKeyedOwnPropertyInLiteral, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
-  CallRuntime(Runtime::kDefineDataPropertyInLiteral, context, object, name,
+  CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context, object, name,
               value, flags, feedback_vector, slot);
   Dispatch();
 }
