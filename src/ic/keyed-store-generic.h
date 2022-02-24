@@ -34,7 +34,7 @@ class KeyedStoreGenericGenerator {
                                    TNode<Object> value);
 };
 
-class KeyedDefineOwnGenericGenerator {
+class DefineKeyedOwnGenericGenerator {
  public:
   static void Generate(compiler::CodeAssemblerState* state);
 };

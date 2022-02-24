@@ -60,7 +60,7 @@ void Builtins::Generate_KeyedStoreIC_Megamorphic(
 
 void Builtins::Generate_DefineKeyedOwnIC_Megamorphic(
     compiler::CodeAssemblerState* state) {
-  KeyedDefineOwnGenericGenerator::Generate(state);
+  DefineKeyedOwnGenericGenerator::Generate(state);
 }
 
 void Builtins::Generate_StoreIC_NoFeedback(

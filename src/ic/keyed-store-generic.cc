@@ -149,7 +149,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   bool IsKeyedStore() const { return mode_ == StoreMode::kOrdinary; }
   bool IsStoreInLiteral() const { return mode_ == StoreMode::kInLiteral; }
   bool IsDefineNamedOwn() const { return mode_ == StoreMode::kDefineNamedOwn; }
-  bool IsKeyedDefineOwn() const { return mode_ == StoreMode::kDefineKeyedOwn; }
+  bool IsDefineKeyedOwn() const { return mode_ == StoreMode::kDefineKeyedOwn; }
 
   bool ShouldCheckPrototype() const { return IsKeyedStore(); }
   bool ShouldReconfigureExisting() const { return IsStoreInLiteral(); }
@@ -161,7 +161,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
     // we don't care about the prototype chain.
     // Thus, we need the prototype check only for ordinary stores.
     DCHECK_IMPLIES(!IsKeyedStore(), IsStoreInLiteral() || IsDefineNamedOwn() ||
-                                        IsKeyedDefineOwn());
+                                        IsDefineKeyedOwn());
     return IsKeyedStore();
   }
 };
@@ -171,7 +171,7 @@ void KeyedStoreGenericGenerator::Generate(compiler::CodeAssemblerState* state) {
   assembler.KeyedStoreGeneric();
 }
 
-void KeyedDefineOwnGenericGenerator::Generate(
+void DefineKeyedOwnGenericGenerator::Generate(
     compiler::CodeAssemblerState* state) {
   KeyedStoreGenericAssembler assembler(state, StoreMode::kDefineKeyedOwn);
   assembler.KeyedStoreGeneric();
@@ -822,7 +822,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&descriptor_found);
     {
-      if (IsKeyedDefineOwn()) {
+      if (IsDefineKeyedOwn()) {
         // Take slow path to throw if a private name already exists.
         GotoIf(IsPrivateSymbol(name), slow);
       }
@@ -895,7 +895,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&dictionary_found);
     {
       Label check_const(this), overwrite(this), done(this);
-      if (IsKeyedDefineOwn()) {
+      if (IsDefineKeyedOwn()) {
         // Take slow path to throw if a private name already exists.
         GotoIf(IsPrivateSymbol(name), slow);
       }
@@ -1024,7 +1024,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   if (!ShouldReconfigureExisting()) {
     BIND(&readonly);
     {
-      if (IsKeyedDefineOwn() || IsDefineNamedOwn()) {
+      if (IsDefineKeyedOwn() || IsDefineNamedOwn()) {
         Goto(slow);
       } else {
         LanguageMode language_mode;
@@ -1103,7 +1103,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
       Comment("KeyedStoreGeneric_slow");
       TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
                       value);
-    } else if (IsKeyedDefineOwn()) {
+    } else if (IsDefineKeyedOwn()) {
       TailCallRuntime(Runtime::kDefineObjectOwnProperty, context, receiver, key,
                       value);
     } else {
