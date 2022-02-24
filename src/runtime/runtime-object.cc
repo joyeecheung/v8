@@ -922,8 +922,9 @@ RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
 // Similar to DefineDataPropertyInLiteral, but does not update feedback, and
 // and does not have a flags parameter for performing SetFunctionName().
 //
-// Currently, this is used for ObjectLiteral spread properties.
-RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
+// Currently, this is used for ObjectLiteral spread properties in CloneObjectIC
+// and for array literal creations in StoreInArrayLiteralIC.
+RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral_Simple) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 

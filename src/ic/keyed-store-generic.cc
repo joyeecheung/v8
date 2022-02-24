@@ -1108,7 +1108,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
                       value);
     } else {
       DCHECK(IsStoreInLiteral());
-      TailCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context,
+      TailCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral_Simple, context,
                       receiver, key, value);
     }
   }
@@ -1196,8 +1196,8 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
   BIND(&slow);
   {
     if (IsStoreInLiteral()) {
-      CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context, receiver,
-                  unique_name, value);
+      CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral_Simple, context,
+                  receiver, unique_name, value);
     } else {
       CallRuntime(Runtime::kSetKeyedProperty, context, receiver, unique_name,
                   value);
