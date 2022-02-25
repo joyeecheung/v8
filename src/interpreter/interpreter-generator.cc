@@ -515,11 +515,11 @@ IGNITION_HANDLER(StaLookupSlot, InterpreterAssembler) {
   }
 }
 
-// LdaNamedProperty <object> <name_index> <slot>
+// LoadNamedProperty <object> <name_index> <slot>
 //
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index>.
-IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
+IGNITION_HANDLER(LoadNamedProperty, InterpreterAssembler) {
   TNode<HeapObject> feedback_vector = LoadFeedbackVector();
 
   // Load receiver.
@@ -550,12 +550,12 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
   }
 }
 
-// LdaNamedPropertyFromSuper <receiver> <name_index> <slot>
+// LoadNamedPropertyFromSuper <receiver> <name_index> <slot>
 //
 // Calls the LoadSuperIC at FeedBackVector slot <slot> for <receiver>, home
 // object's prototype (home object in the accumulator) and the name at constant
 // pool entry <name_index>.
-IGNITION_HANDLER(LdaNamedPropertyFromSuper, InterpreterAssembler) {
+IGNITION_HANDLER(LoadNamedPropertyFromSuper, InterpreterAssembler) {
   TNode<Object> receiver = LoadRegisterAtOperandIndex(0);
   TNode<HeapObject> home_object = CAST(GetAccumulator());
   TNode<Object> home_object_prototype = LoadMapPrototype(LoadMap(home_object));
@@ -571,11 +571,11 @@ IGNITION_HANDLER(LdaNamedPropertyFromSuper, InterpreterAssembler) {
   Dispatch();
 }
 
-// LdaKeyedProperty <object> <slot>
+// LoadKeyedProperty <object> <slot>
 //
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator.
-IGNITION_HANDLER(LdaKeyedProperty, InterpreterAssembler) {
+IGNITION_HANDLER(LoadKeyedProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = GetAccumulator();
   TNode<TaggedIndex> slot = BytecodeOperandIdxTaggedIndex(1);

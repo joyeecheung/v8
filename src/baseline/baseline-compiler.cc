@@ -841,13 +841,13 @@ void BaselineCompiler::VisitMov() {
   StoreRegister(1, scratch);
 }
 
-void BaselineCompiler::VisitLdaNamedProperty() {
+void BaselineCompiler::VisitLoadNamedProperty() {
   CallBuiltin<Builtin::kLoadICBaseline>(RegisterOperand(0),  // object
                                         Constant<Name>(1),   // name
                                         IndexAsTagged(2));   // slot
 }
 
-void BaselineCompiler::VisitLdaNamedPropertyFromSuper() {
+void BaselineCompiler::VisitLoadNamedPropertyFromSuper() {
   __ LoadPrototype(
       LoadWithReceiverAndVectorDescriptor::LookupStartObjectRegister(),
       kInterpreterAccumulatorRegister);
@@ -860,7 +860,7 @@ void BaselineCompiler::VisitLdaNamedPropertyFromSuper() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitLdaKeyedProperty() {
+void BaselineCompiler::VisitLoadKeyedProperty() {
   CallBuiltin<Builtin::kKeyedLoadICBaseline>(
       RegisterOperand(0),               // object
       kInterpreterAccumulatorRegister,  // key

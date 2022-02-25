@@ -130,11 +130,11 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kFlag8)                                    \
                                                                                \
   /* Property loads (LoadIC) operations */                                     \
-  V(LdaNamedProperty, ImplicitRegisterUse::kWriteAccumulator,                  \
+  V(LoadNamedProperty, ImplicitRegisterUse::kWriteAccumulator,                 \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(LdaNamedPropertyFromSuper, ImplicitRegisterUse::kReadWriteAccumulator,     \
+  V(LoadNamedPropertyFromSuper, ImplicitRegisterUse::kReadWriteAccumulator,    \
     OperandType::kReg, OperandType::kIdx, OperandType::kIdx)                   \
-  V(LdaKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,              \
+  V(LoadKeyedProperty, ImplicitRegisterUse::kReadWriteAccumulator,             \
     OperandType::kReg, OperandType::kIdx)                                      \
                                                                                \
   /* Operations on module variables */                                         \

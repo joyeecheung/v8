@@ -830,27 +830,27 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
     Register object, const AstRawString* name, int feedback_slot) {
   size_t name_index = GetConstantPoolEntry(name);
-  OutputLdaNamedProperty(object, name_index, feedback_slot);
+  OutputLoadNamedProperty(object, name_index, feedback_slot);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedPropertyFromSuper(
     Register object, const AstRawString* name, int feedback_slot) {
   size_t name_index = GetConstantPoolEntry(name);
-  OutputLdaNamedPropertyFromSuper(object, name_index, feedback_slot);
+  OutputLoadNamedPropertyFromSuper(object, name_index, feedback_slot);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
     Register object, int feedback_slot) {
-  OutputLdaKeyedProperty(object, feedback_slot);
+  OutputLoadKeyedProperty(object, feedback_slot);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
     Register object, int feedback_slot) {
   size_t name_index = IteratorSymbolConstantPoolEntry();
-  OutputLdaNamedProperty(object, name_index, feedback_slot);
+  OutputLoadNamedProperty(object, name_index, feedback_slot);
   return *this;
 }
 
@@ -863,7 +863,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
     Register object, int feedback_slot) {
   size_t name_index = AsyncIteratorSymbolConstantPoolEntry();
-  OutputLdaNamedProperty(object, name_index, feedback_slot);
+  OutputLoadNamedProperty(object, name_index, feedback_slot);
   return *this;
 }
 
@@ -946,7 +946,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreClassFieldsInitializer(
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadClassFieldsInitializer(
     Register constructor, int feedback_slot) {
   size_t name_index = ClassFieldsSymbolConstantPoolEntry();
-  OutputLdaNamedProperty(constructor, name_index, feedback_slot);
+  OutputLoadNamedProperty(constructor, name_index, feedback_slot);
   return *this;
 }
 
