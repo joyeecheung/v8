@@ -1600,7 +1600,7 @@ void BytecodeGraphBuilder::VisitStaInArrayLiteral() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitStaDefineKeyedOwnPropertyInLiteral() {
+void BytecodeGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
   PrepareEagerCheckpoint();
 
   Node* object =
@@ -2065,15 +2065,15 @@ void BytecodeGraphBuilder::BuildNamedStore(NamedStoreMode store_mode) {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitStaSetNamedProperty() {
+void BytecodeGraphBuilder::VisitSetNamedProperty() {
   BuildNamedStore(NamedStoreMode::kSet);
 }
 
-void BytecodeGraphBuilder::VisitStaDefineNamedOwnProperty() {
+void BytecodeGraphBuilder::VisitDefineNamedOwnProperty() {
   BuildNamedStore(NamedStoreMode::kDefineOwn);
 }
 
-void BytecodeGraphBuilder::VisitStaSetKeyedProperty() {
+void BytecodeGraphBuilder::VisitSetKeyedProperty() {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* object =
@@ -2106,7 +2106,7 @@ void BytecodeGraphBuilder::VisitStaSetKeyedProperty() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitStaDefineKeyedOwnProperty() {
+void BytecodeGraphBuilder::VisitDefineKeyedOwnProperty() {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* object =

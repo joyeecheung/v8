@@ -921,7 +921,7 @@ void BaselineCompiler::VisitStaModuleVariable() {
   __ StoreTaggedFieldWithWriteBarrier(scratch, Cell::kValueOffset, value);
 }
 
-void BaselineCompiler::VisitStaSetNamedProperty() {
+void BaselineCompiler::VisitSetNamedProperty() {
   CallBuiltin<Builtin::kStoreICBaseline>(
       RegisterOperand(0),               // object
       Constant<Name>(1),                // name
@@ -929,7 +929,7 @@ void BaselineCompiler::VisitStaSetNamedProperty() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaDefineNamedOwnProperty() {
+void BaselineCompiler::VisitDefineNamedOwnProperty() {
   CallBuiltin<Builtin::kDefineNamedOwnICBaseline>(
       RegisterOperand(0),               // object
       Constant<Name>(1),                // name
@@ -937,7 +937,7 @@ void BaselineCompiler::VisitStaDefineNamedOwnProperty() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaSetKeyedProperty() {
+void BaselineCompiler::VisitSetKeyedProperty() {
   CallBuiltin<Builtin::kKeyedStoreICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key
@@ -945,7 +945,7 @@ void BaselineCompiler::VisitStaSetKeyedProperty() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaDefineKeyedOwnProperty() {
+void BaselineCompiler::VisitDefineKeyedOwnProperty() {
   CallBuiltin<Builtin::kDefineKeyedOwnICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key
@@ -961,9 +961,9 @@ void BaselineCompiler::VisitStaInArrayLiteral() {
       IndexAsTagged(2));                // slot
 }
 
-void BaselineCompiler::VisitStaDefineKeyedOwnPropertyInLiteral() {
+void BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral() {
   // Here we should save the accumulator, since
-  // StaDefineKeyedOwnPropertyInLiteral doesn't write the accumulator, but
+  // DefineKeyedOwnPropertyInLiteral doesn't write the accumulator, but
   // Runtime::kDefineKeyedOwnPropertyInLiteral returns the value that we got
   // from the accumulator so this still works.
   CallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,

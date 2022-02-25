@@ -985,11 +985,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
 bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
   using interpreter::Bytecode;
   switch (bytecode) {
-    case Bytecode::kStaSetNamedProperty:
-    case Bytecode::kStaDefineNamedOwnProperty:
-    case Bytecode::kStaSetKeyedProperty:
+    case Bytecode::kSetNamedProperty:
+    case Bytecode::kDefineNamedOwnProperty:
+    case Bytecode::kSetKeyedProperty:
     case Bytecode::kStaInArrayLiteral:
-    case Bytecode::kStaDefineKeyedOwnPropertyInLiteral:
+    case Bytecode::kDefineKeyedOwnPropertyInLiteral:
     case Bytecode::kStaCurrentContextSlot:
       return true;
     default:

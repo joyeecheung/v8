@@ -596,7 +596,7 @@ class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
                                        OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void StaSetNamedProperty(Callable ic, NamedPropertyType property_type) {
+  void SetNamedProperty(Callable ic, NamedPropertyType property_type) {
     TNode<Object> object = LoadRegisterAtOperandIndex(0);
     TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
     TNode<Object> value = GetAccumulator();
@@ -616,33 +616,32 @@ class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
   }
 };
 
-// StaSetNamedProperty <object> <name_index> <slot>
+// SetNamedProperty <object> <name_index> <slot>
 //
 // Calls the StoreIC at FeedBackVector slot <slot> for <object> and
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
-IGNITION_HANDLER(StaSetNamedProperty, InterpreterSetNamedPropertyAssembler) {
+IGNITION_HANDLER(SetNamedProperty, InterpreterSetNamedPropertyAssembler) {
   Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreIC);
-  StaSetNamedProperty(ic, NamedPropertyType::kNotOwn);
+  SetNamedProperty(ic, NamedPropertyType::kNotOwn);
 }
 
-// StaDefineNamedOwnProperty <object> <name_index> <slot>
+// DefineNamedOwnProperty <object> <name_index> <slot>
 //
 // Calls the DefineNamedOwnIC at FeedBackVector slot <slot> for <object> and
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
-IGNITION_HANDLER(StaDefineNamedOwnProperty,
-                 InterpreterSetNamedPropertyAssembler) {
+IGNITION_HANDLER(DefineNamedOwnProperty, InterpreterSetNamedPropertyAssembler) {
   Callable ic = Builtins::CallableFor(isolate(), Builtin::kDefineNamedOwnIC);
-  StaSetNamedProperty(ic, NamedPropertyType::kOwn);
+  SetNamedProperty(ic, NamedPropertyType::kOwn);
 }
 
-// StaSetKeyedProperty <object> <key> <slot>
+// SetKeyedProperty <object> <key> <slot>
 //
 // Calls the KeyedStoreIC at FeedbackVector slot <slot> for <object> and
 // the key <key> with the value in the accumulator. This could trigger
 // the setter and the set traps if necessary.
-IGNITION_HANDLER(StaSetKeyedProperty, InterpreterAssembler) {
+IGNITION_HANDLER(SetKeyedProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();
@@ -661,15 +660,15 @@ IGNITION_HANDLER(StaSetKeyedProperty, InterpreterAssembler) {
   Dispatch();
 }
 
-// StaDefineKeyedOwnProperty <object> <key> <slot>
+// DefineKeyedOwnProperty <object> <key> <slot>
 //
 // Calls the DefineKeyedOwnIC at FeedbackVector slot <slot> for <object> and
 // the key <key> with the value in the accumulator.
 //
-// This is similar to StaSetKeyedProperty, but avoids checking the prototype
+// This is similar to SetKeyedProperty, but avoids checking the prototype
 // chain, and in the case of private names, throws if the private name already
 // exists.
-IGNITION_HANDLER(StaDefineKeyedOwnProperty, InterpreterAssembler) {
+IGNITION_HANDLER(DefineKeyedOwnProperty, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();
@@ -713,7 +712,7 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
-// StaDefineKeyedOwnPropertyInLiteral <object> <name> <flags> <slot>
+// DefineKeyedOwnPropertyInLiteral <object> <name> <flags> <slot>
 //
 // Define a property <name> with value from the accumulator in <object>.
 // Property attributes and whether set_function_name are stored in
@@ -721,7 +720,7 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
 //
 // This definition is not observable and is used only for definitions
 // in object or class literals.
-IGNITION_HANDLER(StaDefineKeyedOwnPropertyInLiteral, InterpreterAssembler) {
+IGNITION_HANDLER(DefineKeyedOwnPropertyInLiteral, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> name = LoadRegisterAtOperandIndex(1);
   TNode<Object> value = GetAccumulator();

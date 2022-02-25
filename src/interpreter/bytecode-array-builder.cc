@@ -870,7 +870,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
 BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnPropertyInLiteral(
     Register object, Register name, DefineKeyedOwnPropertyInLiteralFlags flags,
     int feedback_slot) {
-  OutputStaDefineKeyedOwnPropertyInLiteral(object, name, flags, feedback_slot);
+  OutputDefineKeyedOwnPropertyInLiteral(object, name, flags, feedback_slot);
   return *this;
 }
 
@@ -886,7 +886,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::SetNamedProperty(
   DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
                 FeedbackVector::ToSlot(feedback_slot))),
             language_mode);
-  OutputStaSetNamedProperty(object, name_index, feedback_slot);
+  OutputSetNamedProperty(object, name_index, feedback_slot);
   return *this;
 }
 
@@ -904,7 +904,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::DefineNamedOwnProperty(
   DCHECK_EQ(
       FeedbackSlotKind::kDefineNamedOwn,
       feedback_vector_spec()->GetKind(FeedbackVector::ToSlot(feedback_slot)));
-  OutputStaDefineNamedOwnProperty(object, name_index, feedback_slot);
+  OutputDefineNamedOwnProperty(object, name_index, feedback_slot);
   return *this;
 }
 
@@ -915,7 +915,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::SetKeyedProperty(
   DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
                 FeedbackVector::ToSlot(feedback_slot))),
             language_mode);
-  OutputStaSetKeyedProperty(object, key, feedback_slot);
+  OutputSetKeyedProperty(object, key, feedback_slot);
   return *this;
 }
 
@@ -926,7 +926,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::DefineKeyedOwnProperty(
   DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
                 FeedbackVector::ToSlot(feedback_slot))),
             LanguageMode::kStrict);
-  OutputStaDefineKeyedOwnProperty(object, key, feedback_slot);
+  OutputDefineKeyedOwnProperty(object, key, feedback_slot);
   return *this;
 }
 

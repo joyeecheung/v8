@@ -255,7 +255,7 @@ bytecodes: [
                 B(Ldar), R(10),
                 B(Jump), U8(3),
                 B(LdaUndefined),
-                B(StaSetNamedProperty), R(11), U8(4), U8(13),
+                B(SetNamedProperty), R(11), U8(4), U8(13),
   /*   63 S> */ B(Ldar), R(6),
                 B(JumpIfToBooleanTrue), U8(33),
                 B(LdaTrue),
@@ -361,7 +361,7 @@ bytecodes: [
   /*   48 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star1),
   /*   61 S> */ B(LdaNamedProperty), R(1), U8(1), U8(1),
-                B(StaSetNamedProperty), R(0), U8(2), U8(3),
+                B(SetNamedProperty), R(0), U8(2), U8(3),
                 B(LdaUndefined),
   /*   72 S> */ B(Return),
 ]

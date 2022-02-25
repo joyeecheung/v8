@@ -102,7 +102,7 @@ bytecodes: [
                 B(Star2),
                 B(Inc), U8(3),
                 B(Star3),
-  /*   66 E> */ B(StaSetNamedProperty), R(0), U8(1), U8(4),
+  /*   66 E> */ B(SetNamedProperty), R(0), U8(1), U8(4),
                 B(Ldar), R(2),
   /*   69 S> */ B(Return),
 ]
@@ -126,7 +126,7 @@ bytecodes: [
   /*   54 S> */ B(LdaNamedProperty), R(0), U8(1), U8(1),
                 B(Dec), U8(3),
                 B(Star2),
-  /*   65 E> */ B(StaSetNamedProperty), R(0), U8(1), U8(4),
+  /*   65 E> */ B(SetNamedProperty), R(0), U8(1), U8(4),
                 B(Ldar), R(2),
   /*   69 S> */ B(Return),
 ]
@@ -155,7 +155,7 @@ bytecodes: [
                 B(Star4),
                 B(Dec), U8(3),
                 B(Star5),
-  /*   86 E> */ B(StaSetKeyedProperty), R(1), R(0), U8(4),
+  /*   86 E> */ B(SetKeyedProperty), R(1), R(0), U8(4),
                 B(Ldar), R(4),
   /*   89 S> */ B(Return),
 ]
@@ -182,7 +182,7 @@ bytecodes: [
   /*   83 E> */ B(LdaKeyedProperty), R(1), U8(1),
                 B(Inc), U8(3),
                 B(Star4),
-  /*   87 E> */ B(StaSetKeyedProperty), R(1), R(0), U8(4),
+  /*   87 E> */ B(SetKeyedProperty), R(1), R(0), U8(4),
                 B(Ldar), R(4),
   /*   89 S> */ B(Return),
 ]
@@ -267,7 +267,7 @@ bytecodes: [
                 B(Star0),
                 B(LdaSmi), I8(2),
                 B(Star4),
-  /*   79 E> */ B(StaSetKeyedProperty), R(1), R(3), U8(2),
+  /*   79 E> */ B(SetKeyedProperty), R(1), R(3), U8(2),
                 B(Ldar), R(4),
   /*   83 S> */ B(Return),
 ]

@@ -1179,7 +1179,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
             .IsJust());
 
   // Return the value so that
-  // BaselineCompiler::VisitStaDefineKeyedOwnPropertyInLiteral doesn't have to
+  // BaselineCompiler::VisitDefineKeyedOwnPropertyInLiteral doesn't have to
   // save the accumulator.
   return *value;
 }
