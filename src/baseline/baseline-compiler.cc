@@ -922,6 +922,11 @@ void BaselineCompiler::VisitStaModuleVariable() {
 }
 
 void BaselineCompiler::VisitSetNamedProperty() {
+  // StoreIC is currently a base class for multiple property store operations
+  // and contains mixed logic for named and keyed, set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(joyee): refactor SetNamedIC as a subclass of StoreIC, which can be
+  // called here.
   CallBuiltin<Builtin::kStoreICBaseline>(
       RegisterOperand(0),               // object
       Constant<Name>(1),                // name
@@ -938,6 +943,11 @@ void BaselineCompiler::VisitDefineNamedOwnProperty() {
 }
 
 void BaselineCompiler::VisitSetKeyedProperty() {
+  // KeyedStoreIC is currently a base class for multiple keyed property store
+  // operations and contains mixed logic for set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(joyee): refactor SetKeyedIC as a subclass of KeyedStoreIC, which can
+  // be called here.
   CallBuiltin<Builtin::kKeyedStoreICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key

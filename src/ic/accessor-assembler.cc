@@ -3731,6 +3731,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 
   BIND(&no_feedback);
   {
+    // TODO(joyee): refactor SetNamedIC as a subclass of StoreIC, which can be
+    // called here and below when !p->IsDefineNamedOwn().
     auto builtin = p->IsDefineNamedOwn() ? Builtin::kDefineNamedOwnIC_NoFeedback
                                          : Builtin::kStoreIC_NoFeedback;
     TailCallBuiltin(builtin, p->context(), p->receiver(), p->name(), p->value(),
@@ -4582,7 +4584,8 @@ void AccessorAssembler::GenerateDefineNamedOwnIC() {
 
   StoreICParameters p(context, receiver, name, value, slot, vector,
                       StoreICMode::kDefineNamedOwn);
-  // TODO(joyee): We should separate DefineNamedOwnIC out of StoreIC.
+  // StoreIC is a generic helper than handle both set and define own
+  // named stores.
   StoreIC(&p);
 }
 

@@ -1811,7 +1811,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
         isolate(), object, key,
         IsAnyDefineOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
     DCHECK_IMPLIES(IsDefineNamedOwnIC(), it.IsFound() && it.HolderIsReceiver());
-    // TODO(joyee): separate DefinedNamedOwnIC out of StoreIC.
+    // TODO(joyee): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
+    // of StoreIC so their logic doesn't get mixed here.
     if (IsDefineNamedOwnIC()) {
       MAYBE_RETURN_NULL(
           JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
@@ -1890,7 +1891,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                       : TraceIC("StoreIC", name);
   }
 
-  // TODO(joyee): separate DefinedNamedOwnIC out of StoreIC.
+  // TODO(joyee): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
+  // of StoreIC so their logic doesn't get mixed here.
   // ES #sec-definefield
   // ES #sec-runtime-semantics-propertydefinitionevaluation
   if (IsDefineNamedOwnIC()) {
@@ -2487,6 +2489,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
     Handle<Object> result;
+    // TODO(joyee): refactor DefinedKeyedOwnIC as a subclass of StoreIC
+    // so the logic doesn't get mixed here.
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
         IsDefinedKeyedOwnIC()
@@ -2557,6 +2561,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   DCHECK(store_handle.is_null());
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), store_handle,
+      // TODO(joyee): refactor DefinedKeyedOwnIC as a subclass of StoreIC
+      // so the logic doesn't get mixed here.
       IsDefinedKeyedOwnIC()
           ? Runtime::DefineObjectOwnProperty(isolate(), object, key, value,
                                              StoreOrigin::kMaybeKeyed)
@@ -2869,6 +2875,9 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   }
 
   DCHECK(IsDefineNamedOwnICKind(kind));
+
+  // TODO(joyee): refactor DefineNamedOwnIC as a subclass of StoreIC, which
+  // can be called here.
   StoreIC ic(isolate, vector, vector_slot, kind);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
@@ -3006,6 +3015,8 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
 
   // The elements store stubs miss into this function, but they are shared by
   // different ICs.
+  // TODO(joyee): refactor DefineKeyedOwnIC as a subclass of KeyedStoreIC,
+  // which can be called here.
   if (IsKeyedStoreICKind(kind) || IsDefineKeyedOwnICKind(kind)) {
     KeyedStoreIC ic(isolate, vector, vector_slot, kind);
     ic.UpdateState(receiver, key);
@@ -3041,8 +3052,8 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Miss) {
     DCHECK(IsDefineKeyedOwnICKind(kind));
   }
 
-  // The elements store stubs miss into this function, but they are shared by
-  // different ICs.
+  // TODO(joyee): refactor DefineKeyedOwnIC as a subclass of KeyedStoreIC,
+  // which can be called here.
   KeyedStoreIC ic(isolate, vector, vector_slot, kind);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));

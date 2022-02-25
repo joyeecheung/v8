@@ -622,6 +622,11 @@ class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 IGNITION_HANDLER(SetNamedProperty, InterpreterSetNamedPropertyAssembler) {
+  // StoreIC is currently a base class for multiple property store operations
+  // and contains mixed logic for named and keyed, set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(joyee): refactor SetNamedIC as a subclass of StoreIC, which can be
+  // called here.
   Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreIC);
   SetNamedProperty(ic, NamedPropertyType::kNotOwn);
 }
@@ -649,6 +654,11 @@ IGNITION_HANDLER(SetKeyedProperty, InterpreterAssembler) {
   TNode<HeapObject> maybe_vector = LoadFeedbackVector();
   TNode<Context> context = GetContext();
 
+  // KeyedStoreIC is currently a base class for multiple keyed property store
+  // operations and contains mixed logic for set and define operations,
+  // the paths are controlled by feedback.
+  // TODO(joyee): refactor SetKeyedIC as a subclass of KeyedStoreIC, which can
+  // be called here.
   TNode<Object> result = CallBuiltin(Builtin::kKeyedStoreIC, context, object,
                                      name, value, slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in

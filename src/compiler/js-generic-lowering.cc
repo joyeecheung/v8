@@ -414,6 +414,12 @@ void JSGenericLowering::LowerJSSetKeyedProperty(Node* node) {
     n->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
+
+    // KeyedStoreIC is currently a base class for multiple keyed property store
+    // operations and contains mixed logic for set and define operations,
+    // the paths are controlled by feedback.
+    // TODO(joyee): refactor SetKeyedIC as a subclass of KeyedStoreIC, which can
+    // be called here.
     ReplaceWithBuiltinCall(node, Builtin::kKeyedStoreICTrampoline);
   } else {
     node->InsertInput(zone(), 3,
@@ -455,6 +461,11 @@ void JSGenericLowering::LowerJSSetNamedProperty(Node* node) {
     node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
     node->InsertInput(zone(), 3,
                       jsgraph()->TaggedIndexConstant(p.feedback().index()));
+    // StoreIC is currently a base class for multiple property store operations
+    // and contains mixed logic for named and keyed, set and define operations,
+    // the paths are controlled by feedback.
+    // TODO(joyee): refactor SetNamedIC as a subclass of StoreIC, which can be
+    // called here.
     ReplaceWithBuiltinCall(node, Builtin::kStoreICTrampoline);
   } else {
     node->InsertInput(zone(), 1, jsgraph()->Constant(p.name(broker())));
