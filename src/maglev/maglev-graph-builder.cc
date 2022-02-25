@@ -95,7 +95,7 @@ void MaglevGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
   UNREACHABLE();
 }
 void MaglevGraphBuilder::VisitStaLookupSlot() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaNamedProperty() {
+void MaglevGraphBuilder::VisitLoadNamedProperty() {
   // LdaNamedProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);
 
@@ -131,16 +131,18 @@ void MaglevGraphBuilder::VisitLdaNamedProperty() {
   SetAccumulator(AddNewNode<LoadNamedGeneric>({object}, name));
   MarkPossibleSideEffect();
 }
-void MaglevGraphBuilder::VisitLdaNamedPropertyFromSuper() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitLdaKeyedProperty() { UNREACHABLE(); }
+void MaglevGraphBuilder::VisitLoadNamedPropertyFromSuper() { UNREACHABLE(); }
+void MaglevGraphBuilder::VisitLoadKeyedProperty() { UNREACHABLE(); }
 void MaglevGraphBuilder::VisitLdaModuleVariable() { UNREACHABLE(); }
 void MaglevGraphBuilder::VisitStaModuleVariable() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaNamedProperty() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaNamedOwnProperty() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaKeyedProperty() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaKeyedPropertyAsDefine() { UNREACHABLE(); }
+void MaglevGraphBuilder::VisitSetNamedProperty() { UNREACHABLE(); }
+void MaglevGraphBuilder::VisitDefineNamedOwnProperty() { UNREACHABLE(); }
+void MaglevGraphBuilder::VisitSetKeyedProperty() { UNREACHABLE(); }
+void MaglevGraphBuilder::VisitDefineKeyedOwnProperty() { UNREACHABLE(); }
 void MaglevGraphBuilder::VisitStaInArrayLiteral() { UNREACHABLE(); }
-void MaglevGraphBuilder::VisitStaDataPropertyInLiteral() { UNREACHABLE(); }
+void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
+  UNREACHABLE();
+}
 void MaglevGraphBuilder::VisitCollectTypeProfile() { UNREACHABLE(); }
 void MaglevGraphBuilder::VisitAdd() { UNREACHABLE(); }
 void MaglevGraphBuilder::VisitSub() { UNREACHABLE(); }
