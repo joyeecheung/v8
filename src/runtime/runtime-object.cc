@@ -617,9 +617,7 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(
     THROW_NEW_ERROR(isolate, NewTypeError(message, name_string), Object);
   }
 
-  MAYBE_RETURN_NULL(
-      Object::SetProperty(&it, value, store_origin, should_throw));
-
+  MAYBE_RETURN_NULL(JSReceiver::CreateDataProperty(&it, value, should_throw));
   return value;
 }
 
