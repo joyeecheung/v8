@@ -1810,10 +1810,11 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     LookupIterator it(
         isolate(), object, key,
         IsAnyDefineOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
-    DCHECK_IMPLIES(IsDefineNamedOwnIC(), it.IsFound() && it.HolderIsReceiver());
+    DCHECK_IMPLIES(IsAnyDefineOwn(), it.IsFound() && it.HolderIsReceiver());
+    // IsAnyDefineOwn() can be true when this method is reused by KeyedStoreIC.
     // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
     // of StoreIC so their logic doesn't get mixed here.
-    if (IsDefineNamedOwnIC()) {
+    if (IsAnyDefineOwn()) {
       MAYBE_RETURN_NULL(
           JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
     } else {
@@ -1867,14 +1868,14 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     }
   }
 
-  // For IsDefineNamedOwnIC(), we can't simply do CreateDataProperty below
+  // For IsAnyDefineOwn(), we can't simply do CreateDataProperty below
   // because we need to check the attributes before UpdateCaches updates
   // the state of the LookupIterator.
   LookupIterator::State original_state = it.state();
   // We'll defer the check for JSProxy and objects with named interceptors,
   // because the defineProperty traps need to be called first if they are
   // present.
-  if (IsDefineNamedOwnIC() && !object->IsJSProxy() &&
+  if (IsAnyDefineOwn() && !object->IsJSProxy() &&
       !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
     Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
         isolate(), &it, value, Nothing<ShouldThrow>());
@@ -1895,10 +1896,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // of StoreIC so their logic doesn't get mixed here.
   // ES #sec-definefield
   // ES #sec-runtime-semantics-propertydefinitionevaluation
-  if (IsDefineNamedOwnIC()) {
-    // Private property should be defined via DefineKeyedOwnIC or
-    // KeyedStoreIC with private symbols.
-    DCHECK(!name->IsPrivate());
+  // IsAnyDefineOwn() can be true when this method is reused by KeyedStoreIC.
+  if (IsAnyDefineOwn()) {
     MAYBE_RETURN_NULL(DefineOwnDataProperty(
         &it, original_state, value, Nothing<ShouldThrow>(), store_origin));
   } else {
@@ -1982,9 +1981,9 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
       // If the interceptor is on the receiver...
       if (lookup->HolderIsReceiverOrHiddenPrototype() && !info.non_masking()) {
         // ...return a store interceptor Smi handler if there is a setter
-        // interceptor and it's not DefineNamedOwnIC (which should call the
-        // definer)...
-        if (!info.setter().IsUndefined(isolate()) && !IsDefineNamedOwnIC()) {
+        // interceptor and it's not DefineNamedOwnIC or DefineKeyedOwnIC
+        // (which should call the definer)...
+        if (!info.setter().IsUndefined(isolate()) && !IsAnyDefineOwn()) {
           return MaybeObjectHandle(StoreHandler::StoreInterceptor(isolate()));
         }
         // ...otherwise return a slow-case Smi handler, which invokes the
