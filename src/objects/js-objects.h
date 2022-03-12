@@ -175,6 +175,13 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       LookupIterator* it, Handle<Object> value,
       Maybe<ShouldThrow> should_throw);
 
+  // Add private fields to the receiver, ignoring extensibility and the
+  // traps. The caller should check that the private field does not already
+  // exist on the receiver before calling this method.
+  V8_WARN_UNUSED_RESULT static Maybe<bool> AddPrivateField(
+      LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
+
   // ES6 9.1.6.1
   V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, Handle<JSObject> object, Handle<Object> key,

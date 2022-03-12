@@ -539,6 +539,11 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_WARN_UNUSED_RESULT static Maybe<bool> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       Maybe<ShouldThrow> should_throw, StoreOrigin store_origin);
+
+  V8_WARN_UNUSED_RESULT static Maybe<bool> TransitionAndWriteDataProperty(
+      LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+      Maybe<ShouldThrow> should_throw, StoreOrigin store_origin);
+
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Isolate* isolate, Handle<Object> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(

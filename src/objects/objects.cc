@@ -2874,7 +2874,6 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   DCHECK_NE(LookupIterator::INTEGER_INDEXED_EXOTIC, it->state());
 
   Handle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
-  DCHECK_IMPLIES(receiver->IsJSProxy(), it->GetName()->IsPrivateName());
   DCHECK_IMPLIES(receiver->IsJSProxy(),
                  it->state() == LookupIterator::NOT_FOUND);
 
@@ -2907,28 +2906,35 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                  Nothing<bool>());
     JSObject::ValidateElements(*receiver_obj);
     return Just(true);
-  } else {
-    it->UpdateProtector();
-    // Migrate to the most up-to-date map that will be able to store |value|
-    // under it->name() with |attributes|.
-    it->PrepareTransitionToDataProperty(receiver, value, attributes,
-                                        store_origin);
-    DCHECK_EQ(LookupIterator::TRANSITION, it->state());
-    it->ApplyTransitionToDataProperty(receiver);
+  }
 
-    // Write the property value.
-    it->WriteDataValue(value, true);
+  return Object::TransitionAndWriteDataProperty(it, value, attributes,
+                                                should_throw, store_origin);
+}
+
+// static
+Maybe<bool> Object::TransitionAndWriteDataProperty(
+    LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+    Maybe<ShouldThrow> should_throw, StoreOrigin store_origin) {
+  Handle<JSReceiver> receiver = it->GetStoreTarget<JSReceiver>();
+  it->UpdateProtector();
+  // Migrate to the most up-to-date map that will be able to store |value|
+  // under it->name() with |attributes|.
+  it->PrepareTransitionToDataProperty(receiver, value, attributes,
+                                      store_origin);
+  DCHECK_EQ(LookupIterator::TRANSITION, it->state());
+  it->ApplyTransitionToDataProperty(receiver);
+
+  // Write the property value.
+  it->WriteDataValue(value, true);
 
 #if VERIFY_HEAP
     if (FLAG_verify_heap) {
-      receiver->HeapObjectVerify(isolate);
+      receiver->HeapObjectVerify(it->isolate());
     }
 #endif
-  }
-
-  return Just(true);
+    return Just(true);
 }
-
 // static
 MaybeHandle<Object> Object::ShareSlow(Isolate* isolate,
                                       Handle<HeapObject> value,

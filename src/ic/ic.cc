@@ -1747,6 +1747,12 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
   // contextual store (indicated by IsJSGlobalObject()).
   DCHECK(!it->GetReceiver()->IsJSGlobalObject(it->isolate()));
 
+  // We should define private fields without triggering traps or checking
+  // extensibility.
+  if (it->GetName()->IsPrivateName()) {
+    return JSReceiver::AddPrivateField(it, value, should_throw);
+  }
+
   // Handle special cases that can't be handled by
   // DefineOwnPropertyIgnoreAttributes first.
   switch (it->state()) {
@@ -1806,15 +1812,19 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(isolate(), object)) {
+    // KeyedStoreIC should handle DefineKeyedOwnIC with deprecated maps directly
+    // instead of reusing this method.
+    DCHECK(!IsDefineKeyedOwnIC());
+    DCHECK(!name->IsPrivateName());
+
     PropertyKey key(isolate(), name);
     LookupIterator it(
         isolate(), object, key,
-        IsAnyDefineOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
-    DCHECK_IMPLIES(IsAnyDefineOwn(), it.IsFound() && it.HolderIsReceiver());
-    // IsAnyDefineOwn() can be true when this method is reused by KeyedStoreIC.
+        IsDefineNamedOwnIC() ? LookupIterator::OWN : LookupIterator::DEFAULT);
+    DCHECK_IMPLIES(IsDefineNamedOwnIC(), it.IsFound() && it.HolderIsReceiver());
     // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
     // of StoreIC so their logic doesn't get mixed here.
-    if (IsAnyDefineOwn()) {
+    if (IsDefineNamedOwnIC()) {
       MAYBE_RETURN_NULL(
           JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
     } else {
@@ -3139,9 +3149,14 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   } else {
     DCHECK(IsKeyedStoreICKind(kind) || IsStoreICKind(kind) ||
            IsDefineKeyedOwnICKind(kind));
+    // TODO(joyee): test this
     RETURN_RESULT_OR_FAILURE(
-        isolate, Runtime::SetObjectProperty(isolate, object, key, value,
-                                            StoreOrigin::kMaybeKeyed));
+        isolate,
+        IsDefineKeyedOwnICKind(kind)
+            ? Runtime::DefineObjectOwnProperty(isolate, object, key, value,
+                                               StoreOrigin::kMaybeKeyed)
+            : Runtime::SetObjectProperty(isolate, object, key, value,
+                                         StoreOrigin::kMaybeKeyed));
   }
 }
 
