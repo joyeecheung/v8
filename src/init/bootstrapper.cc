@@ -5811,27 +5811,14 @@ bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
          Genesis::InstallSpecialObjects(isolate_, native_context);
 }
 
-static bool PropertyAlreadyExists(Isolate* isolate, Handle<JSObject> to,
-                                  Handle<Name> key) {
-  LookupIterator it(isolate, to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
-  CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-  return it.IsFound();
-}
-
 bool Genesis::InstallSpecialObjects(Isolate* isolate,
                                     Handle<Context> native_context) {
   HandleScope scope(isolate);
 
   Handle<JSObject> Error = isolate->error_function();
   Handle<String> name = isolate->factory()->stackTraceLimit_string();
-  // This could already be configured if the conext is deserialized from
-  // a snapshot. In that case skip it like what we do for named properties
-  // on the global object.
-  if (!PropertyAlreadyExists(isolate, Error, name)) {
-    Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit),
-                                  isolate);
-    JSObject::AddProperty(isolate, Error, name, stack_trace_limit, NONE);
-  }
+  Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
+  JSObject::AddProperty(isolate, Error, name, stack_trace_limit, NONE);
 
 #if V8_ENABLE_WEBASSEMBLY
   if (FLAG_expose_wasm) {
@@ -6019,6 +6006,13 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
   }
   TransferObject(instantiated_template, object);
   return true;
+}
+
+static bool PropertyAlreadyExists(Isolate* isolate, Handle<JSObject> to,
+                                  Handle<Name> key) {
+  LookupIterator it(isolate, to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
+  return it.IsFound();
 }
 
 void Genesis::TransferNamedProperties(Handle<JSObject> from,

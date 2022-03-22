@@ -29,7 +29,9 @@ class V8_NODISCARD SanitizeNativeContextScope final {
         native_context_(native_context),
         microtask_queue_(native_context.microtask_queue()),
         optimized_code_list_(native_context.OptimizedCodeListHead()),
-        deoptimized_code_list_(native_context.DeoptimizedCodeListHead()) {
+        deoptimized_code_list_(native_context.DeoptimizedCodeListHead()),
+        stack_trace_limit_(
+            std::make_pair<bool, Handle<Object>>(false, Handle<Object>())) {
 #ifdef DEBUG
     if (!allow_active_isolate_for_testing) {
       // Microtasks.
@@ -46,6 +48,25 @@ class V8_NODISCARD SanitizeNativeContextScope final {
     native_context.set_microtask_queue(isolate, nullptr);
     native_context.SetOptimizedCodeListHead(undefined);
     native_context.SetDeoptimizedCodeListHead(undefined);
+    // Mutated globals
+
+    Handle<JSObject> error = handle(native_context.error_function(), isolate);
+    Handle<String> key = isolate->factory()->stackTraceLimit_string();
+    LookupIterator it(isolate, error, key, error,
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
+    if (it.IsFound()) {
+      Handle<Object> stack_trace_limit = JSReceiver::GetDataProperty(
+          &it, AllocationPolicy::kAllocationDisallowed);
+      int limit = std::max(FastD2IChecked(stack_trace_limit->Number()), 0);
+      if (limit != FLAG_stack_trace_limit) {
+        stack_trace_limit_.first = true;
+        stack_trace_limit_.second = stack_trace_limit;
+        {
+          SaveAndSwitchContext save(isolate, Context::cast(native_context));
+          it.Delete();
+        }
+      }
+    }
   }
 
   ~SanitizeNativeContextScope() {
@@ -53,6 +74,13 @@ class V8_NODISCARD SanitizeNativeContextScope final {
     native_context_.SetDeoptimizedCodeListHead(optimized_code_list_);
     native_context_.SetOptimizedCodeListHead(deoptimized_code_list_);
     native_context_.set_microtask_queue(isolate_, microtask_queue_);
+
+    if (stack_trace_limit_.first) {
+      std::cerr << "Error.stackTraceLimit has been reset from "
+                << std::max(FastD2IChecked(stack_trace_limit_.second->Number()),
+                            0)
+                << " to undefined.\n";
+    }
   }
 
  private:
@@ -61,6 +89,7 @@ class V8_NODISCARD SanitizeNativeContextScope final {
   MicrotaskQueue* const microtask_queue_;
   const Object optimized_code_list_;
   const Object deoptimized_code_list_;
+  std::pair<bool, Handle<Object>> stack_trace_limit_;
 };
 
 }  // namespace
@@ -103,6 +132,7 @@ void ContextSerializer::Serialize(Context* o,
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
 
+  HandleScope scope(isolate());
   SanitizeNativeContextScope sanitize_native_context(
       isolate(), context_.native_context(), allow_active_isolate_for_testing(),
       no_gc);

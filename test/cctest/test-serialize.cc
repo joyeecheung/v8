@@ -5031,6 +5031,9 @@ UNINITIALIZED_TEST(SharedStrings) {
 UNINITIALIZED_TEST(ErrorStackTraceLimit) {
   DisableAlwaysOpt();
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_stack_trace_limit = 5;
+  FlagList::EnforceFlagImplications();
+
   DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
@@ -5058,6 +5061,7 @@ UNINITIALIZED_TEST(ErrorStackTraceLimit) {
       // The first line is source line.
       "  return err.stack.split('\\n').length - 1;"
       "})()";
+  // Check that the stack trace limit is restored to default
   {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -5069,27 +5073,8 @@ UNINITIALIZED_TEST(ErrorStackTraceLimit) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       CHECK(!context.IsEmpty());
       v8::Context::Scope context_scope(context);
-      ExpectInt32("Error.stackTraceLimit", 3);
-      ExpectInt32(get_stack_trace_size, 3);
-    }
-    isolate->Dispose();
-  }
-
-  {
-    // Check that --stack-trace-limit doesn't reset the limit.
-    i::FLAG_stack_trace_limit = 5;
-    v8::Isolate::CreateParams create_params;
-    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-    create_params.snapshot_blob = &blob;
-    v8::Isolate* isolate = v8::Isolate::New(create_params);
-    {
-      v8::Isolate::Scope isolate_scope(isolate);
-      v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      CHECK(!context.IsEmpty());
-      v8::Context::Scope context_scope(context);
-      ExpectInt32("Error.stackTraceLimit", 3);
-      ExpectInt32(get_stack_trace_size, 3);
+      ExpectInt32("Error.stackTraceLimit", 5);
+      ExpectInt32(get_stack_trace_size, 5);
     }
     isolate->Dispose();
   }
