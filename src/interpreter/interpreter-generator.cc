@@ -687,6 +687,7 @@ IGNITION_HANDLER(DefineKeyedOwnProperty, InterpreterAssembler) {
   TNode<Context> context = GetContext();
 
   TVARIABLE(Object, var_result);
+  Print("IGNITION_HANDLER(DefineKeyedOwnProperty)\n");
   var_result = CallBuiltin(Builtin::kDefineKeyedOwnIC, context, object, name,
                            value, slot, maybe_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in

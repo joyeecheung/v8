@@ -956,6 +956,7 @@ void BaselineCompiler::VisitSetKeyedProperty() {
 }
 
 void BaselineCompiler::VisitDefineKeyedOwnProperty() {
+  PrintF("BaselineCompiler::VisitDefineKeyedOwnProperty\n");
   CallBuiltin<Builtin::kDefineKeyedOwnICBaseline>(
       RegisterOperand(0),               // object
       RegisterOperand(1),               // key

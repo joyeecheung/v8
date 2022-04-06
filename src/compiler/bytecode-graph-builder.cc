@@ -2107,6 +2107,7 @@ void BytecodeGraphBuilder::VisitSetKeyedProperty() {
 }
 
 void BytecodeGraphBuilder::VisitDefineKeyedOwnProperty() {
+  PrintF("BytecodeGraphBuilder::VisitDefineKeyedOwnProperty\n");
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* object =

@@ -367,6 +367,8 @@ bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   // Even though we don't change the feedback data, we still want to reset the
   // profiler ticks. Real-world observations suggest that optimizing these
   // functions doesn't improve performance.
+  PrintF("IC::ConfigureVectorState MEGAMORPHIC\n");
+  key->Print();
   bool changed = nexus()->ConfigureMegamorphic(
       key->IsName() ? IcCheckType::kProperty : IcCheckType::kElement);
   OnFeedbackChanged("Megamorphic");
@@ -1982,8 +1984,12 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
 
       DCHECK(lookup->IsCacheableTransition());
       if (IsAnyDefineOwn()) {
-        return StoreHandler::StoreOwnTransition(isolate(),
+        auto result = StoreHandler::StoreOwnTransition(isolate(),
                                                 lookup->transition_map());
+        PrintF("StoreIC::ComputeHandler\n");
+        lookup->name()->Print();
+        result.object()->Print();
+        return result;
       }
       return StoreHandler::StoreTransition(isolate(), lookup->transition_map());
     }
@@ -3065,6 +3071,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Miss) {
     DCHECK(IsDefineKeyedOwnICKind(kind));
   }
 
+  PrintF("DefineKeyedOwnIC_Miss\n");
   // TODO(v8:12548): refactor DefineKeyedOwnIC as a subclass of KeyedStoreIC,
   // which can be called here.
   KeyedStoreIC ic(isolate, vector, vector_slot, kind);
@@ -3113,6 +3120,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnIC_Slow) {
   Handle<Object> value = args.at(0);
   Handle<Object> object = args.at(1);
   Handle<Object> key = args.at(2);
+  PrintF("Runtime_DefineKeyedOwnIC_Slow\n");
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::DefineObjectOwnProperty(isolate, object, key, value,
                                                 StoreOrigin::kMaybeKeyed));

@@ -429,6 +429,8 @@ void JSGenericLowering::LowerJSDefineKeyedOwnProperty(Node* node) {
   FrameState frame_state = n.frame_state();
   Node* outer_state = frame_state.outer_frame_state();
   STATIC_ASSERT(n.FeedbackVectorIndex() == 3);
+  PrintF("JSGenericLowering::LowerJSDefineKeyedOwnProperty\n");
+  p.feedback().vector->Print();
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     n->RemoveInput(n.FeedbackVectorIndex());
     node->InsertInput(zone(), 3,

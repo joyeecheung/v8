@@ -1020,6 +1020,9 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
       Handle<WeakFixedArray> array = CreateArrayOfSize(2);
       array->Set(0, HeapObjectReference::Weak(*receiver_map));
       array->Set(1, *handler);
+      PrintF("FeedbackNexus::ConfigureMonomorphic\n");
+      name->Print();
+      array->Print();
       SetFeedback(*name, UPDATE_WRITE_BARRIER, *array);
     }
   }
@@ -1043,6 +1046,9 @@ void FeedbackNexus::ConfigurePolymorphic(
     SetFeedback(*array, UPDATE_WRITE_BARRIER, UninitializedSentinel(),
                 SKIP_WRITE_BARRIER);
   } else {
+    PrintF("FeedbackNexus::ConfigurePolymorphic\n");
+    name->Print();
+    array->Print();
     SetFeedback(*name, UPDATE_WRITE_BARRIER, *array);
   }
 }

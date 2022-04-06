@@ -1236,6 +1236,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   // for the encoding format.
   BIND(&if_smi_handler);
   {
+    Print("HandleStoreICHandlerCase_if_smi_handler\n");
+    TNode<Smi> smi_handler = CAST(handler);
+    Print(smi_handler);
     TNode<Object> holder = p->receiver();
     TNode<Int32T> handler_word = SmiToInt32(CAST(handler));
 
@@ -1260,6 +1263,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
            &if_interceptor);
     GotoIf(Word32Equal(handler_kind, STORE_KIND(kSlow)), &if_slow);
     CSA_DCHECK(this, Word32Equal(handler_kind, STORE_KIND(kNormal)));
+    Print("HandleStoreICHandlerCase_if_smi_handler_kNormal\n");
     TNode<PropertyDictionary> properties =
         CAST(LoadSlowProperties(CAST(holder)));
 
@@ -1309,6 +1313,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
     BIND(&if_fast_smi);
     {
+      Print("HandleStoreICHandlerCase_if_smi_handler_if_fast_smi\n");
       Label data(this), accessor(this), shared_struct_field(this),
           native_data_property(this);
       GotoIf(Word32Equal(handler_kind, STORE_KIND(kAccessor)), &accessor);
@@ -1333,10 +1338,14 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
 
     BIND(&if_proxy);
-    HandleStoreToProxy(p, CAST(holder), miss, support_elements);
+    {
+      Print("HandleStoreICHandlerCase_if_smi_handler_if_proxy\n");
+      HandleStoreToProxy(p, CAST(holder), miss, support_elements);
+    }
 
     BIND(&if_interceptor);
     {
+      Print("HandleStoreICHandlerCase_if_smi_handler_if_interceptor\n");
       Comment("store_interceptor");
       TailCallRuntime(Runtime::kStorePropertyWithInterceptor, p->context(),
                       p->value(), p->receiver(), p->name());
@@ -1344,6 +1353,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_slow);
     {
+      Print("HandleStoreICHandlerCase_if_smi_handler_if_slow\n");
       Comment("store_slow");
       // The slow case calls into the runtime to complete the store without
       // causing an IC miss that would otherwise cause a transition to the
@@ -1367,6 +1377,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
   BIND(&if_nonsmi_handler);
   {
+    Print("HandleStoreICHandlerCase_if_nonsmi_handler\n");
     GotoIf(IsWeakOrCleared(handler), &store_transition_or_global);
     TNode<HeapObject> strong_handler = CAST(handler);
     TNode<Map> handler_map = LoadMap(strong_handler);
@@ -1374,6 +1385,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_proto_handler);
     {
+      Print("HandleStoreICHandlerCase_if_nonsmi_handler_if_proto_handler\n");
       HandleStoreICProtoHandler(p, CAST(strong_handler), miss, ic_mode,
                                 support_elements);
     }
@@ -1381,6 +1393,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     // |handler| is a heap object. Must be code, call it.
     BIND(&call_handler);
     {
+      Print("HandleStoreICHandlerCase_if_nonsmi_handler_call_handler\n");
       TNode<CodeT> code_handler = CAST(strong_handler);
       TailCallStub(StoreWithVectorDescriptor{}, code_handler, p->context(),
                    p->receiver(), p->name(), p->value(), p->slot(),
@@ -1390,6 +1403,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
   BIND(&store_transition_or_global);
   {
+    Print("HandleStoreICHandlerCase_if_nonsmi_handler_store_transition_or_global\n");
     // Load value or miss if the {handler} weak cell is cleared.
     CSA_DCHECK(this, IsWeakOrCleared(handler));
     TNode<HeapObject> map_or_property_cell =
@@ -1400,6 +1414,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&store_global);
     {
+      Print("HandleStoreICHandlerCase_if_nonsmi_handler_store_global\n");
       TNode<PropertyCell> property_cell = CAST(map_or_property_cell);
       ExitPoint direct_exit(this);
       // StoreGlobalIC_PropertyCellCase doesn't properly handle private names
@@ -1410,6 +1425,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
     BIND(&store_transition);
     {
+      Print("HandleStoreICHandlerCase_if_nonsmi_handler_store_transition\n");
       TNode<Map> map = CAST(map_or_property_cell);
       HandleStoreICTransitionMapHandlerCase(p, map, miss,
                                             p->IsAnyDefineOwn()
@@ -1423,6 +1439,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
     const StoreICParameters* p, TNode<Map> transition_map, Label* miss,
     StoreTransitionMapFlags flags) {
+  Print("AccessorAssembler::HandleStoreICTransitionMapHandlerCase\n");
   DCHECK_EQ(0, flags & ~kStoreTransitionMapFlagsMask);
   if (flags & kCheckPrototypeValidity) {
     TNode<Object> maybe_validity_cell =
@@ -1549,6 +1566,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
     bool do_transitioning_store) {
   Label done(this), if_field(this), if_descriptor(this);
 
+  Print("AccessorAssembler::OverwriteExistingFastDataProperty\n");
   CSA_DCHECK(this,
              Word32Equal(DecodeWord32<PropertyDetails::KindField>(details),
                          Int32Constant(static_cast<int>(PropertyKind::kData))));
@@ -1560,6 +1578,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
   BIND(&if_field);
   {
+    Print("OverwriteExistingFastDataProperty_if_field\n");
     TNode<Uint32T> representation =
         DecodeWord32<PropertyDetails::RepresentationField>(details);
 
@@ -1580,6 +1599,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
     BIND(&inobject);
     {
+      Print("OverwriteExistingFastDataProperty_inobject\n");
       TNode<IntPtrT> field_offset = Signed(TimesTaggedSize(field_index));
       Label tagged_rep(this), double_rep(this);
       Branch(
@@ -1626,6 +1646,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
     BIND(&backing_store);
     {
+      Print("OverwriteExistingFastDataProperty_backing_store\n");
       TNode<IntPtrT> backing_store_index =
           Signed(IntPtrSub(field_index, instance_size_in_words));
 
@@ -1697,6 +1718,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
   BIND(&if_descriptor);
   {
+    Print("OverwriteExistingFastDataProperty_if_descriptor\n");
     // Check that constant matches value.
     TNode<Object> constant =
         LoadValueByKeyIndex(descriptors, descriptor_name_index);
@@ -1794,6 +1816,7 @@ void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
 void AccessorAssembler::HandleStoreICProtoHandler(
     const StoreICParameters* p, TNode<StoreHandler> handler, Label* miss,
     ICMode ic_mode, ElementSupport support_elements) {
+  Print("HandleStoreICProtoHandler\n");
   Comment("HandleStoreICProtoHandler");
 
   OnCodeHandler on_code_handler;
@@ -3975,6 +3998,11 @@ void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
         no_feedback(this, Label::kDeferred),
         try_polymorphic_name(this, Label::kDeferred);
 
+    Print("AccessorAssembler::DefineKeyedOwnIC\n");
+    Print(p->receiver());
+    Print(p->vector());
+    Print(p->name());
+
     TNode<Map> receiver_map = LoadReceiverMap(p->receiver());
     GotoIf(IsDeprecatedMap(receiver_map), &miss);
 
@@ -3986,6 +4014,7 @@ void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
                            &if_handler, &var_handler, &try_polymorphic);
     BIND(&if_handler);
     {
+      Print("DefineKeyedOwnIC_if_handler\n");
       Comment("DefineKeyedOwnIC_if_handler");
       HandleStoreICHandlerCase(p, var_handler.value(), &miss,
                                ICMode::kNonGlobalIC, kSupportElements);
@@ -3995,6 +4024,7 @@ void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
     TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
     {
       // CheckPolymorphic case.
+      Print("DefineKeyedOwnIC_try_polymorphic\n");
       Comment("DefineKeyedOwnIC_try_polymorphic");
       GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)),
                 &try_megamorphic);
@@ -4005,6 +4035,7 @@ void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
     BIND(&try_megamorphic);
     {
       // Check megamorphic case.
+      Print("DefineKeyedOwnIC_try_megamorphic\n");
       Comment("DefineKeyedOwnIC_try_megamorphic");
       Branch(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()),
              &no_feedback, &try_polymorphic_name);
@@ -4012,12 +4043,14 @@ void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
 
     BIND(&no_feedback);
     {
+      Print("DefineKeyedOwnIC_no_feedback\n");
       TailCallBuiltin(Builtin::kDefineKeyedOwnIC_Megamorphic, p->context(),
                       p->receiver(), p->name(), p->value(), p->slot());
     }
 
     BIND(&try_polymorphic_name);
     {
+      Print("DefineKeyedOwnIC_try_polymorphic_name\n");
       // We might have a name in feedback, and a fixed array in the next slot.
       Comment("DefineKeyedOwnIC_try_polymorphic_name");
       GotoIfNot(TaggedEqual(strong_feedback, p->name()), &miss);
@@ -4032,6 +4065,7 @@ void AccessorAssembler::DefineKeyedOwnIC(const StoreICParameters* p) {
   }
   BIND(&miss);
   {
+    Print("DefineKeyedOwnIC_miss\n");
     Comment("DefineKeyedOwnIC_miss");
     TailCallRuntime(Runtime::kDefineKeyedOwnIC_Miss, p->context(), p->value(),
                     p->slot(), p->vector(), p->receiver(), p->name());
