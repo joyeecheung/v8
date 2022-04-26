@@ -2464,6 +2464,52 @@ void DescriptorArray::GeneralizeAllFields() {
   }
 }
 
+Maybe<bool> Object::DefineOwnProperty(
+    LookupIterator* it,
+    Handle<Object> value, StoreOrigin store_origin,
+    Maybe<ShouldThrow> should_throw) {
+
+  if (key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
+    DCHECK_NE(store_origin, StoreOrigin::kNamed);
+    Handle<Symbol> private_symbol = Handle<Symbol>::cast(key);
+    if (it.IsFound()) {
+      Handle<Object> name_string(private_symbol->description(), isolate);
+      DCHECK(name_string->IsString());
+      MessageTemplate message =
+          private_symbol->is_private_brand()
+              ? MessageTemplate::kInvalidPrivateBrandReinitialization
+              : MessageTemplate::kInvalidPrivateFieldReinitialization;
+      RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
+                    NewTypeError(message, name_string));
+    }
+
+    return JSReceiver::AddPrivateField(&it, value, should_throw);
+    // For normal properties on normal objects, do the check now, otherwise
+    // defer it to later calls that invoke the defineProperty traps or definer
+    // interceptors before checking these.
+  } else if (!object->IsJSProxy() &&
+      !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
+    Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(isolate, &it, value, should_throw);
+    if (can_define.IsNothing() || !can_define.FromJust()) {
+      return can_define;
+    }
+  }
+
+  if (object->IsJSProxy()) {
+    PropertyDescriptor new_desc;
+    new_desc.set_value(value);
+    new_desc.set_writable(true);
+    new_desc.set_enumerable(true);
+    new_desc.set_configurable(true);
+    return JSProxy::DefineOwnProperty(isolate, Handle<JSProxy>::cast(object), key,
+                                      &new_desc, should_throw);
+  }
+
+  return JSObject::DefineOwnPropertyIgnoreAttributes(
+      it, value, NONE, should_throw, JSObject::DONT_FORCE_FIELD,
+      EnforceDefineSemantics::kDefine, store_origin);
+}
+
 MaybeHandle<Object> Object::SetProperty(Isolate* isolate, Handle<Object> object,
                                         Handle<Name> name, Handle<Object> value,
                                         StoreOrigin store_origin,

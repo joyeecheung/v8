@@ -1736,70 +1736,6 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
   return StoreIC::Store(global, name, value);
 }
 
-namespace {
-Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
-                                  LookupIterator::State original_state,
-                                  Handle<Object> value,
-                                  Maybe<ShouldThrow> should_throw,
-                                  StoreOrigin store_origin) {
-  // It should not be possible to call DefineOwnDataProperty in a
-  // contextual store (indicated by IsJSGlobalObject()).
-  DCHECK(!it->GetReceiver()->IsJSGlobalObject(it->isolate()));
-
-  // Handle special cases that can't be handled by
-  // DefineOwnPropertyIgnoreAttributes first.
-  switch (it->state()) {
-    case LookupIterator::JSPROXY: {
-      PropertyDescriptor new_desc;
-      new_desc.set_value(value);
-      new_desc.set_writable(true);
-      new_desc.set_enumerable(true);
-      new_desc.set_configurable(true);
-      DCHECK_EQ(original_state, LookupIterator::JSPROXY);
-      // TODO(joyee): this will start the lookup again. Ideally we should
-      // implement something that reuses the existing LookupIterator.
-      return JSProxy::DefineOwnProperty(it->isolate(), it->GetHolder<JSProxy>(),
-                                        it->GetName(), &new_desc, should_throw);
-    }
-    // When lazy feedback is disabled, the original state could be different
-    // while the object is already prepared for TRANSITION.
-    case LookupIterator::TRANSITION: {
-      switch (original_state) {
-        case LookupIterator::JSPROXY:
-        case LookupIterator::TRANSITION:
-        case LookupIterator::DATA:
-        case LookupIterator::INTERCEPTOR:
-        case LookupIterator::ACCESSOR:
-        case LookupIterator::INTEGER_INDEXED_EXOTIC:
-          UNREACHABLE();
-        case LookupIterator::ACCESS_CHECK: {
-          DCHECK(!it->GetHolder<JSObject>()->IsAccessCheckNeeded());
-          V8_FALLTHROUGH;
-        }
-        case LookupIterator::NOT_FOUND:
-          return Object::AddDataProperty(it, value, NONE,
-                                         Nothing<ShouldThrow>(), store_origin,
-                                         EnforceDefineSemantics::kDefine);
-      }
-    }
-    case LookupIterator::ACCESS_CHECK:
-    case LookupIterator::NOT_FOUND:
-    case LookupIterator::DATA:
-    case LookupIterator::ACCESSOR:
-    case LookupIterator::INTERCEPTOR:
-    case LookupIterator::INTEGER_INDEXED_EXOTIC:
-      break;
-  }
-
-  // We need to restart to handle interceptors properly.
-  it->Restart();
-
-  return JSObject::DefineOwnPropertyIgnoreAttributes(
-      it, value, NONE, should_throw, JSObject::DONT_FORCE_FIELD,
-      EnforceDefineSemantics::kDefine, store_origin);
-}
-}  // namespace
-
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    Handle<Object> value,
                                    StoreOrigin store_origin) {
@@ -1819,9 +1755,10 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
     // TODO(v8:12548): refactor DefinedNamedOwnIC and SetNamedIC as subclasses
     // of StoreIC so their logic doesn't get mixed here.
     if (IsDefineNamedOwnIC()) {
-      MAYBE_RETURN_NULL(
-          JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()));
+      MAYBE_RETURN_NULL(Object::DefineOwnProperty(it, value, StoreOrigin::kNamed));
     } else {
+      PropertyKey key(isolate(), name);
+      LookupIterator it(isolate(), object, key, LookupIterator::DEFAULT);
       MAYBE_RETURN_NULL(Object::SetProperty(&it, value, StoreOrigin::kNamed));
     }
     return value;
@@ -1848,6 +1785,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       isolate(), object, key,
       IsAnyDefineOwn() ? LookupIterator::OWN : LookupIterator::DEFAULT);
 
+  DCHECK_IMPLIES(name->IsPrivateName(), !IsDefineNamedOwnIC());
   if (name->IsPrivate()) {
     bool exists = it.IsFound();
     if (name->IsPrivateName() && exists == IsDefineKeyedOwnIC()) {
@@ -1860,6 +1798,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                 : MessageTemplate::kInvalidPrivateFieldReinitialization;
         return TypeError(message, object, name_string);
       } else {
+        // e.g. ({}).#x = 1
         return TypeError(MessageTemplate::kInvalidPrivateMemberWrite, object,
                          name_string);
       }
@@ -1881,6 +1820,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // present. We can also skip this for private names since they are not
   // bound by configurability or extensibility checks, and errors would've
   // been thrown if the private field already exists in the object.
+  // TODO(joyee): should defer if there's indexed interceptor, too
   if (IsAnyDefineOwn() && !name->IsPrivateName() && !object->IsJSProxy() &&
       !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
     Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
@@ -1910,8 +1850,32 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       MAYBE_RETURN_NULL(
           JSReceiver::AddPrivateField(&it, value, Nothing<ShouldThrow>()));
     } else {
-      MAYBE_RETURN_NULL(DefineOwnDataProperty(
-          &it, original_state, value, Nothing<ShouldThrow>(), store_origin));
+      // It should not be possible to get here in a contextual store
+      // (indicated by IsJSGlobalObject()).
+      DCHECK(!it->GetReceiver()->IsJSGlobalObject(it->isolate()));
+
+      if (it.state() == LookupIterator::TRANSITION) {
+       switch (original_state) {
+         case LookupIterator::JSPROXY:
+         case LookupIterator::TRANSITION:
+         case LookupIterator::DATA:
+         case LookupIterator::INTERCEPTOR:
+         case LookupIterator::ACCESSOR:
+         case LookupIterator::INTEGER_INDEXED_EXOTIC:
+           UNREACHABLE();
+         case LookupIterator::ACCESS_CHECK: {
+           DCHECK(!Handle<JSReceiver>::cast(object)->IsAccessCheckNeeded());
+           V8_FALLTHROUGH;
+         }
+         case LookupIterator::NOT_FOUND:
+           return Object::AddDataProperty(it, value, NONE,
+                                          Nothing<ShouldThrow>(), store_origin,
+                                          EnforceDefineSemantics::kDefine);
+      }
+
+      // Restart to handle interceptors properly.
+      it->Restart();
+      MAYBE_RETURN_NULL(Object::DefineOwnProperty(&it, value, store_origin));
     }
   } else {
     MAYBE_RETURN_NULL(Object::SetProperty(&it, value, store_origin));
@@ -2908,11 +2872,12 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Slow) {
   // and defining named public class fields.
   DCHECK(!key->IsSymbol() || !Symbol::cast(*key).is_private_name());
 
-  PropertyKey lookup_key(isolate, key);
-  LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
+  printf("Runtime_DefineNamedOwnIC_Slow\n");
 
+  // TODO(joyee): test the slow handler.
   MAYBE_RETURN(
-      JSReceiver::CreateDataProperty(&it, value, Nothing<ShouldThrow>()),
+      Runtime::DefineObjectOwnProperty(
+          isolate, object, key, value, StoreOrigin::kNamed, Nothing<ShouldThrow>()),
       ReadOnlyRoots(isolate).exception());
   return *value;
 }

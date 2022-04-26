@@ -3505,12 +3505,16 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         if (result.IsNothing() || result.FromJust()) return result;
 
         if (semantics == EnforceDefineSemantics::kDefine) {
-          it->Restart();
           Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
               it->isolate(), it, value, should_throw);
           if (can_define.IsNothing() || !can_define.FromJust()) {
             return can_define;
           }
+          // JSReceiver::CheckIfCanDefine continues the lookup and
+          // updates the state of the LookupIterator.
+          DCHECK(it->state() == LookupIterator::NOT_FOUND ||
+                 it->state() == LookupIterator::DATA ||
+                 it->state() == LookupIterator::ACCESSOR);
         }
 
         // The interceptor declined to handle the operation, so proceed defining

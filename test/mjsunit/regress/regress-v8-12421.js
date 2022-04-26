@@ -276,6 +276,7 @@
     assertEquals(1, proxy.field);
     assertEquals("written", proxy.normalField);
     assertEquals(["normalField", "field", "normalField"], trapCalls);
+    // TODO(joyee): test the slow handler again
 
     proxy = getProxy();
     new ClassWithSetterField(proxy);

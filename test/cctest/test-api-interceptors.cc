@@ -2325,50 +2325,252 @@ THREADED_TEST(PropertyDefinerCallbackWithSetter) {
 }
 
 namespace {
-std::vector<std::string> definer_calls;
-void LogDefinerCallsAndContinueCallback(
-    Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  String::Utf8Value utf8(info.GetIsolate(), name);
-  definer_calls.push_back(*utf8);
-}
-void LogDefinerCallsAndStopCallback(
-    Local<Name> name, const v8::PropertyDescriptor& desc,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  String::Utf8Value utf8(info.GetIsolate(), name);
-  definer_calls.push_back(*utf8);
-  info.GetReturnValue().Set(name);
-}
-
-struct DefineNamedOwnICInterceptorConfig {
-  std::string code;
-  std::vector<std::string> intercepted_defines;
+enum class InterceptorType {
+  kGetter,
+  kSetter,
+  kQuery,
+  kDeleter,
+  kEnumerator,
+  kDefiner,
+  kPropertyDescriptor,
 };
 
-std::vector<DefineNamedOwnICInterceptorConfig> configs{
-    {
-        R"(
-          class ClassWithNormalField extends Base {
-            field = (() => {
-              Object.defineProperty(
-                this,
-                'normalField',
-                { writable: true, configurable: true, value: 'initial'}
-              );
-              return 1;
-            })();
-            normalField = 'written';
-            constructor(arg) {
-              super(arg);
-            }
-          }
-          new ClassWithNormalField(obj);
-          stop ? (obj.field === undefined && obj.normalField === undefined)
-            : (obj.field === 1 && obj.normalField === 'written'))",
-        {"normalField", "field", "normalField"},  // intercepted defines
-    },
-    {
-        R"(
+const char* interceptor_name(InterceptorType type) {
+  switch (type) {
+    case InterceptorType::kGetter:
+      return "getter";
+    case InterceptorType::kSetter:
+      return "setter";
+    case InterceptorType::kDeleter:
+      return "deleter";
+    case InterceptorType::kQuery:
+      return "query";
+    case InterceptorType::kDefiner:
+      return "definer";
+    case InterceptorType::kEnumerator:
+      return "enumerator";
+    case InterceptorType::kPropertyDescriptor:
+      return "property descriptor";
+  }
+}
+
+struct InterceptorLog {
+  InterceptorType type;
+  bool is_index;
+  uint32_t index;
+  std::string name;
+};
+
+template <typename T>
+InterceptorLog GetLog(InterceptorType type, T key) {
+  if constexpr (std::is_same<T, uint32_t>::value) {
+    return InterceptorLog{type, true, key, ""};
+  } else if constexpr (std::is_same<T, const char*>::value) {
+    return InterceptorLog{type, false, 0, key};
+  } else {
+    String::Utf8Value utf8(v8::Isolate::GetCurrent(), key);
+    return InterceptorLog{type, false, 0, *utf8};
+  }
+}
+
+static const int kLogIndex = 0;
+
+template <typename T, typename CallbackInfo>
+void LogInterceptor(InterceptorType type, T key, const CallbackInfo& info) {
+  std::vector<InterceptorLog>* logs =
+      reinterpret_cast<std::vector<InterceptorLog>*>(
+          info.This()->GetAlignedPointerFromInternalField(kLogIndex));
+  logs->push_back(GetLog(type, key));
+}
+
+enum class InterceptorBehavior { kStop, kContinue };
+
+template <typename T>
+void LogGetterCallsCallback(T key,
+                            const v8::PropertyCallbackInfo<v8::Value>& info) {
+  LogInterceptor(InterceptorType::kGetter, key, info);
+}
+
+template <InterceptorBehavior behavior, typename T>
+void LogSetterCallsCallback(T key, Local<Value> value,
+                            const v8::PropertyCallbackInfo<v8::Value>& info) {
+  LogInterceptor(InterceptorType::kSetter, key, info);
+  if (behavior == InterceptorBehavior::kStop) {
+    info.GetReturnValue().Set(value);
+  }
+}
+
+template <typename T>
+void LogQueryCallsCallback(T key,
+                           const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  LogInterceptor(InterceptorType::kQuery, key, info);
+}
+
+template <InterceptorBehavior behavior, typename T>
+void LogDefinerCallsCallback(T key, const v8::PropertyDescriptor& desc,
+                             const v8::PropertyCallbackInfo<v8::Value>& info) {
+  LogInterceptor(InterceptorType::kDefiner, key, info);
+  if (behavior == InterceptorBehavior::kStop) {
+    if constexpr (std::is_same<T, uint32_t>::value) {
+      info.GetReturnValue().Set(v8_num(key));
+    } else {
+      info.GetReturnValue().Set(key);
+    }
+  }
+}
+
+template <typename T>
+void LogPropertyDescriptorCallsCallback(
+    T key, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  LogInterceptor(InterceptorType::kPropertyDescriptor, key, info);
+}
+
+struct InterceptorTestConfig {
+  std::vector<std::string> code;
+  std::vector<InterceptorLog> intercepted_and_stopped;
+  std::vector<InterceptorLog> intercepted_and_continued;
+};
+}  // namespace
+
+template <InterceptorBehavior behavior>
+void CheckInterceptors(Local<Context> context,
+                       const std::vector<InterceptorTestConfig>& configs) {
+  v8_compile(R"(
+    class Base {
+      constructor(arg) {
+        return arg;
+      }
+    })")
+      ->Run(context)
+      .ToLocalChecked();
+
+  constexpr bool stop = behavior == InterceptorBehavior::kStop;
+  v8_compile(stop ? "var stop = true;" : "var stop = false;")
+      ->Run(context)
+      .ToLocalChecked();
+
+  std::vector<InterceptorLog> interceptor_calls;
+  for (auto& config : configs) {
+    printf("stop = %s, running...\n", stop ? "true" : "false");
+
+    interceptor_calls.clear();
+
+    // Create the object with interceptors.
+    v8::Local<v8::FunctionTemplate> templ =
+        v8::FunctionTemplate::New(CcTest::isolate());
+    templ->InstanceTemplate()->SetInternalFieldCount(1);
+    templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+        LogGetterCallsCallback<v8::Local<v8::Name>>,
+        LogSetterCallsCallback<behavior, v8::Local<v8::Name>>,
+        LogQueryCallsCallback<v8::Local<v8::Name>>,
+        nullptr,  // deleter
+        nullptr,  // enumerator
+        LogDefinerCallsCallback<behavior, v8::Local<v8::Name>>,
+        LogPropertyDescriptorCallsCallback<v8::Local<v8::Name>>));
+    templ->InstanceTemplate()->SetHandler(
+        v8::IndexedPropertyHandlerConfiguration(
+            LogGetterCallsCallback<uint32_t>,
+            LogSetterCallsCallback<behavior, uint32_t>,
+            LogQueryCallsCallback<uint32_t>,
+            nullptr,  // deleter
+            nullptr,  // enumerator
+            LogDefinerCallsCallback<behavior, uint32_t>,
+            LogPropertyDescriptorCallsCallback<uint32_t>));
+    Local<Object> obj = templ->GetFunction(context)
+                            .ToLocalChecked()
+                            ->NewInstance(context)
+                            .ToLocalChecked();
+    obj->SetAlignedPointerInInternalField(kLogIndex, &interceptor_calls);
+    context->Global()->Set(context, v8_str("obj"), obj).FromJust();
+
+    for (const auto& snippet : config.code) {
+      printf("%s\n", snippet.c_str());
+      CHECK(
+          v8_compile(snippet.c_str())->Run(context).ToLocalChecked()->IsTrue());
+    }
+
+    for (size_t i = 0; i < interceptor_calls.size(); ++i) {
+      printf("Interceptor #%d: type=%s, key=", static_cast<int>(i),
+             interceptor_name(interceptor_calls[i].type));
+      if (interceptor_calls[i].is_index) {
+        printf("%d\n", static_cast<int>(interceptor_calls[i].index));
+      } else {
+        printf("\"%s\"\n", interceptor_calls[i].name.c_str());
+      }
+    }
+
+    const std::vector<InterceptorLog>& expected =
+        stop ? config.intercepted_and_stopped
+             : config.intercepted_and_continued;
+    CHECK_EQ(expected.size(), interceptor_calls.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+      CHECK_EQ(expected[i].type, interceptor_calls[i].type);
+      CHECK_EQ(expected[i].is_index, interceptor_calls[i].is_index);
+      if (expected[i].is_index) {
+        CHECK_EQ(expected[i].index, interceptor_calls[i].index);
+      } else {
+        CHECK_EQ(expected[i].name, interceptor_calls[i].name);
+      }
+    }
+  }
+}
+
+THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
+  std::vector<InterceptorTestConfig> define_named_own_configs{
+      {
+          {
+              R"(
+class ClassWithNormalField extends Base {
+  field = (() => {
+    Object.defineProperty(
+      this,
+      'normalField',
+      { writable: true, configurable: true, value: 'initial'}
+    );
+    return 1;
+  })();
+  normalField = 'written';
+  constructor(arg) {
+    super(arg);
+  }
+}
+new ClassWithNormalField(obj);
+stop ? (obj.field === undefined && obj.normalField === undefined)
+  : (obj.field === 1 && obj.normalField === 'written'))",
+          R"(
+new ClassWithNormalField(obj);
+stop ? (obj.field === undefined && obj.normalField === undefined)
+  : (obj.field === 1 && obj.normalField === 'written'))"},
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "normalField"),
+              GetLog(InterceptorType::kDefiner, "normalField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "normalField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "normalField"),
+          },
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "normalField"),
+              GetLog(InterceptorType::kDefiner, "normalField"),
+              GetLog(InterceptorType::kSetter, "normalField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              GetLog(InterceptorType::kQuery, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "normalField"),
+              GetLog(InterceptorType::kQuery, "normalField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "normalField"),
+          },
+      },
+      {
+          {R"(
             let setterCalled = false;
             class ClassWithSetterField extends Base {
               field = (() => {
@@ -2387,11 +2589,36 @@ std::vector<DefineNamedOwnICInterceptorConfig> configs{
             new ClassWithSetterField(obj);
             !setterCalled &&
               (stop ? (obj.field === undefined && obj.setterField === undefined)
-                : (obj.field === 1 && obj.setterField === 'written')))",
-        {"setterField", "field", "setterField"},  // intercepted defines
-    },
-    {
-        R"(
+                : (obj.field === 1 && obj.setterField === 'written')))"},
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "setterField"),
+              GetLog(InterceptorType::kDefiner, "setterField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "setterField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "setterField"),
+          },
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "setterField"),
+              GetLog(InterceptorType::kDefiner, "setterField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              GetLog(InterceptorType::kQuery, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "setterField"),
+              GetLog(InterceptorType::kQuery, "setterField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "setterField"),
+          },
+      },
+      {
+          {R"(
           class ClassWithReadOnlyField extends Base {
             field = (() => {
               Object.defineProperty(
@@ -2406,13 +2633,39 @@ std::vector<DefineNamedOwnICInterceptorConfig> configs{
               super(arg);
             }
           }
+
           new ClassWithReadOnlyField(obj);
           stop ? (obj.field === undefined && obj.readOnlyField === undefined)
-            : (obj.field === 1 && obj.readOnlyField === 'written'))",
-        {"readOnlyField", "field", "readOnlyField"},  // intercepted defines
-    },
-    {
-        R"(
+            : (obj.field === 1 && obj.readOnlyField === 'written'))"},
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "readOnlyField"),
+              GetLog(InterceptorType::kDefiner, "readOnlyField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "readOnlyField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "readOnlyField"),
+          },
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "readOnlyField"),
+              GetLog(InterceptorType::kDefiner, "readOnlyField"),
+              GetLog(InterceptorType::kSetter, "readOnlyField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              GetLog(InterceptorType::kQuery, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "readOnlyField"),
+              GetLog(InterceptorType::kQuery, "readOnlyField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "readOnlyField"),
+          },
+      },
+      {{R"(
           class ClassWithNonConfigurableField extends Base {
             field = (() => {
               Object.defineProperty(
@@ -2433,75 +2686,286 @@ std::vector<DefineNamedOwnICInterceptorConfig> configs{
           stop ? (!nonConfigurableThrown && obj.field === undefined
                   && obj.nonConfigurableField === undefined)
               : (nonConfigurableThrown && obj.field === 1
-                && obj.nonConfigurableField === 'initial'))",
-        // intercepted defines
-        {"nonConfigurableField", "field", "nonConfigurableField"}}
-    // We don't test non-extensible objects here because objects with
-    // interceptors cannot prevent extensions.
-};
-}  // namespace
+                && obj.nonConfigurableField === 'initial'))"},
+       // intercepted defines
+       {
+           // From Object.defineProperty()
+           GetLog(InterceptorType::kPropertyDescriptor, "nonConfigurableField"),
+           GetLog(InterceptorType::kDefiner, "nonConfigurableField"),
+           // From DefineNamedOwn
+           GetLog(InterceptorType::kDefiner, "field"),
+           // From DefineNamedOwn
+           GetLog(InterceptorType::kDefiner, "nonConfigurableField"),
+           // From the last check
+           GetLog(InterceptorType::kGetter, "field"),
+           GetLog(InterceptorType::kGetter, "nonConfigurableField"),
+       },
+       {
+           // From Object.defineProperty()
+           GetLog(InterceptorType::kPropertyDescriptor, "nonConfigurableField"),
+           GetLog(InterceptorType::kDefiner, "nonConfigurableField"),
+           GetLog(InterceptorType::kSetter, "nonConfigurableField"),
+           // From DefineNamedOwn
+           GetLog(InterceptorType::kDefiner, "field"),
+           GetLog(InterceptorType::kQuery, "field"),
+           // From DefineNamedOwn
+           GetLog(InterceptorType::kDefiner, "nonConfigurableField"),
+           GetLog(InterceptorType::kQuery, "nonConfigurableField"),
+           // From the last check
+           GetLog(InterceptorType::kGetter, "field"),
+           GetLog(InterceptorType::kGetter, "nonConfigurableField"),
+       }}
+      // We don't test non-extensible objects here because objects with
+      // interceptors cannot prevent extensions.
+  };
 
-void CheckPropertyDefinerCallbackInDefineNamedOwnIC(Local<Context> context,
-                                                    bool stop) {
-  v8_compile(R"(
-    class Base {
-      constructor(arg) {
-        return arg;
-      }
-    })")
-      ->Run(context)
-      .ToLocalChecked();
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    CheckInterceptors<InterceptorBehavior::kStop>(env.local(),
+                                                  define_named_own_configs);
+  }
 
-  v8_compile(stop ? "var stop = true;" : "var stop = false;")
-      ->Run(context)
-      .ToLocalChecked();
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    CheckInterceptors<InterceptorBehavior::kContinue>(env.local(),
+                                                      define_named_own_configs);
+  }
 
-  for (auto& config : configs) {
-    printf("stop = %s, running...\n%s\n", stop ? "true" : "false",
-           config.code.c_str());
+  {
+    i::FLAG_lazy_feedback_allocation = false;
+    i::FlagList::EnforceFlagImplications();
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    CheckInterceptors<InterceptorBehavior::kStop>(env.local(),
+                                                  define_named_own_configs);
+  }
 
-    definer_calls.clear();
-
-    // Create the object with interceptors.
-    v8::Local<v8::FunctionTemplate> templ =
-        v8::FunctionTemplate::New(CcTest::isolate());
-    templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
-        nullptr, nullptr, nullptr, nullptr, nullptr,
-        stop ? LogDefinerCallsAndStopCallback
-             : LogDefinerCallsAndContinueCallback,
-        nullptr));
-    Local<Object> obj = templ->GetFunction(context)
-                            .ToLocalChecked()
-                            ->NewInstance(context)
-                            .ToLocalChecked();
-    context->Global()->Set(context, v8_str("obj"), obj).FromJust();
-
-    CHECK(v8_compile(config.code.c_str())
-              ->Run(context)
-              .ToLocalChecked()
-              ->IsTrue());
-    for (size_t i = 0; i < definer_calls.size(); ++i) {
-      printf("define %s\n", definer_calls[i].c_str());
-    }
-
-    CHECK_EQ(config.intercepted_defines.size(), definer_calls.size());
-    for (size_t i = 0; i < config.intercepted_defines.size(); ++i) {
-      CHECK_EQ(config.intercepted_defines[i], definer_calls[i]);
-    }
+  {
+    i::FLAG_lazy_feedback_allocation = false;
+    i::FlagList::EnforceFlagImplications();
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    CheckInterceptors<InterceptorBehavior::kContinue>(env.local(),
+                                                      define_named_own_configs);
   }
 }
 
-THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
+THREADED_TEST(PropertyDefinerCallbackInDefineKeyedOwnIC) {
+  std::vector<InterceptorTestConfig> define_keyed_own_configs{
+      {
+          {R"(
+          class ClassWithNormalField extends Base {
+            field = (() => {
+              Object.defineProperty(
+                this,
+                'normalField',
+                { writable: true, configurable: true, value: 'initial'}
+              );
+              return 1;
+            })();
+            ['normalField'] = 'written';
+            constructor(arg) {
+              super(arg);
+            }
+          }
+
+          new ClassWithNormalField(obj);
+          stop ? (obj.field === undefined && obj.normalField === undefined)
+            : (obj.field === 1 && obj.normalField === 'written'))"},
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "normalField"),
+              GetLog(InterceptorType::kDefiner, "normalField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "normalField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "normalField"),
+          },
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "normalField"),
+              GetLog(InterceptorType::kDefiner, "normalField"),
+              GetLog(InterceptorType::kSetter, "normalField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              GetLog(InterceptorType::kQuery, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "normalField"),
+              GetLog(InterceptorType::kQuery, "normalField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "normalField"),
+          },
+      },
+      {
+          {R"(
+            let setterCalled = false;
+            class ClassWithSetterField extends Base {
+              field = (() => {
+                Object.defineProperty(
+                  this,
+                  'setterField',
+                  { configurable: true, set(val) { setterCalled = true; } }
+                );
+                return 1;
+              })();
+              ['setterField'] = 'written';
+              constructor(arg) {
+                super(arg);
+              }
+            }
+            new ClassWithSetterField(obj);
+            !setterCalled &&
+              (stop ? (obj.field === undefined && obj.setterField === undefined)
+                : (obj.field === 1 && obj.setterField === 'written')))"},
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "setterField"),
+              GetLog(InterceptorType::kDefiner, "setterField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "setterField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "setterField"),
+          },
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "setterField"),
+              GetLog(InterceptorType::kDefiner, "setterField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              GetLog(InterceptorType::kQuery, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "setterField"),
+              GetLog(InterceptorType::kQuery, "setterField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "setterField"),
+          },
+      },
+      {
+          {
+              R"(
+          class ClassWithReadOnlyField extends Base {
+            field = (() => {
+              Object.defineProperty(
+                this,
+                'readOnlyField',
+                { writable: false, configurable: true, value: 'initial'}
+              );
+              return 1;
+            })();
+            ['readOnlyField'] = 'written';
+            constructor(arg) {
+              super(arg);
+            }
+          }
+
+          new ClassWithReadOnlyField(obj);
+          stop ? (obj.field === undefined && obj.readOnlyField === undefined)
+            : (obj.field === 1 && obj.readOnlyField === 'written'))"},
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "readOnlyField"),
+              GetLog(InterceptorType::kDefiner, "readOnlyField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "readOnlyField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "readOnlyField"),
+          },
+          {
+              // From Object.defineProperty()
+              GetLog(InterceptorType::kPropertyDescriptor, "readOnlyField"),
+              GetLog(InterceptorType::kDefiner, "readOnlyField"),
+              GetLog(InterceptorType::kSetter, "readOnlyField"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "field"),
+              GetLog(InterceptorType::kQuery, "field"),
+              // From DefineNamedOwn
+              GetLog(InterceptorType::kDefiner, "readOnlyField"),
+              GetLog(InterceptorType::kQuery, "readOnlyField"),
+              // From the last check
+              GetLog(InterceptorType::kGetter, "field"),
+              GetLog(InterceptorType::kGetter, "readOnlyField"),
+          },
+      },
+      {{
+           R"(
+          class ClassWithNonConfigurableField extends Base {
+            field = (() => {
+              Object.defineProperty(
+                this,
+                'nonConfigurableField',
+                { writable: false, configurable: false, value: 'initial'}
+              );
+              return 1;
+            })();
+            ['nonConfigurableField'] = 'configured';
+            constructor(arg) {
+              super(arg);
+            }
+          }
+          let nonConfigurableThrown = false;
+          try { new ClassWithNonConfigurableField(obj); }
+          catch { nonConfigurableThrown = true; }
+          stop ? (!nonConfigurableThrown && obj.field === undefined
+                  && obj.nonConfigurableField === undefined)
+              : (nonConfigurableThrown && obj.field === 1
+                && obj.nonConfigurableField === 'initial'))"},
+       // intercepted defines
+       {
+           // From Object.defineProperty()
+           GetLog(InterceptorType::kPropertyDescriptor, "nonConfigurableField"),
+           GetLog(InterceptorType::kDefiner, "nonConfigurableField"),
+           // From DefineNamedOwn
+           GetLog(InterceptorType::kDefiner, "field"),
+           // From DefineNamedOwn
+           GetLog(InterceptorType::kDefiner, "nonConfigurableField"),
+           // From the last check
+           GetLog(InterceptorType::kGetter, "field"),
+           GetLog(InterceptorType::kGetter, "nonConfigurableField"),
+       },
+       {
+           // From Object.defineProperty()
+           GetLog(InterceptorType::kPropertyDescriptor, "nonConfigurableField"),
+           GetLog(InterceptorType::kDefiner, "nonConfigurableField"),
+           GetLog(InterceptorType::kSetter, "nonConfigurableField"),
+           // From DefineNamedOwn
+           GetLog(InterceptorType::kDefiner, "field"),
+           GetLog(InterceptorType::kQuery, "field"),
+           // From DefineNamedOwn
+           GetLog(InterceptorType::kDefiner, "nonConfigurableField"),
+           GetLog(InterceptorType::kQuery, "nonConfigurableField"),
+           // From the last check
+           GetLog(InterceptorType::kGetter, "field"),
+           GetLog(InterceptorType::kGetter, "nonConfigurableField"),
+       }}
+      // We don't test non-extensible objects here because objects with
+      // interceptors cannot prevent extensions.
+  };
+
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
+    CheckInterceptors<InterceptorBehavior::kStop>(env.local(),
+                                                  define_keyed_own_configs);
   }
 
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
+    CheckInterceptors<InterceptorBehavior::kContinue>(env.local(),
+                                                      define_keyed_own_configs);
   }
 
   {
@@ -2509,7 +2973,8 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
+    CheckInterceptors<InterceptorBehavior::kStop>(env.local(),
+                                                  define_keyed_own_configs);
   }
 
   {
@@ -2517,7 +2982,8 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
+    CheckInterceptors<InterceptorBehavior::kContinue>(env.local(),
+                                                      define_keyed_own_configs);
   }
 }
 

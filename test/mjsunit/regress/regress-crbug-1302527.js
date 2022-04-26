@@ -397,6 +397,7 @@
     }
   }
 
+  // TODO(joyee): test array with index fields
   // Test dictionary objects.
   function testObject(getObject) {
     let obj = getObject();
@@ -514,6 +515,7 @@
     assertEquals(1, proxy.field);
     assertEquals("written", proxy.normalField);
     assertEquals(["normalField", "field", "normalField"], trapCalls);
+    // TODO(joyee): test slow handler
 
     proxy = getProxy();
     new ClassWithNormalIndexField(proxy);
