@@ -2573,27 +2573,31 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
 
   VisitDeclarations(expr->scope()->declarations());
   Register class_constructor = register_allocator()->NewRegister();
-
+  Register class_context = register_allocator()->NewRegister();
+  Scope* class_context_scope = nullptr;
   // Create the class brand symbol and store it on the context during class
   // evaluation. This will be stored in the instance later in the constructor.
   // We do this early so that invalid access to private methods or accessors
   // in computed property keys throw.
-  if (expr->scope()->brand() != nullptr) {
-    Register brand = register_allocator()->NewRegister();
-    const AstRawString* class_name =
-        expr->scope()->class_variable() != nullptr
-            ? expr->scope()->class_variable()->raw_name()
-            : ast_string_constants()->anonymous_string();
-    builder()
-        ->LoadLiteral(class_name)
-        .StoreAccumulatorInRegister(brand)
-        .CallRuntime(Runtime::kCreatePrivateBrandSymbol, brand);
-    register_allocator()->ReleaseRegister(brand);
+  // if (expr->scope()->brand() != nullptr) {
+  //   Register brand = register_allocator()->NewRegister();
+  //   const AstRawString* class_name =
+  //       expr->class_variable() != nullptr
+  //           ? expr->class_variable()->raw_name()
+  //           : ast_string_constants()->anonymous_string();
+  //   builder()
+  //       ->LoadLiteral(class_name)
+  //       .StoreAccumulatorInRegister(brand)
+  //       .CallRuntime(Runtime::kCreatePrivateBrandSymbol, brand);
+  //   register_allocator()->ReleaseRegister(brand);
 
-    BuildVariableAssignment(expr->scope()->brand(), Token::INIT,
-                            HoleCheckMode::kElided);
+  //   BuildVariableAssignment(expr->scope()->brand(), Token::INIT,
+  //                           HoleCheckMode::kElided);
+  // }
+
+  if (expr->private_brand() != nullptr) {
+    class_context_scope = expr->private_brand()->scope();
   }
-
   AccessorTable<ClassLiteral::Property> private_accessors(zone());
   for (int i = 0; i < expr->private_members()->length(); i++) {
     ClassLiteral::Property* property = expr->private_members()->at(i);
@@ -2604,16 +2608,19 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
         // Create the private name symbols for fields during class
         // evaluation and store them on the context. These will be
         // used as keys later during instance or static initialization.
-        RegisterAllocationScope private_name_register_scope(this);
-        Register private_name = register_allocator()->NewRegister();
-        VisitForRegisterValue(property->key(), private_name);
-        builder()
-            ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
-            .StoreAccumulatorInRegister(private_name)
-            .CallRuntime(Runtime::kCreatePrivateNameSymbol, private_name);
-        DCHECK_NOT_NULL(property->private_name_var());
-        BuildVariableAssignment(property->private_name_var(), Token::INIT,
-                                HoleCheckMode::kElided);
+        // RegisterAllocationScope private_name_register_scope(this);
+        // Register private_name = register_allocator()->NewRegister();
+        // VisitForRegisterValue(property->key(), private_name);
+        // builder()
+        //     ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
+        //     .StoreAccumulatorInRegister(private_name)
+        //     .CallRuntime(Runtime::kCreatePrivateNameSymbol, private_name);
+        // DCHECK_NOT_NULL(property->private_name_var());
+        // BuildVariableAssignment(property->private_name_var(), Token::INIT,
+        //                         HoleCheckMode::kElided);
+        if (class_context_scope == nullptr) {
+          class_context_scope = property->private_name_var()->scope();
+        }
         break;
       }
       case ClassLiteral::Property::METHOD: {
@@ -2642,6 +2649,11 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     }
   }
 
+  if (class_context_scope != nullptr) {
+    DCHECK_EQ(0, execution_context()->ContextChainDepth(class_context_scope));
+    builder()->MoveRegister(execution_context()->reg(), class_context);
+  }
+
   {
     RegisterAllocationScope register_scope(this);
     RegisterList args = register_allocator()->NewGrowableRegisterList();
@@ -2650,8 +2662,16 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
     Register class_constructor_in_args =
         register_allocator()->GrowRegisterList(&args);
     Register super_class = register_allocator()->GrowRegisterList(&args);
+    Register class_context_in_args = register_allocator()->GrowRegisterList(&args);
+
     DCHECK_EQ(ClassBoilerplate::kFirstDynamicArgumentIndex,
               args.register_count());
+
+    if (class_context_scope != nullptr) {
+      builder()->MoveRegister(class_context, class_context_in_args);
+    } else {
+      builder()->LoadTheHole().StoreAccumulatorInRegister(class_context_in_args);
+    }
 
     VisitForAccumulatorValueOrTheHole(expr->extends());
     builder()->StoreAccumulatorInRegister(super_class);
@@ -2732,7 +2752,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr, Register name) {
   }
 
   // Assign to class variable.
-  Variable* class_variable = expr->scope()->class_variable();
+  Variable* class_variable = expr->class_variable();
   if (class_variable != nullptr && class_variable->is_used()) {
     DCHECK(class_variable->IsStackLocal() || class_variable->IsContextSlot());
     builder()->LoadAccumulatorWithRegister(class_constructor);

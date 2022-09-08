@@ -584,6 +584,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
                                 Handle<ClassBoilerplate> class_boilerplate,
                                 Handle<Object> super_class,
                                 Handle<JSFunction> constructor,
+                                Handle<Object> context_obj,
                                 RuntimeArguments& args) {
   Handle<Object> prototype_parent;
   Handle<HeapObject> constructor_parent;
@@ -650,6 +651,30 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
                  "init class prototype"));
   }
 
+  if (!context_obj->IsTheHole(isolate)) {
+    DCHECK(context_obj->IsContext());
+    Handle<Context> context = Handle<Context>::cast(context_obj);
+    Handle<FixedArray> context_tmpl =
+        handle(class_boilerplate->context_slots_template(), isolate);
+    DCHECK(!context_tmpl->IsTheHole(isolate));
+    int length = context_tmpl->length();
+    for (int i = 0; i < length; i += 2) {
+      Handle<Object> flags_obj = FixedArray::get(*context_tmpl, i, isolate);
+      DCHECK(flags_obj->IsSmi());
+      int flags = Smi::ToInt(Smi::cast(*flags_obj));
+      Handle<Object> name_obj = FixedArray::get(*context_tmpl, i + 1, isolate);
+      DCHECK(name_obj->IsString());
+      Handle<String> name = Handle<String>::cast(name_obj);
+      int32_t index = ClassBoilerplate::ContextSlotIndexField::decode(flags);
+      ClassBoilerplate::ContextSlotKind kind =
+          ClassBoilerplate::ContextSlotKindField::decode(flags);
+      Handle<Symbol> symbol = isolate->factory()->NewPrivateNameSymbol(name);
+      if (kind == ClassBoilerplate::kPrivateBrand) {
+        symbol->set_is_private_brand();
+      }
+      context->set(index, *symbol);
+    }
+  }
   return prototype;
 }
 
@@ -658,14 +683,18 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_DefineClass) {
   HandleScope scope(isolate);
   DCHECK_LE(ClassBoilerplate::kFirstDynamicArgumentIndex, args.length());
-  Handle<ClassBoilerplate> class_boilerplate = args.at<ClassBoilerplate>(0);
-  Handle<JSFunction> constructor = args.at<JSFunction>(1);
-  Handle<Object> super_class = args.at(2);
+  Handle<ClassBoilerplate> class_boilerplate = args.at<ClassBoilerplate>(
+      ClassBoilerplate::kClassBoilerplateArgumentIndex);
+  Handle<JSFunction> constructor =
+      args.at<JSFunction>(ClassBoilerplate::kConstructorArgumentIndex);
+  Handle<Object> super_class =
+      args.at(ClassBoilerplate::kPrototypeArgumentIndex);
+  Handle<Object> context = args.at(ClassBoilerplate::kContextArgumentIndex);
   DCHECK_EQ(class_boilerplate->arguments_count(), args.length());
 
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      DefineClass(isolate, class_boilerplate, super_class, constructor, args));
+      isolate, DefineClass(isolate, class_boilerplate, super_class, constructor,
+                           context, args));
 }
 
 namespace {

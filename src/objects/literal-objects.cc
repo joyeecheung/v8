@@ -599,6 +599,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   auto* factory = isolate->factory();
   ObjectDescriptor<IsolateT> static_desc(kMinimumClassPropertiesCount);
   ObjectDescriptor<IsolateT> instance_desc(kMinimumPrototypePropertiesCount);
+  Handle<FixedArray> context_slots_tmpl;
 
   for (int i = 0; i < expr->public_members()->length(); i++) {
     ClassLiteral::Property* property = expr->public_members()->at(i);
@@ -614,6 +615,17 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
       } else {
         desc.IncElementsCount();
       }
+    }
+  }
+
+  int context_slots_tmpl_size = 0;
+  if (expr->private_brand() != nullptr) {
+    context_slots_tmpl_size += 2;
+  }
+  for (int i = 0; i < expr->private_members()->length(); i++) {
+    ClassLiteral::Property* property = expr->private_members()->at(i);
+    if (property->kind() == ClassLiteral::Property::FIELD) {
+      context_slots_tmpl_size += 2;
     }
   }
 
@@ -713,6 +725,35 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
   static_desc.Finalize(isolate);
   instance_desc.Finalize(isolate);
 
+  if (context_slots_tmpl_size > 0) {
+    context_slots_tmpl =
+        factory->NewFixedArray(context_slots_tmpl_size, AllocationType::kOld);
+  }
+  int context_index = 0;
+  if (expr->private_brand() != nullptr) {
+    int flags = ContextSlotIndexField::encode(expr->private_brand()->index()) |
+                ContextSlotKindField::encode(kPrivateBrand);
+    context_slots_tmpl->set(context_index++, Smi::FromInt(flags));
+    Handle<String> class_name_string =
+        expr->class_variable() != nullptr
+            ? expr->class_variable()->raw_name()->string()
+            : factory->anonymous_string();
+    context_slots_tmpl->set(context_index++, *class_name_string);
+  }
+  for (int i = 0; i < expr->private_members()->length(); i++) {
+    ClassLiteral::Property* property = expr->private_members()->at(i);
+    if (property->kind() != ClassLiteral::Property::FIELD) {
+      continue;
+    }
+    int flags =
+        ContextSlotIndexField::encode(property->private_name_var()->index()) |
+        ContextSlotKindField::encode(kPrivateSymbol);
+    context_slots_tmpl->set(context_index++, Smi::FromInt(flags));
+    Handle<String> name = property->private_name_var()->raw_name()->string();
+    context_slots_tmpl->set(context_index++, *name);
+  }
+  DCHECK_EQ(context_slots_tmpl_size, context_index);
+
   Handle<ClassBoilerplate> class_boilerplate = Handle<ClassBoilerplate>::cast(
       factory->NewFixedArray(kBoilerplateLength, AllocationType::kOld));
 
@@ -731,6 +772,10 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
       *instance_desc.elements_template());
   class_boilerplate->set_instance_computed_properties(
       *instance_desc.computed_properties());
+
+  if (context_slots_tmpl_size > 0) {
+    class_boilerplate->set_context_slots_template(*context_slots_tmpl);
+  }
 
   return scope.CloseAndEscape(class_boilerplate);
 }

@@ -118,6 +118,9 @@ ACCESSORS(ClassBoilerplate, instance_elements_template, Object,
 ACCESSORS(ClassBoilerplate, instance_computed_properties, FixedArray,
           FixedArray::OffsetOfElementAt(kPrototypeComputedPropertiesIndex))
 
+ACCESSORS(ClassBoilerplate, context_slots_template, FixedArray,
+          FixedArray::OffsetOfElementAt(kContextSlotsTemplateIndex))
+
 //
 // ArrayBoilerplateDescription
 //

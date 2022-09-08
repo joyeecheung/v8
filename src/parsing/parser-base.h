@@ -602,9 +602,8 @@ class ParserBase {
           has_static_private_methods(false),
           has_static_blocks(false),
           has_instance_members(false),
-          requires_brand(false),
+          has_private_brand(false),
           is_anonymous(false),
-          has_private_methods(false),
           static_elements_scope(nullptr),
           instance_members_scope(nullptr),
           computed_field_count(0) {}
@@ -621,14 +620,14 @@ class ParserBase {
     bool has_static_private_methods;
     bool has_static_blocks;
     bool has_instance_members;
-    bool requires_brand;
+    bool has_private_brand;
     bool is_anonymous;
-    bool has_private_methods;
     DeclarationScope* static_elements_scope;
     DeclarationScope* instance_members_scope;
     int computed_field_count;
     Variable* home_object_variable = nullptr;
     Variable* static_home_object_variable = nullptr;
+    Variable* private_brand_variable = nullptr;
   };
 
   enum class PropertyPosition { kObjectLiteral, kClassLiteral };
@@ -4768,9 +4767,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
     if (V8_UNLIKELY(prop_info.is_private)) {
       DCHECK(!is_constructor);
-      class_info.requires_brand |= (!is_field && !prop_info.is_static);
+      class_info.has_private_brand |= (!is_field && !prop_info.is_static);
       bool is_method = property_kind == ClassLiteralProperty::METHOD;
-      class_info.has_private_methods |= is_method;
       class_info.has_static_private_methods |= is_method && prop_info.is_static;
       impl()->DeclarePrivateClassMember(class_scope, prop_info.name, property,
                                         property_kind, prop_info.is_static,
@@ -4815,8 +4813,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     return impl()->FailureExpression();
   }
 
-  if (class_info.requires_brand) {
-    class_scope->DeclareBrandVariable(
+  if (class_info.has_private_brand) {
+    class_info.private_brand_variable = class_scope->DeclareBrandVariable(
         ast_value_factory(), IsStaticFlag::kNotStatic, kNoSourcePosition);
   }
 

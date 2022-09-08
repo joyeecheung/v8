@@ -317,6 +317,10 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
       is_private_(is_private),
       private_or_computed_name_var_(nullptr) {}
 
+Variable* ClassLiteral::class_variable() const {
+  return scope_->class_variable();
+}
+
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
          (kind_ == MATERIALIZED_LITERAL && value_->IsCompileTimeValue());

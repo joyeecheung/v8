@@ -2504,9 +2504,6 @@ class ClassLiteral final : public Expression {
   bool is_anonymous_expression() const {
     return IsAnonymousExpression::decode(bit_field_);
   }
-  bool has_private_methods() const {
-    return HasPrivateMethods::decode(bit_field_);
-  }
   bool IsAnonymousFunctionDefinition() const {
     return is_anonymous_expression();
   }
@@ -2521,6 +2518,10 @@ class ClassLiteral final : public Expression {
 
   Variable* static_home_object() const { return static_home_object_; }
 
+  Variable* private_brand() const { return private_brand_; }
+
+  Variable* class_variable() const;
+
  private:
   friend class AstNodeFactory;
   friend Zone;
@@ -2533,8 +2534,8 @@ class ClassLiteral final : public Expression {
                FunctionLiteral* instance_members_initializer_function,
                int start_position, int end_position,
                bool has_static_computed_names, bool is_anonymous,
-               bool has_private_methods, Variable* home_object,
-               Variable* static_home_object)
+               Variable* home_object, Variable* static_home_object,
+               Variable* private_brand)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         scope_(scope),
@@ -2546,10 +2547,10 @@ class ClassLiteral final : public Expression {
         instance_members_initializer_function_(
             instance_members_initializer_function),
         home_object_(home_object),
-        static_home_object_(static_home_object) {
+        static_home_object_(static_home_object),
+        private_brand_(private_brand) {
     bit_field_ |= HasStaticComputedNames::encode(has_static_computed_names) |
-                  IsAnonymousExpression::encode(is_anonymous) |
-                  HasPrivateMethods::encode(has_private_methods);
+                  IsAnonymousExpression::encode(is_anonymous);
   }
 
   int end_position_;
@@ -2562,9 +2563,9 @@ class ClassLiteral final : public Expression {
   FunctionLiteral* instance_members_initializer_function_;
   using HasStaticComputedNames = Expression::NextBitField<bool, 1>;
   using IsAnonymousExpression = HasStaticComputedNames::Next<bool, 1>;
-  using HasPrivateMethods = IsAnonymousExpression::Next<bool, 1>;
   Variable* home_object_;
   Variable* static_home_object_;
+  Variable* private_brand_;
 };
 
 
@@ -3283,13 +3284,13 @@ class AstNodeFactory final {
       FunctionLiteral* static_initializer,
       FunctionLiteral* instance_members_initializer_function,
       int start_position, int end_position, bool has_static_computed_names,
-      bool is_anonymous, bool has_private_methods, Variable* home_object,
-      Variable* static_home_object) {
+      bool is_anonymous, Variable* home_object, Variable* static_home_object,
+      Variable* private_brand) {
     return zone_->New<ClassLiteral>(
         scope, extends, constructor, public_members, private_members,
         static_initializer, instance_members_initializer_function,
         start_position, end_position, has_static_computed_names, is_anonymous,
-        has_private_methods, home_object, static_home_object);
+        home_object, static_home_object, private_brand);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,

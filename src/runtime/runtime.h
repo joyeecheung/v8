@@ -83,7 +83,7 @@ namespace internal {
   F(ToBigInt, 1, 1)
 
 #define FOR_EACH_INTRINSIC_CLASSES(F, I)    \
-  F(DefineClass, -1 /* >= 3 */, 1)          \
+  F(DefineClass, -1 /* >= 4 */, 1)          \
   F(LoadFromSuper, 3, 1)                    \
   F(LoadKeyedFromSuper, 3, 1)               \
   F(StoreKeyedToSuper, 4, 1)                \

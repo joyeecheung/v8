@@ -1467,11 +1467,11 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   Variable* DeclareClassVariable(AstValueFactory* ast_value_factory,
                                  const AstRawString* name, int class_token_pos);
 
-  Variable* brand() {
+  Variable* brand() const {
     return GetRareData() == nullptr ? nullptr : GetRareData()->brand;
   }
 
-  Variable* class_variable() { return class_variable_; }
+  Variable* class_variable() const { return class_variable_; }
 
   V8_INLINE bool IsParsingHeritage() {
     return rare_data_and_is_parsing_heritage_.GetPayload();
@@ -1537,7 +1537,7 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
     Variable* brand = nullptr;
   };
 
-  V8_INLINE RareData* GetRareData() {
+  V8_INLINE RareData* GetRareData() const {
     return rare_data_and_is_parsing_heritage_.GetPointer();
   }
   V8_INLINE RareData* EnsureRareData() {

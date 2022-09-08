@@ -10,22 +10,24 @@ snippet: "
   class A { constructor(...args) { this.args = args; } }
   new A(...[1, 2, 3]);
 "
-frame size: 6
+frame size: 8
 parameter count: 1
-bytecode array length: 41
+bytecode array length: 43
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
-                B(Star5),
+                B(Star7),
+                B(LdaTheHole),
+                B(Star6),
                 B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
-                B(Star3),
-                B(Mov), R(2), R(4),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
+                B(Star4),
+                B(Mov), R(2), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
                 B(PopContext), R(1),
-                B(Mov), R(4), R(0),
+                B(Mov), R(5), R(0),
   /*   89 S> */ B(CreateArrayLiteral), U8(3), U8(0), U8(37),
                 B(Star2),
                 B(Ldar), R(0),
@@ -47,22 +49,24 @@ snippet: "
   class A { constructor(...args) { this.args = args; } }
   new A(0, ...[1, 2, 3]);
 "
-frame size: 6
+frame size: 8
 parameter count: 1
-bytecode array length: 43
+bytecode array length: 45
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
-                B(Star5),
+                B(Star7),
+                B(LdaTheHole),
+                B(Star6),
                 B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
-                B(Star3),
-                B(Mov), R(2), R(4),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
+                B(Star4),
+                B(Mov), R(2), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
                 B(PopContext), R(1),
-                B(Mov), R(4), R(0),
+                B(Mov), R(5), R(0),
   /*   89 S> */ B(LdaZero),
                 B(Star2),
                 B(CreateArrayLiteral), U8(3), U8(0), U8(37),
@@ -86,22 +90,24 @@ snippet: "
   class A { constructor(...args) { this.args = args; } }
   new A(0, ...[1, 2, 3], 4);
 "
-frame size: 7
+frame size: 8
 parameter count: 1
-bytecode array length: 103
+bytecode array length: 105
 bytecodes: [
   /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
-                B(Star5),
+                B(Star7),
+                B(LdaTheHole),
+                B(Star6),
                 B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
-                B(Star3),
-                B(Mov), R(2), R(4),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
+                B(Star4),
+                B(Mov), R(2), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
                 B(PopContext), R(1),
-                B(Mov), R(4), R(0),
+                B(Mov), R(5), R(0),
   /*   89 S> */ B(CreateArrayLiteral), U8(3), U8(0), U8(37),
                 B(Star3),
                 B(LdaSmi), I8(1),

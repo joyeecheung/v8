@@ -103,13 +103,19 @@ class ClassBoilerplate : public FixedArray {
 #undef COMPUTED_ENTRY_BIT_FIELDS
   };
 
+  enum ContextSlotKind { kPrivateBrand, kPrivateSymbol };
+  using ContextSlotKindField = base::BitField<ContextSlotKind, 0, 1>;
+  using ContextSlotIndexField = ContextSlotKindField::Next<int, 30>;
+
   enum DefineClassArgumentsIndices {
+    kClassBoilerplateArgumentIndex = 0,
     kConstructorArgumentIndex = 1,
     kPrototypeArgumentIndex = 2,
+    kContextArgumentIndex = 3,
     // The index of a first dynamic argument passed to Runtime::kDefineClass
     // function. The dynamic arguments are consist of method closures and
     // computed property names.
-    kFirstDynamicArgumentIndex = 3,
+    kFirstDynamicArgumentIndex = 4,
   };
 
   static const int kMinimumClassPropertiesCount = 6;
@@ -125,6 +131,7 @@ class ClassBoilerplate : public FixedArray {
   DECL_ACCESSORS(instance_properties_template, Object)
   DECL_ACCESSORS(instance_elements_template, Object)
   DECL_ACCESSORS(instance_computed_properties, FixedArray)
+  DECL_ACCESSORS(context_slots_template, FixedArray)
 
   template <typename IsolateT, typename Dictionary>
   static void AddToPropertiesTemplate(IsolateT* isolate,
@@ -150,6 +157,7 @@ class ClassBoilerplate : public FixedArray {
     kPrototypePropertiesTemplateIndex,
     kPrototypeElementsTemplateIndex,
     kPrototypeComputedPropertiesIndex,
+    kContextSlotsTemplateIndex,
     kBoilerplateLength  // last element
   };
 

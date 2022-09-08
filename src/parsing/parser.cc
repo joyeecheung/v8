@@ -3299,7 +3299,7 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
         class_info->instance_fields->length());
   }
 
-  if (class_info->requires_brand) {
+  if (class_info->private_brand_variable != nullptr) {
     class_info->constructor->set_class_scope_has_private_brand(true);
   }
   if (class_info->has_static_private_methods) {
@@ -3310,8 +3310,8 @@ Expression* Parser::RewriteClassLiteral(ClassScope* block_scope,
       class_info->public_members, class_info->private_members,
       static_initializer, instance_members_initializer_function, pos, end_pos,
       class_info->has_static_computed_names, class_info->is_anonymous,
-      class_info->has_private_methods, class_info->home_object_variable,
-      class_info->static_home_object_variable);
+      class_info->home_object_variable, class_info->static_home_object_variable,
+      class_info->private_brand_variable);
 
   AddFunctionForNameInference(class_info->constructor);
   return class_literal;
