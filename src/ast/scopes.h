@@ -657,6 +657,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return nullptr;
   }
 
+  void ForceDynamicLookup(VariableProxy* proxy);
+
  protected:
   explicit Scope(Zone* zone);
 
@@ -1432,13 +1434,23 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   Variable* DeclarePrivateName(const AstRawString* name, VariableMode mode,
                                IsStaticFlag is_static_flag, bool* was_added);
 
+  enum class UnresolvablePrivateNameHandling {
+    kContinue,
+    kReturn,
+  };
+
   // Try resolving all unresolved private names found in the current scope.
   // Called from DeclarationScope::AllocateVariables() when reparsing a
   // method to generate code or when eval() is called to access private names.
   // If there are any private names that cannot be resolved, returns false.
-  V8_WARN_UNUSED_RESULT bool ResolvePrivateNames(ParseInfo* info);
+  // If handling is kContinue, we attempt to resolve all private names, leaving
+  // the unresolvable ones unresolved. If handling is kReturn, we return as
+  // soon as we find private names that cannot be resolved.
+  V8_WARN_UNUSED_RESULT bool ResolvePrivateNames(
+      ParseInfo* info, UnresolvablePrivateNameHandling handling);
 
   // Called after the entire class literal is parsed.
+  // When handling is kReturn:
   // - If we are certain a private name cannot be resolve, return that
   //   variable proxy.
   // - If we find the private name in the scope chain, return nullptr.
@@ -1446,7 +1458,10 @@ class V8_EXPORT_PRIVATE ClassScope : public Scope {
   //   immediately.
   // - If we are not sure if the private name can be resolved or not yet,
   //   return nullptr.
-  VariableProxy* ResolvePrivateNamesPartially();
+  // When handling is kContinue, we give our best effort in resolving the names,
+  // leave the unresolvable ones unresolved, and always return nullptr.
+  VariableProxy* ResolvePrivateNamesPartially(
+      UnresolvablePrivateNameHandling handling);
 
   // Get the current tail of unresolved private names to be used to
   // reset the tail.

@@ -1,0 +1,35 @@
+Evaluate conflicting private class member out of class scope
+Running (new ClassWithField).#name
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (test.js:18:3), <anonymous>:1:2)     at test.js:18:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running (new ClassWithMethod).#name
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (test.js:18:3), <anonymous>:1:2)     at test.js:18:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running (new ClassWithAccessor).#name
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (test.js:18:3), <anonymous>:1:2)     at test.js:18:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running StaticClass.#name
+{
+    type : string
+    value : child
+}
+Running (new StaticClass).#name
+{
+    type : string
+    value : string
+}

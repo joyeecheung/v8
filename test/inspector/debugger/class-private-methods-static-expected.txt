@@ -118,10 +118,10 @@ privateProperties on the subclass
 Evaluating this.#inc(); from the base class
 {
     exceptionDetails : {
-        columnNumber : 4
+        columnNumber : 0
         exception : {
-            className : SyntaxError
-            description : SyntaxError: Private field '#inc' must be declared in an enclosing class     at B.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
+            className : Error
+            description : Error: Cannot read private member #inc from an object whose class did not declare it     at eval (eval at test (:1:1), <anonymous>:1:1)     at B.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
             objectId : <objectId>
             subtype : error
             type : object
@@ -132,8 +132,8 @@ Evaluating this.#inc(); from the base class
         text : Uncaught
     }
     result : {
-        className : SyntaxError
-        description : SyntaxError: Private field '#inc' must be declared in an enclosing class     at B.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
+        className : Error
+        description : Error: Cannot read private member #inc from an object whose class did not declare it     at eval (eval at test (:1:1), <anonymous>:1:1)     at B.test (<anonymous>:24:7)     at run (<anonymous>:28:5)     at <anonymous>:1:1
         objectId : <objectId>
         subtype : error
         type : object

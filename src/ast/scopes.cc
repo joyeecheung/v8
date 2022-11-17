@@ -1355,10 +1355,14 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   // Module variables must be allocated before variable resolution
   // to ensure that UpdateNeedsHoleCheck() can detect import variables.
   if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
-
+  ClassScope::UnresolvablePrivateNameHandling handling =
+      info->flags().parsing_while_debugging() == ParsingWhileDebugging::kYes
+          ? ClassScope::UnresolvablePrivateNameHandling::kContinue
+          : ClassScope::UnresolvablePrivateNameHandling::kReturn;
   PrivateNameScopeIterator private_name_scope_iter(this);
   if (!private_name_scope_iter.Done() &&
-      !private_name_scope_iter.GetScope()->ResolvePrivateNames(info)) {
+      !private_name_scope_iter.GetScope()->ResolvePrivateNames(info,
+                                                               handling)) {
     DCHECK(info->pending_error_handler()->has_pending_error());
     return false;
   }
@@ -2063,6 +2067,14 @@ Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Allocate it by giving it a dynamic lookup.
   var->AllocateTo(VariableLocation::LOOKUP, -1);
   return var;
+}
+
+void Scope::ForceDynamicLookup(VariableProxy* proxy) {
+  // At the moment this is only used for looking up private names dynamically
+  // in debug-evaluate.
+  DCHECK(proxy->raw_name()->IsPrivateName());
+  Variable* dynamic = NonLocal(proxy->raw_name(), VariableMode::kDynamic);
+  proxy->BindTo(dynamic);
 }
 
 // static
@@ -2958,8 +2970,10 @@ Variable* ClassScope::LookupPrivateName(VariableProxy* proxy) {
   return nullptr;
 }
 
-bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
+bool ClassScope::ResolvePrivateNames(ParseInfo* info,
+                                     UnresolvablePrivateNameHandling handling) {
   RareData* rare_data = GetRareData();
+  // There is no unresolved private name.
   if (rare_data == nullptr || rare_data->unresolved_private_names.is_empty()) {
     return true;
   }
@@ -2971,11 +2985,18 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
       // It's only possible to fail to resolve private names here if
       // this is at the top level or the private name is accessed through eval.
       DCHECK(info->flags().is_eval() || outer_scope_->is_script_scope());
-      Scanner::Location loc = proxy->location();
-      info->pending_error_handler()->ReportMessageAt(
-          loc.beg_pos, loc.end_pos,
-          MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name());
-      return false;
+      if (handling == UnresolvablePrivateNameHandling::kReturn) {
+        Scanner::Location loc = proxy->location();
+        info->pending_error_handler()->ReportMessageAt(
+            loc.beg_pos, loc.end_pos,
+            MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name());
+        return false;
+      } else {
+        // This can be hit when e.g. we are looking up private names from a
+        // class scope that does not contain the name, even when the receiver
+        // contains that name from a different class scope.
+        ForceDynamicLookup(proxy);
+      }
     } else {
       proxy->BindTo(var);
     }
@@ -2987,8 +3008,10 @@ bool ClassScope::ResolvePrivateNames(ParseInfo* info) {
   return true;
 }
 
-VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
+VariableProxy* ClassScope::ResolvePrivateNamesPartially(
+    UnresolvablePrivateNameHandling handling) {
   RareData* rare_data = GetRareData();
+  // There is no unresolved private name.
   if (rare_data == nullptr || rare_data->unresolved_private_names.is_empty()) {
     return nullptr;
   }
@@ -3003,7 +3026,22 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
   // inside cannot be resolved.
   if (!has_private_names && private_name_scope_iter.Done() &&
       !unresolved.is_empty()) {
-    return unresolved.first();
+    VariableProxy* proxy = unresolved.first();
+    // For the usual case, we return immediately to throw a syntax error.
+    if (handling == UnresolvablePrivateNameHandling::kReturn) {
+      return proxy;
+    } else {
+      // For debug-evaluate, we bind all unresolvable private name proxies
+      // to dynamic lookup variables and emit dynamic lookup code later.
+      while (proxy != nullptr) {
+        DCHECK(proxy->IsPrivateName());
+        VariableProxy* next = proxy->next_unresolved();
+        unresolved.Remove(proxy);
+        ForceDynamicLookup(proxy);
+        proxy = next;
+      }
+      return nullptr;
+    }
   }
 
   for (VariableProxy* proxy = unresolved.first(); proxy != nullptr;) {
@@ -3034,12 +3072,19 @@ VariableProxy* ClassScope::ResolvePrivateNamesPartially() {
       // There's no outer private name scope so we are certain that the variable
       // cannot be resolved later.
       if (private_name_scope_iter.Done()) {
-        return proxy;
+        // For the usual case, we return immediately to throw a syntax error.
+        if (handling == UnresolvablePrivateNameHandling::kReturn) {
+          return proxy;
+        } else {
+          // For debug-evaluate, we bind all unresolvable private name proxies
+          // to dynamic lookup variables and emit dynamic lookup code later.
+          ForceDynamicLookup(proxy);
+        }
+      } else {
+        // The private name may be found later in the outer private name scope,
+        // so push it to the outer scope.
+        private_name_scope_iter.AddUnresolvedPrivateName(proxy);
       }
-
-      // The private name may be found later in the outer private name scope, so
-      // push it to the outer scope.
-      private_name_scope_iter.AddUnresolvedPrivateName(proxy);
     }
 
     proxy = next;
@@ -3113,7 +3158,13 @@ void PrivateNameScopeIterator::AddUnresolvedPrivateName(VariableProxy* proxy) {
   // be new.
   DCHECK(!proxy->is_resolved());
   DCHECK(proxy->IsPrivateName());
-  GetScope()->EnsureRareData()->unresolved_private_names.Add(proxy);
+  if (Done()) {
+    // In debug evaluate, resolve the proxy with dynamic lookup if there are no
+    // valid class scopes in the scope chain for the proxy.
+    start_scope_->ForceDynamicLookup(proxy);
+  } else {
+    GetScope()->EnsureRareData()->unresolved_private_names.Add(proxy);
+  }
   // Any closure scope that contain uses of private names that skips over a
   // class scope due to heritage expressions need private name context chain
   // recalculation, since not all scopes require a Context or ScopeInfo. See

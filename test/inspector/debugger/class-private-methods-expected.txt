@@ -203,26 +203,9 @@ privateProperties on the subclass instance
 ]
 Evaluating private methods in the base class from the subclass
 {
-    exceptionDetails : {
-        columnNumber : 4
-        exception : {
-            className : SyntaxError
-            description : SyntaxError: Private field '#subclassMethod' must be declared in an enclosing class     at B.fn (<anonymous>:20:7)     at run (<anonymous>:34:5)     at <anonymous>:1:1
-            objectId : <objectId>
-            subtype : error
-            type : object
-        }
-        exceptionId : <exceptionId>
-        lineNumber : 0
-        scriptId : <scriptId>
-        text : Uncaught
-    }
     result : {
-        className : SyntaxError
-        description : SyntaxError: Private field '#subclassMethod' must be declared in an enclosing class     at B.fn (<anonymous>:20:7)     at run (<anonymous>:34:5)     at <anonymous>:1:1
-        objectId : <objectId>
-        subtype : error
-        type : object
+        type : string
+        value : subclassMethod
     }
 }
 Evaluating private method in the subclass from the subclass

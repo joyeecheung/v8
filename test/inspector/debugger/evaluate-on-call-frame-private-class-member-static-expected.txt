@@ -1,0 +1,218 @@
+Evaluate static private class member out of class scope
+checking private fields
+Running Klass.#field
+{
+    type : string
+    value : string
+}
+Running Klass.#field = 1
+{
+    description : 1
+    type : number
+    value : 1
+}
+Running Klass.#field
+{
+    description : 1
+    type : number
+    value : 1
+}
+Running Klass.#field++
+{
+    description : 1
+    type : number
+    value : 1
+}
+Running Klass.#field
+{
+    description : 2
+    type : number
+    value : 2
+}
+Running ++Klass.#field
+{
+    description : 3
+    type : number
+    value : 3
+}
+Running Klass.#field
+{
+    description : 3
+    type : number
+    value : 3
+}
+Running Klass.#field -= 3
+{
+    description : 0
+    type : number
+    value : 0
+}
+Running Klass.#field
+{
+    description : 0
+    type : number
+    value : 0
+}
+checking private getter-only accessors
+Running Klass.#getterOnly
+{
+    type : string
+    value : getterOnly
+}
+Running Klass.#getterOnly = 1
+{
+    className : Error
+    description : Error: '#getterOnly' was defined without a setter     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:19)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running Klass.#getterOnly++
+{
+    className : Error
+    description : Error: '#getterOnly' was defined without a setter     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:18)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running Klass.#getterOnly -= 3
+{
+    className : Error
+    description : Error: '#getterOnly' was defined without a setter     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:19)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running Klass.#getterOnly
+{
+    type : string
+    value : getterOnly
+}
+checking private setter-only accessors
+Running Klass.#setterOnly
+{
+    className : Error
+    description : Error: '#setterOnly' was defined without a getter     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:1)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running Klass.#setterOnly = 1
+{
+    description : 1
+    type : number
+    value : 1
+}
+Running Klass.#setterOnly++
+{
+    className : Error
+    description : Error: '#setterOnly' was defined without a getter     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:1)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running Klass.#setterOnly -= 3
+{
+    className : Error
+    description : Error: '#setterOnly' was defined without a getter     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:1)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running Klass.#field
+{
+    type : string
+    value : setterOnlyCalled
+}
+checking private accessors
+Running Klass.#accessor
+{
+    type : string
+    value : setterOnlyCalled
+}
+Running Klass.#accessor = 1
+{
+    description : 1
+    type : number
+    value : 1
+}
+Running Klass.#field
+{
+    description : 1
+    type : number
+    value : 1
+}
+Running Klass.#accessor++
+{
+    description : 1
+    type : number
+    value : 1
+}
+Running Klass.#field
+{
+    description : 2
+    type : number
+    value : 2
+}
+Running ++Klass.#accessor
+{
+    type : undefined
+}
+Running Klass.#field
+{
+    description : 3
+    type : number
+    value : 3
+}
+Running Klass.#accessor -= 3
+{
+    description : 0
+    type : number
+    value : 0
+}
+Running Klass.#field
+{
+    description : 0
+    type : number
+    value : 0
+}
+checking private methods
+Running Klass.#method
+{
+    className : Function
+    description : #method() { return "method"; }
+    objectId : <objectId>
+    type : function
+}
+Running Klass.#method = 1
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:15)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running Klass.#method++
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:14)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running ++Klass.#method
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:9)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running Klass.#method -= 3
+{
+    className : Error
+    description : Error: Private method '#method' is not writable     at eval (eval at <anonymous> (test.js:10:3), <anonymous>:1:15)     at test.js:10:3
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
