@@ -128,6 +128,11 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileFlags {
     return *this;
   }
 
+  bool allows_extraordinary_private_name_access() const {
+    return parsing_while_debugging() == ParsingWhileDebugging::kYes ||
+           is_repl_mode();
+  }
+
  private:
   struct BitFields {
     DEFINE_BIT_FIELDS(FLAG_FIELDS)

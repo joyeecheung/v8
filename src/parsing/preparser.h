@@ -1565,13 +1565,11 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::StringLiteral();
   }
 
-  PreParserExpression ExpressionFromPrivateName(
-      PrivateNameScopeIterator* private_name_scope,
-      const PreParserIdentifier& name, int start_position) {
-    VariableProxy* proxy = factory()->ast_node_factory()->NewVariableProxy(
-        name.string_, NORMAL_VARIABLE, start_position);
-    private_name_scope->AddUnresolvedPrivateName(proxy);
-    return PreParserExpression::FromIdentifier(name);
+  V8_INLINE PreParserExpression
+  ExpressionFromPrivateVariable(VariableProxy* proxy) {
+    PreParserIdentifier identifier = PreParserIdentifier::PrivateName();
+    identifier.string_ = proxy->raw_name();
+    return PreParserExpression::FromIdentifier(identifier);
   }
 
   PreParserExpression ExpressionFromIdentifier(

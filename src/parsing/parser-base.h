@@ -271,9 +271,6 @@ class ParserBase {
 
   const UnoptimizedCompileFlags& flags() const { return flags_; }
 
-  bool is_parsing_while_debugging() {
-    return flags().parsing_while_debugging() == ParsingWhileDebugging::kYes;
-  }
   bool allow_eval_cache() const { return allow_eval_cache_; }
   void set_allow_eval_cache(bool allow) { allow_eval_cache_ = allow; }
 
@@ -1781,19 +1778,33 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     //
     // Here, we check if this is a new private name reference in a top
     // level function and throw an error if so.
-    PrivateNameScopeIterator private_name_scope_iter(scope());
+    Scope* current_scope = scope();
+    PrivateNameScopeIterator private_name_scope_iter(current_scope);
     // Parse the identifier so that we can display it in the error message
     name = impl()->GetIdentifier();
+
     // In debug-evaluate, we relax the private name resolution to enable
     // evaluation of obj.#member outside the class bodies.
-    if (private_name_scope_iter.Done() && !is_parsing_while_debugging()) {
+    bool allows_extraordinary_private_name_access =
+        flags().allows_extraordinary_private_name_access();
+    if (private_name_scope_iter.Done() &&
+        !allows_extraordinary_private_name_access) {
       impl()->ReportMessageAt(Scanner::Location(pos, pos + 1),
                               MessageTemplate::kInvalidPrivateFieldResolution,
                               impl()->GetRawNameFromIdentifier(name));
       return impl()->FailureExpression();
     }
-    key =
-        impl()->ExpressionFromPrivateName(&private_name_scope_iter, name, pos);
+
+    VariableProxy* proxy = NewRawVariable(name, pos);
+    if (private_name_scope.Done()) {
+      // In debug evaluate, resolve the proxy with dynamic lookup if there are
+      // no valid class scopes in the scope chain for the proxy.
+      DCHECK(allows_extraordinary_private_name_access);
+      current_scope->ForceDynamicLookup(proxy);
+    } else {
+      private_name_scope.AddUnresolvedPrivateName(proxy);
+    }
+    key = ExpressionFromPrivateVariable(proxy);
   } else {
     ReportUnexpectedToken(next);
     return impl()->FailureExpression();
@@ -4737,10 +4748,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   Expect(Token::LBRACE);
 
-  ClassScope::UnresolvablePrivateNameHandling private_name_handling =
-      is_parsing_while_debugging()
-          ? ClassScope::UnresolvablePrivateNameHandling::kContinue
-          : ClassScope::UnresolvablePrivateNameHandling::kReturn;
   const bool has_extends = !impl()->IsNull(class_info.extends);
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
@@ -4815,13 +4822,16 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     class_info.instance_members_scope->set_end_position(end_pos);
   }
 
-  VariableProxy* unresolvable =
-      class_scope->ResolvePrivateNamesPartially(private_name_handling);
+  bool allows_extraordinary_private_name_access =
+      flags().allows_extraordinary_private_name_access();
+  VariableProxy* unresolvable = class_scope->ResolvePrivateNamesPartially(
+      allows_extraordinary_private_name_access);
 
-  // In debug-evaluate, we relax the private name resolution to enable
-  // evaluation of obj.#member outside the class bodies.
   if (unresolvable != nullptr) {
-    DCHECK(!is_parsing_while_debugging());
+    // In debug-evaluate, we relax the private name resolution to enable
+    // evaluation of obj.#member outside the class bodies. The private name
+    // will be looked up at runtime.
+    DCHECK(!allows_extraordinary_private_name_access);
     impl()->ReportMessageAt(Scanner::Location(unresolvable->position(),
                                               unresolvable->position() + 1),
                             MessageTemplate::kInvalidPrivateFieldResolution,
