@@ -1,8 +1,10 @@
-Evaluate conflicting private class member out of class scope
+Evaluate conflicting private class member out of class scope in Debugger.evaluateOnCallFrame()
+
+Running test: evaluatePrivateMembers
 Running (new ClassWithField).#name
 {
     className : Error
-    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (test.js:18:3), <anonymous>:1:2)     at test.js:18:3
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at run (:19:3), <anonymous>:1:2)     at run (<anonymous>:19:3)     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -10,7 +12,7 @@ Running (new ClassWithField).#name
 Running (new ClassWithMethod).#name
 {
     className : Error
-    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (test.js:18:3), <anonymous>:1:2)     at test.js:18:3
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at run (:19:3), <anonymous>:1:2)     at run (<anonymous>:19:3)     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -18,7 +20,7 @@ Running (new ClassWithMethod).#name
 Running (new ClassWithAccessor).#name
 {
     className : Error
-    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at <anonymous> (test.js:18:3), <anonymous>:1:2)     at test.js:18:3
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at eval (eval at run (:19:3), <anonymous>:1:2)     at run (<anonymous>:19:3)     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object

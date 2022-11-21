@@ -1,4 +1,4 @@
-Evaluate static private class member out of class scope in Debugger.evaluateOnCallFrame()
+Evaluate static private class member out of class scope in Runtime.evaluate()
 
 Running test: evaluatePrivateMembers
 checking private fields
@@ -64,7 +64,7 @@ Running Klass.#getterOnly
 Running Klass.#getterOnly = 1
 {
     className : Error
-    description : Error: '#getterOnly' was defined without a setter     at eval (eval at run (:12:3), <anonymous>:1:19)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: '#getterOnly' was defined without a setter     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -72,7 +72,7 @@ Running Klass.#getterOnly = 1
 Running Klass.#getterOnly++
 {
     className : Error
-    description : Error: '#getterOnly' was defined without a setter     at eval (eval at run (:12:3), <anonymous>:1:18)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: '#getterOnly' was defined without a setter     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -80,7 +80,7 @@ Running Klass.#getterOnly++
 Running Klass.#getterOnly -= 3
 {
     className : Error
-    description : Error: '#getterOnly' was defined without a setter     at eval (eval at run (:12:3), <anonymous>:1:19)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: '#getterOnly' was defined without a setter     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -94,7 +94,7 @@ checking private setter-only accessors
 Running Klass.#setterOnly
 {
     className : Error
-    description : Error: '#setterOnly' was defined without a getter     at eval (eval at run (:12:3), <anonymous>:1:1)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: '#setterOnly' was defined without a getter     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -108,7 +108,7 @@ Running Klass.#setterOnly = 1
 Running Klass.#setterOnly++
 {
     className : Error
-    description : Error: '#setterOnly' was defined without a getter     at eval (eval at run (:12:3), <anonymous>:1:1)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: '#setterOnly' was defined without a getter     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -116,7 +116,7 @@ Running Klass.#setterOnly++
 Running Klass.#setterOnly -= 3
 {
     className : Error
-    description : Error: '#setterOnly' was defined without a getter     at eval (eval at run (:12:3), <anonymous>:1:1)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: '#setterOnly' was defined without a getter     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -189,7 +189,7 @@ Running Klass.#method
 Running Klass.#method = 1
 {
     className : Error
-    description : Error: Private method '#method' is not writable     at eval (eval at run (:12:3), <anonymous>:1:15)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: Private method '#method' is not writable     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -197,7 +197,7 @@ Running Klass.#method = 1
 Running Klass.#method++
 {
     className : Error
-    description : Error: Private method '#method' is not writable     at eval (eval at run (:12:3), <anonymous>:1:14)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: Private method '#method' is not writable     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -205,7 +205,7 @@ Running Klass.#method++
 Running ++Klass.#method
 {
     className : Error
-    description : Error: Private method '#method' is not writable     at eval (eval at run (:12:3), <anonymous>:1:9)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: Private method '#method' is not writable     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -213,7 +213,7 @@ Running ++Klass.#method
 Running Klass.#method -= 3
 {
     className : Error
-    description : Error: Private method '#method' is not writable     at eval (eval at run (:12:3), <anonymous>:1:15)     at run (<anonymous>:12:3)     at <anonymous>:1:1
+    description : Error: Private method '#method' is not writable     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object

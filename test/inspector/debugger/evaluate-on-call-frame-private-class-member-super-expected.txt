@@ -1,8 +1,10 @@
-Evaluate private class member from super out of class scope
+Evaluate private class member from super out of class scope in Debugger.evaluateOnCallFrame()
+
+Running test: evaluatePrivateFromSuper
 Running this.#field
 {
     className : TypeError
-    description : TypeError: Cannot access private name #field from undefined     at eval (eval at Child (test.js:1:1), <anonymous>:1:1)     at new Child (test.js:8:7)     at test.js:11:15
+    description : TypeError: Cannot access private name #field from undefined     at eval (eval at Child (:1:1), <anonymous>:1:1)     at new Child (<anonymous>:9:7)     at run (<anonymous>:12:15)     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -10,7 +12,7 @@ Running this.#field
 Running super
 {
     className : SyntaxError
-    description : SyntaxError: 'super' keyword unexpected here     at new Child (test.js:8:7)     at test.js:11:15
+    description : SyntaxError: 'super' keyword unexpected here     at new Child (<anonymous>:9:7)     at run (<anonymous>:12:15)     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object
@@ -18,7 +20,7 @@ Running super
 Running super.#staticField
 {
     className : SyntaxError
-    description : SyntaxError: 'super' keyword unexpected here     at new Child (test.js:8:7)     at test.js:11:15
+    description : SyntaxError: 'super' keyword unexpected here     at new Child (<anonymous>:9:7)     at run (<anonymous>:12:15)     at <anonymous>:1:1
     objectId : <objectId>
     subtype : error
     type : object

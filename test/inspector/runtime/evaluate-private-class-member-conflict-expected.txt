@@ -1,0 +1,37 @@
+Evaluate conflicting private class member out of class scope in Runtime.evaluate()
+
+Running test: evaluatePrivateMembers
+Running (new ClassWithField).#name
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running (new ClassWithMethod).#name
+{
+    className : ReferenceError
+    description : ReferenceError: ClassWithMethod is not defined     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running (new ClassWithAccessor).#name
+{
+    className : Error
+    description : Error: Operation is ambiguous because there are more than one private name'#name' on the object     at <anonymous>:1:1
+    objectId : <objectId>
+    subtype : error
+    type : object
+}
+Running StaticClass.#name
+{
+    type : string
+    value : child
+}
+Running (new StaticClass).#name
+{
+    type : string
+    value : string
+}

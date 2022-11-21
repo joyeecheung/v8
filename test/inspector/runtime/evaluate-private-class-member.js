@@ -6,7 +6,7 @@ utils.load('test/inspector/private-class-member-inspector-test.js');
 
 const options = {
   type: 'private-instance-member',
-  testRuntime: false,
-  message: `Evaluate private class member out of class scope in Debugger.evaluateOnCallFrame()`
+  testRuntime: true,
+  message: `Evaluate private class member out of class scope in Runtime.evaluate()`
 };
 PrivateClassMemberInspectorTest.runTest(InspectorTest, options);
