@@ -80,13 +80,26 @@ MaybeLocal<Array> GetInternalProperties(Isolate* isolate, Local<Value> value);
  * in v8::String for private members, including fields, methods,
  * accessors specific to the value type.
  * The values are returned through the out parameter values_out in the
- * corresponding indices. Private fields and methods are returned directly
+ * corresponding indices.
+ * If an exception occurs, false is returned. Otherwise true is returned.
+ * Results will be allocated in the current context and handle scope.
+ */
+V8_EXPORT_PRIVATE bool GetPrivateFields(Local<Context> context,
+                                         Local<Object> value,
+                                         std::vector<Local<Value>>* names_out,
+                                         std::vector<Local<Value>>* values_out);
+/**
+ * Returns through the out parameters names_out a vector of names
+ * in v8::String for private members, including methods and accessors specific
+ * to the value type.
+ * The values are returned through the out parameter values_out in the
+ * corresponding indices. Private methods are returned directly
  * while accessors are returned as v8::debug::AccessorPair. Missing components
  * in the accessor pairs are null.
  * If an exception occurs, false is returned. Otherwise true is returned.
  * Results will be allocated in the current context and handle scope.
  */
-V8_EXPORT_PRIVATE bool GetPrivateMembers(Local<Context> context,
+V8_EXPORT_PRIVATE bool GetPrivateMethodsAndAccessors(Local<Context> context,
                                          Local<Object> value,
                                          std::vector<Local<Value>>* names_out,
                                          std::vector<Local<Value>>* values_out);

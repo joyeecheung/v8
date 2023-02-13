@@ -1583,7 +1583,7 @@ std::vector<PrivatePropertyMirror> ValueMirror::getPrivateProperties(
 
   std::vector<v8::Local<v8::Value>> names;
   std::vector<v8::Local<v8::Value>> values;
-  if (!v8::debug::GetPrivateMembers(context, object, &names, &values))
+  if (!v8::debug::GetPrivateFields(context, object, &names, &values))
     return mirrors;
 
   size_t len = values.size();
