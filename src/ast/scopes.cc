@@ -2749,7 +2749,8 @@ int Scope::ContextLocalCount() const {
 
 VariableProxy* Scope::NewHomeObjectVariableProxy(AstNodeFactory* factory,
                                                  const AstRawString* name,
-                                                 int start_pos) {
+                                                 int start_pos,
+                                                 bool from_debug_evaluate) {
   // VariableProxies of the home object cannot be resolved like a normal
   // variable. Consider the case of a super.property usage in heritage position:
   //
@@ -2769,14 +2770,31 @@ VariableProxy* Scope::NewHomeObjectVariableProxy(AstNodeFactory* factory,
     if (home_object == nullptr) {
       VariableLookupResult lookup_result;
       int index = scope_info_->ContextSlotIndex(name->string(), &lookup_result);
-      DCHECK_GE(index, 0);
-      bool was_added;
-      home_object = variables_.Declare(zone(), this, name, lookup_result.mode,
-                                       NORMAL_VARIABLE, lookup_result.init_flag,
-                                       lookup_result.maybe_assigned_flag,
-                                       IsStaticFlag::kNotStatic, &was_added);
-      DCHECK(was_added);
-      home_object->AllocateTo(VariableLocation::CONTEXT, index);
+      if (index != -1 || from_debug_evaluate) {
+        bool was_added;
+        VariableMode mode = VariableMode::kConst;
+        InitializationFlag init_flag = InitializationFlag::kCreatedInitialized;
+        MaybeAssignedFlag maybe_assigned_flag = MaybeAssignedFlag::kNotAssigned;
+#ifdef DEBUG
+        if (index != -1) {
+          DCHECK_EQ(lookup_result.mode, mode);
+          DCHECK_EQ(lookup_result.init_flag, init_flag);
+          DCHECK_EQ(lookup_result.maybe_assigned_flag, maybe_assigned_flag);
+        }
+#endif
+        home_object = variables_.Declare(
+            zone(), this, name, mode, NORMAL_VARIABLE, init_flag,
+            maybe_assigned_flag, IsStaticFlag::kNotStatic, &was_added);
+        DCHECK(was_added);
+      } else {
+        DCHECK_GE(index, 0);
+      }
+      if (index != -1) {
+        home_object->AllocateTo(VariableLocation::CONTEXT, index);
+      } else {
+        DCHECK(from_debug_evaluate);
+        home_object->AllocateTo(VariableLocation::LOOKUP, -1);
+      }
     }
     return factory->NewVariableProxy(home_object, start_pos);
   }

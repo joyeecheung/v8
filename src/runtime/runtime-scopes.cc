@@ -718,6 +718,15 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   }
 
   if (should_throw == kThrowOnError) {
+    if (name->Equals(*isolate->factory()->this_function_string()) ||
+        name->Equals(*isolate->factory()->new_target_string()) ||
+        name->Equals(*isolate->factory()->dot_home_object_string()) ||
+        name->Equals(*isolate->factory()->dot_static_home_object_string())) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewReferenceError(MessageTemplate::kSuperNotAvailableInDebugger),
+          Object);
+    }
     // The property doesn't exist - throw exception.
     THROW_NEW_ERROR(
         isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);

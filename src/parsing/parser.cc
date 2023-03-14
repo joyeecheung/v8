@@ -303,14 +303,16 @@ Expression* Parser::NewThrowError(Runtime::FunctionId id,
 Expression* Parser::NewSuperPropertyReference(Scope* home_object_scope,
                                               int pos) {
   const AstRawString* home_object_name;
-  if (IsStatic(scope()->GetReceiverScope()->function_kind())) {
+  DeclarationScope* receiver_scope = scope()->GetReceiverScope();
+  if (IsStatic(receiver_scope->function_kind())) {
     home_object_name = ast_value_factory_->dot_static_home_object_string();
   } else {
     home_object_name = ast_value_factory_->dot_home_object_string();
   }
   return factory()->NewSuperPropertyReference(
-      home_object_scope->NewHomeObjectVariableProxy(factory(), home_object_name,
-                                                    pos),
+      home_object_scope->NewHomeObjectVariableProxy(
+          factory(), home_object_name, pos,
+          receiver_scope->is_debug_evaluate_scope()),
       pos);
 }
 

@@ -605,7 +605,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   VariableProxy* NewHomeObjectVariableProxy(AstNodeFactory* factory,
                                             const AstRawString* name,
-                                            int start_pos);
+                                            int start_pos,
+                                            bool from_debug_evaluate);
 
   bool RemoveInnerScope(Scope* inner_scope) {
     DCHECK_NOT_NULL(inner_scope);

@@ -164,7 +164,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   // Use extension object in a debug-evaluate scope.
   Handle<ScopeInfo> scope_info =
       ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
-  scope_info->SetIsDebugEvaluateScope();
+  scope_info->SetIsDebugEvaluateScope(FunctionKind::kNormalFunction);
   Handle<Context> evaluation_context = factory->NewDebugEvaluateContext(
       native_context, scope_info, materialized, Handle<Context>());
   Handle<SharedFunctionInfo> outer_info(
@@ -260,8 +260,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
        rit++) {
     ContextChainElement element = *rit;
     scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
-    scope_info->SetIsDebugEvaluateScope();
-
+    scope_info->SetIsDebugEvaluateScope(outer_info()->kind());
     // In the case where the "paused function scope" is the script scope
     // itself, we don't need (and don't have) a blocklist.
     const bool paused_scope_is_script_scope =

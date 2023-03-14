@@ -805,10 +805,11 @@ bool ScopeInfo::IsDebugEvaluateScope() const {
   return IsDebugEvaluateScopeBit::decode(Flags());
 }
 
-void ScopeInfo::SetIsDebugEvaluateScope() {
+void ScopeInfo::SetIsDebugEvaluateScope(FunctionKind function_kind) {
   CHECK(!IsEmpty());
   DCHECK_EQ(scope_type(), WITH_SCOPE);
-  set_flags(Flags() | IsDebugEvaluateScopeBit::encode(true));
+  set_flags(Flags() | IsDebugEvaluateScopeBit::encode(true) |
+            FunctionKindBits::encode(function_kind));
 }
 
 bool ScopeInfo::PrivateNameLookupSkipsOuterClass() const {

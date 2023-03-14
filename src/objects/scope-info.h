@@ -229,7 +229,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   // Can be used to mark a ScopeInfo that looks like a with-scope as actually
   // being a debug-evaluate scope.
-  void SetIsDebugEvaluateScope();
+  void SetIsDebugEvaluateScope(FunctionKind function_kind);
 
   // Return the outer ScopeInfo if present.
   ScopeInfo OuterScopeInfo() const;
