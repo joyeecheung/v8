@@ -357,7 +357,7 @@ namespace internal {
   T(NotDefined, "% is not defined")                                            \
   T(SuperAlreadyCalled, "Super constructor may only be called once")           \
   T(SuperNotAvailableInDebugger,                                               \
-    "super is not available for this constructor in the debugger")             \
+    "super is not available for this function in the debugger")                \
   T(AccessedUninitializedVariable, "Cannot access '%' before initialization")  \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   T(AccessedUnavailableVariable, "Cannot access '%' from debugger")            \

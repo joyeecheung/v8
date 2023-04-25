@@ -3797,8 +3797,8 @@ ParserBase<Impl>::ParseSuperExpression() {
   Consume(Token::SUPER);
   int pos = position();
 
-  DeclarationScope* scope = GetReceiverScope();
-  FunctionKind kind = scope->function_kind();
+  DeclarationScope* receiver_scope = GetReceiverScope();
+  FunctionKind kind = receiver_scope->function_kind();
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
       IsClassConstructor(kind)) {
     if (Token::IsProperty(peek())) {
@@ -3814,7 +3814,7 @@ ParserBase<Impl>::ParseSuperExpression() {
         impl()->ReportMessage(MessageTemplate::kOptionalChainingNoSuper);
         return impl()->FailureExpression();
       }
-      Scope* home_object_scope = scope->RecordSuperPropertyUsage();
+      Scope* home_object_scope = receiver_scope->RecordSuperPropertyUsage();
       UseThis();
       return impl()->NewSuperPropertyReference(home_object_scope, pos);
     }
@@ -3830,6 +3830,9 @@ ParserBase<Impl>::ParseSuperExpression() {
     }
   }
 
+  // TODO(joyee): throw SuperNotAvailableInDebugger instead when we are in
+  // a debug-evaluate in an arrow scope inside a class with no declaration
+  // scopes that have this declaration in between.
   impl()->ReportMessageAt(scanner()->location(),
                           MessageTemplate::kUnexpectedSuper);
   return impl()->FailureExpression();

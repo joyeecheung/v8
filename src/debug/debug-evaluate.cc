@@ -258,6 +258,10 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
           : handle(evaluation_context_->scope_info(), isolate);
   for (auto rit = context_chain_.rbegin(); rit != context_chain_.rend();
        rit++) {
+    // TODO(joyee): save the information about whether the scope can call
+    // super() somehow, which we know when we reparsed the scopes for
+    // iterating over the scopes, but lose when we try to rebuild the scope
+    // chain by ignoring optimized scopes (!NeedsContext()).
     ContextChainElement element = *rit;
     scope_info = ScopeInfo::CreateForWithScope(isolate, scope_info);
     scope_info->SetIsDebugEvaluateScope(outer_info()->kind());

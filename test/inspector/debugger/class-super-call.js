@@ -29,7 +29,7 @@ class ChildWithoutContext extends Base {
   }
 }
 
-class Dummy {
+class RunFunction {
   constructor(fn) {
     fn();
   }
@@ -37,7 +37,7 @@ class Dummy {
 
 class ChildWithArrow extends Base {
   constructor() {
-    new Dummy(() => {
+    new RunFunction(() => {
       testString = 'ChildWithArrow breakpoint';
     });
   }
@@ -45,7 +45,7 @@ class ChildWithArrow extends Base {
 
 class ChildWithArrowAndContext extends Base {
   constructor() {
-    new Dummy(() => {
+    new RunFunction(() => {
       testString = 'ChildWithArrowAndContext breakpoint';
     });
     function forceContext() {
