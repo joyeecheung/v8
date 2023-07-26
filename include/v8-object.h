@@ -484,11 +484,20 @@ class V8_EXPORT Object : public Value {
     return object.template value<Object>()->InternalFieldCount();
   }
 
-  /** Gets the value from an internal field. */
-  V8_INLINE Local<Value> GetInternalField(int index);
+  /**
+   * Gets the data from an internal field.
+   * To cast the return value into v8::Value subtypes, it needs to be
+   * casted to a v8::Value first. For example, to cast it into v8::External:
+   *
+   * object->GetInternalField(index).As<v8::Value>().As<v8::External>();
+   *
+   * If the internal field is unset, by default it returns an v8::Undefined
+   * for normal v8 objects.
+   **/
+  V8_INLINE Local<Data> GetInternalField(int index);
 
-  /** Sets the value in an internal field. */
-  void SetInternalField(int index, Local<Value> value);
+  /** Sets the data in an internal field. */
+  void SetInternalField(int index, Local<Data> data);
 
   /**
    * Gets a 2-byte-aligned native pointer from an internal field. This field
@@ -726,13 +735,13 @@ class V8_EXPORT Object : public Value {
  private:
   Object();
   static void CheckCast(Value* obj);
-  Local<Value> SlowGetInternalField(int index);
+  Local<Data> SlowGetInternalField(int index);
   void* SlowGetAlignedPointerFromInternalField(int index);
 };
 
 // --- Implementation ---
 
-Local<Value> Object::GetInternalField(int index) {
+Local<Data> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
   using A = internal::Address;
   using I = internal::Internals;
@@ -751,7 +760,7 @@ Local<Value> Object::GetInternalField(int index) {
 
     auto isolate = reinterpret_cast<v8::Isolate*>(
         internal::IsolateFromNeverReadOnlySpaceObject(obj));
-    return Local<Value>::New(isolate, value);
+    return Local<Data>::New(isolate, value);
   }
 #endif
   return SlowGetInternalField(index);
