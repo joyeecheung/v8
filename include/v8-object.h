@@ -491,8 +491,8 @@ class V8_EXPORT Object : public Value {
    *
    * object->GetInternalField(index).As<v8::Value>().As<v8::External>();
    *
-   * If the internal field is unset, by default it returns an v8::Undefined
-   * for normal v8 objects.
+   * The embedder should make sure that the internal field being retrieved
+   * using this method has already been set with SetInternalField() before.
    **/
   V8_INLINE Local<Data> GetInternalField(int index);
 
