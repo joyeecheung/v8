@@ -1948,6 +1948,17 @@ ScriptCompiler::CachedData::~CachedData() {
   }
 }
 
+ScriptCompiler::CachedData::SanityCheckResult
+ScriptCompiler::CachedData::SanityCheck(Isolate* isolate) {
+  i::AlignedCachedData aligned(data, length);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::SerializedCodeSanityCheckResult result;
+  i::SerializedCodeData scd =
+      i::SerializedCodeData::FromCachedDataWithoutSource(
+          i_isolate->AsLocalIsolate(), &aligned, &result);
+  return static_cast<ScriptCompiler::CachedData::SanityCheckResult>(result);
+}
+
 ScriptCompiler::StreamedSource::StreamedSource(
     std::unique_ptr<ExternalSourceStream> stream, Encoding encoding)
     : impl_(new i::ScriptStreamingData(std::move(stream), encoding)) {}

@@ -394,6 +394,22 @@ class V8_EXPORT ScriptCompiler {
     CachedData(const uint8_t* data, int length,
                BufferPolicy buffer_policy = BufferNotOwned);
     ~CachedData();
+
+    enum SanityCheckResult {
+      kSuccess = 0,
+      kMagicNumberMismatch = 1,
+      kVersionMismatch = 2,
+      kSourceMismatch = 3,
+      kFlagsMismatch = 5,
+      kChecksumMismatch = 6,
+      kInvalidHeader = 7,
+      kLengthMismatch = 8,
+      kReadOnlySnapshotChecksumMismatch = 9,
+    };
+
+    // Check if the CachedData can be loaded in the given isolate.
+    SanityCheckResult SanityCheck(Isolate* isolate);
+
     // TODO(marja): Async compilation; add constructors which take a callback
     // which will be called when V8 no longer needs the data.
     const uint8_t* data;

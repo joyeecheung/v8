@@ -49,6 +49,8 @@ class V8_EXPORT_PRIVATE AlignedCachedData {
   int length_;
 };
 
+// This should be kept in sync with
+// v8::ScriptCompiler::CachedData::SanityCheckResult.
 enum class SerializedCodeSanityCheckResult {
   // Don't change order/existing values of this enum since it keys into the
   // `code_cache_reject_reason` histogram. Append-only!
