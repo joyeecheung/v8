@@ -151,7 +151,8 @@ void CompilationCacheEvalOrScript::Remove(
 }
 
 CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
-    Handle<String> source, const ScriptDetails& script_details) {
+    Handle<String> source, const ScriptDetails& script_details,
+    MaybeHandle<FixedArray> maybe_wrapped_arguments) {
   LookupResult result;
   LookupResult::RawObjects raw_result_for_escaping_handle_scope;
 
@@ -161,7 +162,7 @@ CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
     HandleScope scope(isolate());
     Handle<CompilationCacheTable> table = GetTable();
     LookupResult probe = CompilationCacheTable::LookupScript(
-        table, source, script_details, isolate());
+        table, source, script_details, maybe_wrapped_arguments, isolate());
     raw_result_for_escaping_handle_scope = probe.GetRawObjects();
   }
   result = LookupResult::FromRawObjects(raw_result_for_escaping_handle_scope,
@@ -189,8 +190,8 @@ void CompilationCacheScript::Put(Handle<String> source,
                                  Handle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetTable();
-  table_ = *CompilationCacheTable::PutScript(table, source, function_info,
-                                             isolate());
+  table_ = *CompilationCacheTable::PutScript(table, source, kNullMaybeHandle,
+                                             function_info, isolate());
 }
 
 InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
@@ -271,9 +272,10 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 
 CompilationCacheScript::LookupResult CompilationCache::LookupScript(
     Handle<String> source, const ScriptDetails& script_details,
-    LanguageMode language_mode) {
+    LanguageMode language_mode,
+    MaybeHandle<FixedArray> maybe_wrapped_arguments) {
   if (!IsEnabledScript(language_mode)) return {};
-  return script_.Lookup(source, script_details);
+  return script_.Lookup(source, script_details, maybe_wrapped_arguments);
 }
 
 InfoCellPair CompilationCache::LookupEval(Handle<String> source,
