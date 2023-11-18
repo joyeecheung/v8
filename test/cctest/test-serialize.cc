@@ -438,7 +438,7 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
     SnapshotByteSink context_sink;
     ContextSerializer context_serializer(
         isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
-        v8::SerializeInternalFieldsCallback());
+        v8::SerializeEmbedderFieldsCallback());
     context_serializer.Serialize(&raw_context, no_gc);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -506,7 +506,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
       SnapshotData snapshot_data(context_blob);
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
-                 v8::DeserializeInternalFieldsCallback())
+                 v8::DeserializeEmbedderFieldsCallback())
                  .ToHandleChecked();
       CHECK(IsContext(*root));
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
@@ -517,7 +517,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
       SnapshotData snapshot_data(context_blob);
       root2 = ContextDeserializer::DeserializeContext(
                   isolate, &snapshot_data, 0, false, global_proxy,
-                  v8::DeserializeInternalFieldsCallback())
+                  v8::DeserializeEmbedderFieldsCallback())
                   .ToHandleChecked();
       CHECK(IsContext(*root2));
       CHECK(!root.is_identical_to(root2));
@@ -628,7 +628,7 @@ static void SerializeCustomContext(
     SnapshotByteSink context_sink;
     ContextSerializer context_serializer(
         i_isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
-        v8::SerializeInternalFieldsCallback());
+        v8::DeserializeEmbedderFieldsCallback());
     context_serializer.Serialize(&raw_context, no_gc);
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
@@ -673,7 +673,7 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
       SnapshotData snapshot_data(context_blob);
       root = ContextDeserializer::DeserializeContext(
                  isolate, &snapshot_data, 0, false, global_proxy,
-                 v8::DeserializeInternalFieldsCallback())
+                 v8::DeserializeEmbedderFieldsCallback())
                  .ToHandleChecked();
       CHECK(IsContext(*root));
       Handle<NativeContext> context = Handle<NativeContext>::cast(root);

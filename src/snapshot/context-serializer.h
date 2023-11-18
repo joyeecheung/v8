@@ -32,9 +32,12 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
   bool ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o);
   bool ShouldBeInTheSharedObjectCache(Tagged<HeapObject> o);
-  bool SerializeJSObjectWithEmbedderFields(Handle<JSObject> obj);
   void CheckRehashability(Tagged<HeapObject> obj);
 
+  template <typename V8Type>
+  void SerializeObjectWithEmbedderFields(
+      Handle<V8Type> obj, int embedder_fields_count,
+      std::function<StartupData(int, bool)> callback);
   StartupSerializer* startup_serializer_;
   v8::SerializeEmbedderFieldsCallback serialize_embedder_fields_;
   // Indicates whether we only serialized hash tables that we can rehash.

@@ -36,6 +36,7 @@ class V8_EXPORT_PRIVATE ContextDeserializer final
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
   void DeserializeEmbedderFields(
+      Handle<NativeContext> context,
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 };
 

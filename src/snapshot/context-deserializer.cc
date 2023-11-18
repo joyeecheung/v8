@@ -58,8 +58,10 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
     DisallowCodeAllocation no_code_allocation;
 
     result = ReadObject();
+    DCHECK(IsNativeContext(*result));
     DeserializeDeferredObjects();
-    DeserializeEmbedderFields(embedder_fields_deserializer);
+    DeserializeEmbedderFields(Handle<NativeContext>::cast(result),
+                              embedder_fields_deserializer);
 
     LogNewMapEvents();
     WeakenDescriptorArrays();
@@ -71,24 +73,39 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
 }
 
 void ContextDeserializer::DeserializeEmbedderFields(
+    Handle<NativeContext> context,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!source()->HasMore() || source()->Get() != kEmbedderFieldsData) return;
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
-  DCHECK_NOT_NULL(embedder_fields_deserializer.callback);
   for (int code = source()->Get(); code != kSynchronize;
        code = source()->Get()) {
     HandleScope scope(isolate());
-    Handle<JSObject> obj = Handle<JSObject>::cast(GetBackReferencedObject());
+    Handle<HeapObject> heap_object =
+        Handle<HeapObject>::cast(GetBackReferencedObject());
     int index = source()->GetUint30();
     int size = source()->GetUint30();
     // TODO(yangguo,jgruber): Turn this into a reusable shared buffer.
     uint8_t* data = new uint8_t[size];
     source()->CopyRaw(data, size);
-    embedder_fields_deserializer.callback(v8::Utils::ToLocal(obj), index,
-                                          {reinterpret_cast<char*>(data), size},
-                                          embedder_fields_deserializer.data);
+
+    if (IsJSObject(*heap_object)) {
+      Handle<JSObject> obj = Handle<JSObject>::cast(heap_object);
+      v8::DeserializeInternalFieldsCallback callback =
+          embedder_fields_deserializer.js_object_callback;
+      DCHECK_NOT_NULL(callback.callback);
+      callback.callback(v8::Utils::ToLocal(obj), index,
+                        {reinterpret_cast<char*>(data), size}, callback.data);
+
+    } else {
+      DCHECK(IsEmbedderDataArray(*heap_object));
+      v8::DeserializeContextDataCallback callback =
+          embedder_fields_deserializer.context_callback;
+      DCHECK_NOT_NULL(callback.callback);
+      callback.callback(v8::Utils::ToLocal(context), index,
+                        {reinterpret_cast<char*>(data), size}, callback.data);
+    }
     delete[] data;
   }
 }

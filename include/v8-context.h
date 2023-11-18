@@ -89,8 +89,17 @@ class V8_EXPORT Context : public Data {
       Isolate* isolate, ExtensionConfiguration* extensions = nullptr,
       MaybeLocal<ObjectTemplate> global_template = MaybeLocal<ObjectTemplate>(),
       MaybeLocal<Value> global_object = MaybeLocal<Value>(),
-      DeserializeInternalFieldsCallback internal_fields_deserializer =
-          DeserializeInternalFieldsCallback(),
+      DeserializeEmbedderFieldsCallback embedder_fields_deserializer =
+          DeserializeEmbedderFieldsCallback(),
+      MicrotaskQueue* microtask_queue = nullptr);
+
+  V8_DEPRECATE_SOON(
+      "Use Context::New() with DeserializeEmbedderFieldsCallback instead")
+  static Local<Context> New(
+      Isolate* isolate, ExtensionConfiguration* extensions,
+      MaybeLocal<ObjectTemplate> global_template,
+      MaybeLocal<Value> global_object,
+      DeserializeInternalFieldsCallback internal_fields_deserializer,
       MicrotaskQueue* microtask_queue = nullptr);
 
   /**
@@ -113,8 +122,18 @@ class V8_EXPORT Context : public Data {
    */
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
-      DeserializeInternalFieldsCallback embedder_fields_deserializer =
-          DeserializeInternalFieldsCallback(),
+      DeserializeEmbedderFieldsCallback embedder_fields_deserializer =
+          DeserializeEmbedderFieldsCallback(),
+      ExtensionConfiguration* extensions = nullptr,
+      MaybeLocal<Value> global_object = MaybeLocal<Value>(),
+      MicrotaskQueue* microtask_queue = nullptr);
+
+  V8_DEPRECATE_SOON(
+      "Use Context::FromSnapshot() with DeserializeEmbedderFieldsCallback "
+      "instead")
+  static MaybeLocal<Context> FromSnapshot(
+      Isolate* isolate, size_t context_snapshot_index,
+      DeserializeInternalFieldsCallback internal_fields_deserializer,
       ExtensionConfiguration* extensions = nullptr,
       MaybeLocal<Value> global_object = MaybeLocal<Value>(),
       MicrotaskQueue* microtask_queue = nullptr);
