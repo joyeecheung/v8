@@ -3355,14 +3355,13 @@ struct ScriptCompileTimerScope {
   }
 };
 
-Handle<Script> NewScript(
-    Isolate* isolate, ParseInfo* parse_info, Handle<String> source,
-    ScriptDetails script_details, NativesFlag natives,
-    MaybeHandle<FixedArray> maybe_wrapped_arguments = kNullMaybeHandle) {
+Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
+                         Handle<String> source, ScriptDetails script_details,
+                         NativesFlag natives) {
   // Create a script object describing the script to be compiled.
-  Handle<Script> script =
-      parse_info->CreateScript(isolate, source, maybe_wrapped_arguments,
-                               script_details.origin_options, natives);
+  Handle<Script> script = parse_info->CreateScript(
+      isolate, source, script_details.wrapped_arguments,
+      script_details.origin_options, natives);
   DisallowGarbageCollection no_gc;
   SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
   LOG(isolate, ScriptDetails(*script));
@@ -3744,9 +3743,8 @@ Compiler::GetSharedFunctionInfoForScriptWithCompileHints(
 
 // static
 MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
-    Handle<String> source, Handle<FixedArray> arguments,
-    Handle<Context> context, const ScriptDetails& script_details,
-    AlignedCachedData* cached_data,
+    Handle<String> source, Handle<Context> context,
+    const ScriptDetails& script_details, AlignedCachedData* cached_data,
     v8::ScriptCompiler::CompileOptions compile_options,
     v8::ScriptCompiler::NoCacheReason no_cache_reason) {
   Isolate* isolate = context->GetIsolate();
@@ -3759,7 +3757,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   }
 
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
-
+  DCHECK(!script_details.wrapped_arguments.is_null());
   MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<SharedFunctionInfo> wrapped;
   Handle<Script> script;
@@ -3769,8 +3767,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   CompilationCache* compilation_cache = isolate->compilation_cache();
   // First check per-isolate compilation cache.
   CompilationCacheScript::LookupResult lookup_result =
-      compilation_cache->LookupScript(source, script_details, language_mode,
-                                      arguments);
+      compilation_cache->LookupScript(source, script_details, language_mode);
   maybe_result = lookup_result.toplevel_sfi();
   if (maybe_result.ToHandle(&wrapped)) {
     is_compiled_scope = wrapped->is_compiled_scope(isolate);
@@ -3817,7 +3814,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
       maybe_outer_scope_info = handle(context->scope_info(), isolate);
     }
     script = NewScript(isolate, &parse_info, source, script_details,
-                       NOT_NATIVES_CODE, arguments);
+                       NOT_NATIVES_CODE);
 
     Handle<SharedFunctionInfo> top_level;
     maybe_result = v8::internal::CompileToplevel(&parse_info, script,

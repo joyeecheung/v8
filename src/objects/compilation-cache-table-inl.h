@@ -64,7 +64,6 @@ class ScriptCacheKey : public HashTableKey {
   };
 
   ScriptCacheKey(Handle<String> source, const ScriptDetails* script_details,
-                 MaybeHandle<FixedArray> maybe_wrapped_arguments,
                  Isolate* isolate);
   ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
                  int line_offset, int column_offset,

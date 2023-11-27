@@ -327,13 +327,12 @@ bool ScriptCacheKey::MatchesScript(Tagged<Script> script) {
 
 ScriptCacheKey::ScriptCacheKey(Handle<String> source,
                                const ScriptDetails* script_details,
-                               MaybeHandle<FixedArray> maybe_wrapped_arguments,
                                Isolate* isolate)
     : ScriptCacheKey(source, script_details->name_obj,
                      script_details->line_offset, script_details->column_offset,
                      script_details->origin_options,
                      script_details->host_defined_options,
-                     maybe_wrapped_arguments, isolate) {}
+                     script_details->wrapped_arguments, isolate) {}
 
 ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
                                int line_offset, int column_offset,
@@ -423,10 +422,9 @@ CompilationCacheScriptLookupResult::FromRawObjects(
 
 CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
     Handle<CompilationCacheTable> table, Handle<String> src,
-    const ScriptDetails& script_details,
-    MaybeHandle<FixedArray> maybe_wrapped_arguments, Isolate* isolate) {
+    const ScriptDetails& script_details, Isolate* isolate) {
   src = String::Flatten(isolate, src);
-  ScriptCacheKey key(src, &script_details, maybe_wrapped_arguments, isolate);
+  ScriptCacheKey key(src, &script_details, isolate);
   InternalIndex entry = table->FindEntry(isolate, &key);
   if (entry.is_not_found()) return {};
 

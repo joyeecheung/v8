@@ -52,9 +52,8 @@ class CompilationCacheScript : public CompilationCacheEvalOrScript {
       : CompilationCacheEvalOrScript(isolate) {}
 
   using LookupResult = CompilationCacheScriptLookupResult;
-  LookupResult Lookup(
-      Handle<String> source, const ScriptDetails& script_details,
-      MaybeHandle<FixedArray> maybe_wrapped_arguments = kNullMaybeHandle);
+  LookupResult Lookup(Handle<String> source,
+                      const ScriptDetails& script_details);
 
   void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
@@ -147,8 +146,7 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // source string with the right origin.
   CompilationCacheScript::LookupResult LookupScript(
       Handle<String> source, const ScriptDetails& script_details,
-      LanguageMode language_mode,
-      MaybeHandle<FixedArray> maybe_wrapped_arguments = kNullMaybeHandle);
+      LanguageMode language_mode);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't

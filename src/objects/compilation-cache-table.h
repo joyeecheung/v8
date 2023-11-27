@@ -118,8 +118,7 @@ class CompilationCacheTable
   // entry is still present and can be used to get the Script.
   static CompilationCacheScriptLookupResult LookupScript(
       Handle<CompilationCacheTable> table, Handle<String> src,
-      const ScriptDetails& script_details,
-      MaybeHandle<FixedArray> maybe_wrapped_arguments, Isolate* isolate);
+      const ScriptDetails& script_details, Isolate* isolate);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       MaybeHandle<FixedArray> maybe_wrapped_arguments,

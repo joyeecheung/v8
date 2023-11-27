@@ -151,8 +151,7 @@ void CompilationCacheEvalOrScript::Remove(
 }
 
 CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
-    Handle<String> source, const ScriptDetails& script_details,
-    MaybeHandle<FixedArray> maybe_wrapped_arguments) {
+    Handle<String> source, const ScriptDetails& script_details) {
   LookupResult result;
   LookupResult::RawObjects raw_result_for_escaping_handle_scope;
 
@@ -162,7 +161,7 @@ CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
     HandleScope scope(isolate());
     Handle<CompilationCacheTable> table = GetTable();
     LookupResult probe = CompilationCacheTable::LookupScript(
-        table, source, script_details, maybe_wrapped_arguments, isolate());
+        table, source, script_details, isolate());
     raw_result_for_escaping_handle_scope = probe.GetRawObjects();
   }
   result = LookupResult::FromRawObjects(raw_result_for_escaping_handle_scope,
@@ -272,10 +271,9 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 
 CompilationCacheScript::LookupResult CompilationCache::LookupScript(
     Handle<String> source, const ScriptDetails& script_details,
-    LanguageMode language_mode,
-    MaybeHandle<FixedArray> maybe_wrapped_arguments) {
+    LanguageMode language_mode) {
   if (!IsEnabledScript(language_mode)) return {};
-  return script_.Lookup(source, script_details, maybe_wrapped_arguments);
+  return script_.Lookup(source, script_details);
 }
 
 InfoCellPair CompilationCache::LookupEval(Handle<String> source,
