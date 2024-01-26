@@ -29251,7 +29251,7 @@ THREADED_TEST(MicrotaskQueueOfContext) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<Context> context = Context::New(
       CcTest::isolate(), nullptr, v8::MaybeLocal<ObjectTemplate>(),
-      v8::MaybeLocal<Value>(), v8::DeserializeInternalFieldsCallback(),
+      v8::MaybeLocal<Value>(), v8::DeserializeEmbedderFieldsCallback(),
       microtask_queue.get());
   CHECK_EQ(context->GetMicrotaskQueue(), microtask_queue.get());
 }
@@ -29261,7 +29261,7 @@ THREADED_TEST(SetMicrotaskQueueOfContext) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<Context> context = Context::New(
       CcTest::isolate(), nullptr, v8::MaybeLocal<ObjectTemplate>(),
-      v8::MaybeLocal<Value>(), v8::DeserializeInternalFieldsCallback(),
+      v8::MaybeLocal<Value>(), v8::DeserializeEmbedderFieldsCallback(),
       microtask_queue.get());
   CHECK_EQ(context->GetMicrotaskQueue(), microtask_queue.get());
 

@@ -1144,7 +1144,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         InstanceTypeChecker::IsExternalString(instance_type) ||
         // See ObjectSerializer::SanitizeNativeContextScope.
         InstanceTypeChecker::IsNativeContext(instance_type) ||
-        // See ContextSerializer::SerializeJSObjectWithEmbedderFields().
+        // See ContextSerializer::SerializeObjectWithEmbedderFields().
         (InstanceTypeChecker::IsJSObject(instance_type) &&
          JSObject::cast(host)->GetEmbedderFieldCount() > 0));
   }

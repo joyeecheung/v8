@@ -567,11 +567,23 @@ Isolate* SnapshotCreator::GetIsolate() {
 
 void SnapshotCreator::SetDefaultContext(
     Local<Context> context, SerializeInternalFieldsCallback callback) {
+  impl_->SetDefaultContext(Utils::OpenHandle(*context),
+                           SerializeEmbedderFieldsCallback(callback));
+}
+
+void SnapshotCreator::SetDefaultContext(
+    Local<Context> context, SerializeEmbedderFieldsCallback callback) {
   impl_->SetDefaultContext(Utils::OpenHandle(*context), callback);
 }
 
 size_t SnapshotCreator::AddContext(Local<Context> context,
                                    SerializeInternalFieldsCallback callback) {
+  return impl_->AddContext(Utils::OpenHandle(*context),
+                           SerializeEmbedderFieldsCallback(callback));
+}
+
+size_t SnapshotCreator::AddContext(Local<Context> context,
+                                   SerializeEmbedderFieldsCallback callback) {
   return impl_->AddContext(Utils::OpenHandle(*context), callback);
 }
 
@@ -6589,7 +6601,7 @@ struct InvokeBootstrapper<i::NativeContext> {
       i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
       v8::MicrotaskQueue* microtask_queue) {
     return i_isolate->bootstrapper()->CreateEnvironment(
         maybe_global_proxy, global_proxy_template, extensions,
@@ -6604,7 +6616,7 @@ struct InvokeBootstrapper<i::JSGlobalProxy> {
       i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
       v8::MicrotaskQueue* microtask_queue) {
     USE(extensions);
     USE(context_snapshot_index);
@@ -6618,7 +6630,7 @@ static i::Handle<ObjectType> CreateEnvironment(
     i::Isolate* i_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> maybe_global_template,
     v8::MaybeLocal<Value> maybe_global_proxy, size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
   i::Handle<ObjectType> result;
 
@@ -6723,7 +6735,7 @@ Local<Context> NewContext(
     v8::Isolate* external_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> global_template,
     v8::MaybeLocal<Value> global_object, size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   // TODO(jkummerow): This is for crbug.com/713699. Remove it if it doesn't
@@ -6749,6 +6761,17 @@ Local<Context> v8::Context::New(
     v8::MaybeLocal<Value> global_object,
     DeserializeInternalFieldsCallback internal_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
+  return New(external_isolate, extensions, global_template, global_object,
+             DeserializeEmbedderFieldsCallback(internal_fields_deserializer),
+             microtask_queue);
+}
+
+Local<Context> v8::Context::New(
+    v8::Isolate* external_isolate, v8::ExtensionConfiguration* extensions,
+    v8::MaybeLocal<ObjectTemplate> global_template,
+    v8::MaybeLocal<Value> global_object,
+    DeserializeEmbedderFieldsCallback internal_fields_deserializer,
+    v8::MicrotaskQueue* microtask_queue) {
   return NewContext(external_isolate, extensions, global_template,
                     global_object, 0, internal_fields_deserializer,
                     microtask_queue);
@@ -6756,7 +6779,18 @@ Local<Context> v8::Context::New(
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::Isolate* external_isolate, size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+    v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
+    v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object,
+    v8::MicrotaskQueue* microtask_queue) {
+  return FromSnapshot(
+      external_isolate, context_snapshot_index,
+      DeserializeEmbedderFieldsCallback(internal_fields_deserializer),
+      extensions, global_object, microtask_queue);
+}
+
+MaybeLocal<Context> v8::Context::FromSnapshot(
+    v8::Isolate* external_isolate, size_t context_snapshot_index,
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object,
     v8::MicrotaskQueue* microtask_queue) {
   size_t index_including_default_context = context_snapshot_index + 1;
@@ -6790,7 +6824,7 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
       "Global template needs to have access check handlers");
   i::Handle<i::JSObject> global_proxy = CreateEnvironment<i::JSGlobalProxy>(
       i_isolate, nullptr, global_template, global_object, 0,
-      DeserializeInternalFieldsCallback(), nullptr);
+      DeserializeEmbedderFieldsCallback(), nullptr);
   if (global_proxy.is_null()) {
     if (i_isolate->has_exception()) i_isolate->clear_exception();
     return MaybeLocal<Object>();

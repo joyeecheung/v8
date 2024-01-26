@@ -3,14 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/snapshot/context-serializer.h"
-#include "src/snapshot/startup-serializer.h"
 
 #include "src/api/api-inl.h"
 #include "src/execution/microtask-queue.h"
 #include "src/heap/combined-heap.h"
 #include "src/numbers/math-random.h"
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
+#include "src/snapshot/startup-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -162,7 +163,25 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     // Clear literal boilerplates and feedback.
     Handle<FeedbackVector>::cast(obj)->ClearSlots(isolate());
   } else if (InstanceTypeChecker::IsJSObject(instance_type)) {
-    if (SerializeJSObjectWithEmbedderFields(Handle<JSObject>::cast(obj))) {
+    Handle<JSObject> js_obj = Handle<JSObject>::cast(obj);
+    int embedder_fields_count = js_obj->GetEmbedderFieldCount();
+    if (embedder_fields_count > 0) {
+      DCHECK(!js_obj->NeedsRehashing(cage_base()));
+      v8::Local<v8::Object> api_obj = v8::Utils::ToLocal(js_obj);
+      v8::SerializeInternalFieldsCallback user_callback =
+          serialize_embedder_fields_.js_object_callback;
+      SerializeObjectWithEmbedderFields(
+          js_obj, embedder_fields_count,
+          [&](int index, bool field_is_nullptr) -> StartupData {
+            // If no serializer is provided and the field was empty, we
+            // serialize it by default to nullptr.
+            if (user_callback.callback == nullptr && field_is_nullptr) {
+              return StartupData{nullptr, 0};
+            }
+
+            DCHECK(user_callback.callback);
+            return user_callback.callback(api_obj, index, user_callback.data);
+          });
       return;
     }
     if (InstanceTypeChecker::IsJSFunction(instance_type)) {
@@ -180,6 +199,33 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
         }
         closure->set_code(closure->shared()->GetCode(isolate()), kReleaseStore);
       }
+    }
+  } else if (InstanceTypeChecker::IsEmbedderDataArray(instance_type) &&
+             !allow_active_isolate_for_testing()) {
+    DCHECK_EQ(*obj, context_->embedder_data());
+    Handle<EmbedderDataArray> embedder_data =
+        Handle<EmbedderDataArray>::cast(obj);
+    int embedder_fields_count = embedder_data->length();
+    if (embedder_data->length() > 0) {
+      Handle<Context> context_handle(context_, isolate());
+      v8::Local<v8::Context> api_obj =
+          v8::Utils::ToLocal(Handle<NativeContext>::cast(context_handle));
+      v8::SerializeContextDataCallback user_callback =
+          serialize_embedder_fields_.context_callback;
+      SerializeObjectWithEmbedderFields(
+          embedder_data, embedder_fields_count,
+          [&](int index, bool field_is_nullptr) -> StartupData {
+            // For compatibility, we do not require all non-null context pointer
+            // fields to be serialized by a proper user callback. Instead, if no
+            // user callback is provided, we serialize it verbatim, which was
+            // the old behavior before we introduce context data callbacks.
+            if (user_callback.callback == nullptr) {
+              return StartupData{nullptr, 0};
+            }
+
+            return user_callback.callback(api_obj, index, user_callback.data);
+          });
+      return;
     }
   }
 
@@ -211,19 +257,16 @@ namespace {
 bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace
 
-bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
-    Handle<JSObject> obj) {
+template <typename V8Type>
+void ContextSerializer::SerializeObjectWithEmbedderFields(
+    Handle<V8Type> obj, int embedder_fields_count,
+    std::function<StartupData(int, bool)> callback) {
   DisallowGarbageCollection no_gc;
-  Tagged<JSObject> js_obj = *obj;
-  int embedder_fields_count = js_obj->GetEmbedderFieldCount();
-  if (embedder_fields_count == 0) return false;
   CHECK_GT(embedder_fields_count, 0);
-  DCHECK(!js_obj->NeedsRehashing(cage_base()));
-
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
 
-  v8::Local<v8::Object> api_obj = v8::Utils::ToLocal(obj);
+  auto raw_obj = *obj;
 
   std::vector<EmbedderDataSlot::RawData> original_embedder_values;
   std::vector<StartupData> serialized_data;
@@ -233,7 +276,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
   //    serializer. For aligned pointers, call the serialize callback. Hold
   //    onto the result.
   for (int i = 0; i < embedder_fields_count; i++) {
-    EmbedderDataSlot embedder_data_slot(js_obj, i);
+    EmbedderDataSlot embedder_data_slot(raw_obj, i);
     original_embedder_values.emplace_back(
         embedder_data_slot.load_raw(isolate(), no_gc));
     Tagged<Object> object = embedder_data_slot.load_tagged();
@@ -241,17 +284,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
       DCHECK(IsValidHeapObject(isolate()->heap(), HeapObject::cast(object)));
       serialized_data.push_back({nullptr, 0});
     } else {
-      // If no serializer is provided and the field was empty, we serialize it
-      // by default to nullptr.
-      if (serialize_embedder_fields_.callback == nullptr &&
-          object == Smi::zero()) {
-        serialized_data.push_back({nullptr, 0});
-      } else {
-        DCHECK_NOT_NULL(serialize_embedder_fields_.callback);
-        StartupData data = serialize_embedder_fields_.callback(
-            api_obj, i, serialize_embedder_fields_.data);
-        serialized_data.push_back(data);
-      }
+      serialized_data.push_back(callback(i, object == Smi::zero()));
     }
   }
 
@@ -262,7 +295,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
   //    with embedder callbacks.
   for (int i = 0; i < embedder_fields_count; i++) {
     if (!DataIsEmpty(serialized_data[i])) {
-      EmbedderDataSlot(js_obj, i).store_raw(isolate(), kNullAddress, no_gc);
+      EmbedderDataSlot(raw_obj, i).store_raw(isolate(), kNullAddress, no_gc);
     }
   }
 
@@ -272,12 +305,12 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
     AllowGarbageCollection allow_gc;
     ObjectSerializer(this, obj, &sink_).Serialize(SlotType::kAnySlot);
     // Reload raw pointer.
-    js_obj = *obj;
+    raw_obj = *obj;
   }
 
   // 4) Obtain back reference for the serialized object.
   const SerializerReference* reference =
-      reference_map()->LookupReference(js_obj);
+      reference_map()->LookupReference(raw_obj);
   DCHECK_NOT_NULL(reference);
   DCHECK(reference->is_back_reference());
 
@@ -287,8 +320,8 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
     StartupData data = serialized_data[i];
     if (DataIsEmpty(data)) continue;
     // Restore original values from cleared fields.
-    EmbedderDataSlot(js_obj, i).store_raw(isolate(),
-                                          original_embedder_values[i], no_gc);
+    EmbedderDataSlot(raw_obj, i)
+        .store_raw(isolate(), original_embedder_values[i], no_gc);
     embedder_fields_sink_.Put(kNewObject, "embedder field holder");
     embedder_fields_sink_.PutUint30(reference->back_ref_index(),
                                     "BackRefIndex");
@@ -303,7 +336,6 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
   //    sink. The ensures that during deserialization, we call the deserializer
   //    callback at the end, and can guarantee that the deserialized objects are
   //    in a consistent state. See ContextSerializer::Serialize.
-  return true;
 }
 
 void ContextSerializer::CheckRehashability(Tagged<HeapObject> obj) {

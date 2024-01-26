@@ -68,7 +68,7 @@ class Snapshot : public AllStatic {
   // be passed at index 0.
   static v8::StartupData Create(
       Isolate* isolate, std::vector<Tagged<Context>>* contexts,
-      const std::vector<SerializeInternalFieldsCallback>&
+      const std::vector<SerializeEmbedderFieldsCallback>&
           embedder_fields_serializers,
       const SafepointScope& safepoint_scope,
       const DisallowGarbageCollection& no_gc,
@@ -168,9 +168,9 @@ class SnapshotCreatorImpl final {
   Isolate* isolate() const { return isolate_; }
 
   void SetDefaultContext(Handle<NativeContext> context,
-                         SerializeInternalFieldsCallback callback);
+                         SerializeEmbedderFieldsCallback callback);
   size_t AddContext(Handle<NativeContext> context,
-                    SerializeInternalFieldsCallback callback);
+                    SerializeEmbedderFieldsCallback callback);
 
   size_t AddData(Handle<NativeContext> context, Address object);
   size_t AddData(Address object);
@@ -190,10 +190,10 @@ class SnapshotCreatorImpl final {
   struct SerializableContext {
     SerializableContext() : handle_location(nullptr), callback(nullptr) {}
     SerializableContext(Address* handle_location,
-                        SerializeInternalFieldsCallback callback)
+                        SerializeEmbedderFieldsCallback callback)
         : handle_location(handle_location), callback(callback) {}
     Address* handle_location = nullptr;  // A GlobalHandle.
-    SerializeInternalFieldsCallback callback;
+    SerializeEmbedderFieldsCallback callback;
   };
 
   void InitInternal(const StartupData*);

@@ -89,8 +89,17 @@ class V8_EXPORT Context : public Data {
       Isolate* isolate, ExtensionConfiguration* extensions = nullptr,
       MaybeLocal<ObjectTemplate> global_template = MaybeLocal<ObjectTemplate>(),
       MaybeLocal<Value> global_object = MaybeLocal<Value>(),
-      DeserializeInternalFieldsCallback internal_fields_deserializer =
-          DeserializeInternalFieldsCallback(),
+      DeserializeEmbedderFieldsCallback embedder_fields_deserializer =
+          DeserializeEmbedderFieldsCallback(),
+      MicrotaskQueue* microtask_queue = nullptr);
+
+  // Similar to New() with DeserializeEmbedderFieldsCallback but
+  // without context slot deserialization support.
+  static Local<Context> New(
+      Isolate* isolate, ExtensionConfiguration* extensions,
+      MaybeLocal<ObjectTemplate> global_template,
+      MaybeLocal<Value> global_object,
+      DeserializeInternalFieldsCallback internal_fields_deserializer,
       MicrotaskQueue* microtask_queue = nullptr);
 
   /**
@@ -104,8 +113,8 @@ class V8_EXPORT Context : public Data {
    * deserialize from. Use v8::Context::New for the default snapshot.
    *
    * \param embedder_fields_deserializer Optional callback to deserialize
-   * internal fields. It should match the SerializeInternalFieldCallback used
-   * to serialize.
+   * internal fields. It should match the SerializeEmbedderFieldsCallback
+   * used to serialize.
    *
    * \param extensions See v8::Context::New.
    *
@@ -113,8 +122,17 @@ class V8_EXPORT Context : public Data {
    */
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
-      DeserializeInternalFieldsCallback embedder_fields_deserializer =
-          DeserializeInternalFieldsCallback(),
+      DeserializeEmbedderFieldsCallback embedder_fields_deserializer =
+          DeserializeEmbedderFieldsCallback(),
+      ExtensionConfiguration* extensions = nullptr,
+      MaybeLocal<Value> global_object = MaybeLocal<Value>(),
+      MicrotaskQueue* microtask_queue = nullptr);
+
+  // Similar to FromSnapshot() with DeserializeEmbedderFieldsCallback but
+  // without context slot deserialization support.
+  static MaybeLocal<Context> FromSnapshot(
+      Isolate* isolate, size_t context_snapshot_index,
+      DeserializeInternalFieldsCallback internal_fields_deserializer,
       ExtensionConfiguration* extensions = nullptr,
       MaybeLocal<Value> global_object = MaybeLocal<Value>(),
       MicrotaskQueue* microtask_queue = nullptr);
