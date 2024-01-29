@@ -4243,6 +4243,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
         InternalFieldData* data = static_cast<InternalFieldData*>(
             context->GetAlignedPointerFromEmbedderData(1));
         CHECK_EQ(context_data_test::context_data.data, data->data);
+        context->SetAlignedPointerInEmbedderData(1, nullptr);
+        delete data;
 
         v8::Local<v8::Value> obj_val =
             context->Global()->Get(context, v8_str("obj")).ToLocalChecked();
@@ -4251,6 +4253,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
         InternalFieldData* field = static_cast<InternalFieldData*>(
             obj->GetAlignedPointerFromInternalField(1));
         CHECK_EQ(context_data_test::object_data.data, field->data);
+        obj->SetAlignedPointerInInternalField(1, nullptr);
+        delete field;
       }
       isolate->Dispose();
     }
@@ -4307,6 +4311,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
         InternalFieldData* data = static_cast<InternalFieldData*>(
             context->GetAlignedPointerFromEmbedderData(1));
         CHECK_EQ(context_data_test::context_data.data, data->data);
+        context->SetAlignedPointerInEmbedderData(1, nullptr);
+        delete data;
 
         v8::Local<v8::Value> obj_val =
             context->Global()->Get(context, v8_str("obj")).ToLocalChecked();
@@ -4315,6 +4321,8 @@ UNINITIALIZED_TEST(SerializeContextData) {
         InternalFieldData* field = static_cast<InternalFieldData*>(
             obj->GetAlignedPointerFromInternalField(1));
         CHECK_EQ(context_data_test::object_data.data, field->data);
+        obj->SetAlignedPointerInInternalField(1, nullptr);
+        delete field;
       }
       isolate->Dispose();
     }
