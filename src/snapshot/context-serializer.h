@@ -17,7 +17,7 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
  public:
   ContextSerializer(Isolate* isolate, Snapshot::SerializerFlags flags,
                     StartupSerializer* startup_serializer,
-                    v8::SerializeEmbedderFieldsCallback callback);
+                    SerializeEmbedderFieldsCallback callback);
 
   ~ContextSerializer() override;
   ContextSerializer(const ContextSerializer&) = delete;
@@ -39,7 +39,7 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
       Handle<V8Type> obj, int embedder_fields_count,
       std::function<StartupData(int, bool)> callback);
   StartupSerializer* startup_serializer_;
-  v8::SerializeEmbedderFieldsCallback serialize_embedder_fields_;
+  SerializeEmbedderFieldsCallback serialize_embedder_fields_;
   // Indicates whether we only serialized hash tables that we can rehash.
   // TODO(yangguo): generalize rehashing, and remove this flag.
   bool can_be_rehashed_;

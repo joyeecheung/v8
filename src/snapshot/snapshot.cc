@@ -202,7 +202,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
 MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+    DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
 
   const v8::StartupData* blob = isolate->snapshot_blob();

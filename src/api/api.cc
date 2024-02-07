@@ -566,25 +566,18 @@ Isolate* SnapshotCreator::GetIsolate() {
 }
 
 void SnapshotCreator::SetDefaultContext(
-    Local<Context> context, SerializeInternalFieldsCallback callback) {
+    Local<Context> context,
+    SerializeInternalFieldsCallback internal_fields_serializer,
+    SerializeContextDataCallback context_data_serializer) {
   impl_->SetDefaultContext(Utils::OpenHandle(*context),
-                           SerializeEmbedderFieldsCallback(callback));
-}
-
-void SnapshotCreator::SetDefaultContext(
-    Local<Context> context, SerializeEmbedderFieldsCallback callback) {
-  impl_->SetDefaultContext(Utils::OpenHandle(*context), callback);
+                           i::SerializeEmbedderFieldsCallback(internal_fields_serializer, context_data_serializer));
 }
 
 size_t SnapshotCreator::AddContext(Local<Context> context,
-                                   SerializeInternalFieldsCallback callback) {
+    SerializeInternalFieldsCallback internal_fields_serializer,
+    SerializeContextDataCallback context_data_serializer) {
   return impl_->AddContext(Utils::OpenHandle(*context),
-                           SerializeEmbedderFieldsCallback(callback));
-}
-
-size_t SnapshotCreator::AddContext(Local<Context> context,
-                                   SerializeEmbedderFieldsCallback callback) {
-  return impl_->AddContext(Utils::OpenHandle(*context), callback);
+                           i::SerializeEmbedderFieldsCallback(internal_fields_serializer, context_data_serializer));
 }
 
 size_t SnapshotCreator::AddData(i::Address object) {
@@ -6601,7 +6594,7 @@ struct InvokeBootstrapper<i::NativeContext> {
       i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+      i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
       v8::MicrotaskQueue* microtask_queue) {
     return i_isolate->bootstrapper()->CreateEnvironment(
         maybe_global_proxy, global_proxy_template, extensions,
@@ -6616,7 +6609,7 @@ struct InvokeBootstrapper<i::JSGlobalProxy> {
       i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+      i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
       v8::MicrotaskQueue* microtask_queue) {
     USE(extensions);
     USE(context_snapshot_index);
@@ -6630,7 +6623,7 @@ static i::Handle<ObjectType> CreateEnvironment(
     i::Isolate* i_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> maybe_global_template,
     v8::MaybeLocal<Value> maybe_global_proxy, size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+    i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
   i::Handle<ObjectType> result;
 
@@ -6735,7 +6728,7 @@ Local<Context> NewContext(
     v8::Isolate* external_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> global_template,
     v8::MaybeLocal<Value> global_object, size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+    i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   // TODO(jkummerow): This is for crbug.com/713699. Remove it if it doesn't
@@ -6790,7 +6783,7 @@ MaybeLocal<Context> v8::Context::FromSnapshot(
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::Isolate* external_isolate, size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+    i::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object,
     v8::MicrotaskQueue* microtask_queue) {
   size_t index_including_default_context = context_snapshot_index + 1;

@@ -15,7 +15,7 @@ namespace internal {
 MaybeHandle<Context> ContextDeserializer::DeserializeContext(
     Isolate* isolate, const SnapshotData* data, size_t context_index,
     bool can_rehash, Handle<JSGlobalProxy> global_proxy,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+    DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   TRACE_EVENT0("v8", "V8.DeserializeContext");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeContext);
   base::ElapsedTimer timer;
@@ -44,7 +44,7 @@ MaybeHandle<Context> ContextDeserializer::DeserializeContext(
 
 MaybeHandle<Object> ContextDeserializer::Deserialize(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+    DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   // Replace serialized references to the global proxy and its map with the
   // given global proxy and its map.
   AddAttachedObject(global_proxy);
@@ -74,7 +74,7 @@ MaybeHandle<Object> ContextDeserializer::Deserialize(
 
 void ContextDeserializer::DeserializeEmbedderFields(
     Handle<NativeContext> context,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+    DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!source()->HasMore() || source()->Get() != kEmbedderFieldsData) return;
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate());

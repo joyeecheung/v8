@@ -65,7 +65,7 @@ class V8_NODISCARD SanitizeNativeContextScope final {
 ContextSerializer::ContextSerializer(
     Isolate* isolate, Snapshot::SerializerFlags flags,
     StartupSerializer* startup_serializer,
-    v8::SerializeEmbedderFieldsCallback callback)
+    SerializeEmbedderFieldsCallback callback)
     : Serializer(isolate, flags),
       startup_serializer_(startup_serializer),
       serialize_embedder_fields_(callback),

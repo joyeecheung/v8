@@ -68,15 +68,6 @@ struct SerializeContextDataCallback {
   void* data;
 };
 
-struct SerializeEmbedderFieldsCallback {
-  SerializeEmbedderFieldsCallback(
-      SerializeInternalFieldsCallback js_cb = SerializeInternalFieldsCallback(),
-      SerializeContextDataCallback context_cb = SerializeContextDataCallback())
-      : js_object_callback(js_cb), context_callback(context_cb) {}
-  SerializeInternalFieldsCallback js_object_callback;
-  SerializeContextDataCallback context_callback;
-};
-
 /**
  * Callback and supporting data used to implement embedder logic to deserialize
  * internal fields of v8::Objects.
@@ -104,16 +95,6 @@ struct DeserializeContextDataCallback {
       : callback(function), data(data_arg) {}
   CallbackFunction callback;
   void* data;
-};
-
-struct DeserializeEmbedderFieldsCallback {
-  DeserializeEmbedderFieldsCallback(DeserializeInternalFieldsCallback js_cb =
-                                        DeserializeInternalFieldsCallback(),
-                                    DeserializeContextDataCallback context_cb =
-                                        DeserializeContextDataCallback())
-      : js_object_callback(js_cb), context_callback(context_cb) {}
-  DeserializeInternalFieldsCallback js_object_callback;
-  DeserializeContextDataCallback context_callback;
 };
 
 /**
@@ -198,33 +179,37 @@ class V8_EXPORT SnapshotCreator {
    * The snapshot will not contain the global proxy, and we expect one or a
    * global object template to create one, to be provided upon deserialization.
    *
-   * \param callback optional callback to serialize internal fields.
+   * \param internal_fields_serializer An optional callback used to serialize
+   * internal pointer fields set by
+   * v8::Object::SetAlignedPointerInInternalField().
+   *
+   * \param context_data_serializer An optional callback used to serialize
+   * context embedder data set by
+   * v8::Context::SetAlignedPointerInEmbedderData().
+   *
    */
-  void SetDefaultContext(Local<Context> context,
-                         SerializeEmbedderFieldsCallback callback =
-                             SerializeEmbedderFieldsCallback());
-
-  // Similar to SetDefaultContext() with SerializeEmbedderFieldsCallback but
-  // without context slot serialization support.
-  void SetDefaultContext(Local<Context> context,
-                         SerializeInternalFieldsCallback callback);
+  void SetDefaultContext(
+      Local<Context> context,
+      SerializeInternalFieldsCallback internal_fields_serializer =
+          SerializeInternalFieldsCallback(),
+      SerializeContextDataCallback context_data_serializer =
+          SerializeContextDataCallback());
 
   /**
    * Add additional context to be included in the snapshot blob.
    * The snapshot will include the global proxy.
    *
-   * \param callback optional callback to serialize internal fields.
+   * \param internal_fields_serializer Similar to internal_fields_serializer
+   * in SetDefaultContext() but only applies to the context being added.
    *
-   * \returns the index of the context in the snapshot blob.
+   * \param context_data_serializer Similar to context_data_serializer
+   * in SetDefaultContext() but only applies to the context being added.
    */
   size_t AddContext(Local<Context> context,
-                    SerializeEmbedderFieldsCallback callback =
-                        SerializeEmbedderFieldsCallback());
-
-  // Similar to AddContext() with SerializeEmbedderFieldsCallback but
-  // without context slot serialization support.
-  size_t AddContext(Local<Context> context,
-                    SerializeInternalFieldsCallback callback);
+                    SerializeInternalFieldsCallback internal_fields_serializer =
+                        SerializeInternalFieldsCallback(),
+                    SerializeContextDataCallback context_data_serializer =
+                        SerializeContextDataCallback());
 
   /**
    * Attach arbitrary V8::Data to the context snapshot, which can be retrieved
