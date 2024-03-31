@@ -900,7 +900,7 @@ class V8_EXPORT EmbedderGraph {
    * Returns a node corresponding to the given V8 value. Ownership is not
    * transferred. The result pointer is valid while the graph is alive.
    */
-  virtual Node* V8Node(const v8::Local<v8::Value>& value) = 0;
+  virtual Node* V8Node(const v8::Local<v8::Data>& value) = 0;
 
   /**
    * Adds the given node to the graph and takes ownership of the node.
@@ -963,7 +963,7 @@ class V8_EXPORT HeapProfiler {
    * purposes.
    */
   using GetDetachednessCallback = EmbedderGraph::Node::Detachedness (*)(
-      v8::Isolate* isolate, const v8::Local<v8::Value>& v8_value,
+      v8::Isolate* isolate, const v8::Local<v8::Data>& v8_value,
       uint16_t class_id, void* data);
 
   /** Returns the number of snapshots taken. */

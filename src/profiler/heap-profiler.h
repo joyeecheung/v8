@@ -113,7 +113,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
     return get_detachedness_callback_.first != nullptr;
   }
   v8::EmbedderGraph::Node::Detachedness GetDetachedness(
-      const v8::Local<v8::Value> v8_value, uint16_t class_id);
+      const v8::Local<v8::Data> v8_value, uint16_t class_id);
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
 

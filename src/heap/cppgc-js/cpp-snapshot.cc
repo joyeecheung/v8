@@ -381,10 +381,9 @@ class StateStorage final {
 };
 
 void* ExtractEmbedderDataBackref(Isolate* isolate, CppHeap& cpp_heap,
-                                 v8::Local<v8::Value> v8_value) {
-  if (!v8_value->IsObject()) {
-    return nullptr;
-  }
+                                 v8::Local<v8::Data> v8_value) {
+  if (!v8_value->IsValue()) return nullptr;
+  if (!v8_value.As<v8::Value>()->IsObject()) return nullptr;
 
   Handle<Object> v8_object = Utils::OpenHandle(*v8_value);
   if (!IsJSObject(*v8_object) ||
@@ -507,7 +506,7 @@ class CppGraphBuilderImpl final {
   void AddEdge(State& parent, const TracedReferenceBase& ref,
                const std::string& edge_name) {
     DCHECK(parent.IsVisibleNotDependent());
-    v8::Local<v8::Value> v8_value =
+    v8::Local<v8::Data> v8_value =
         ref.Get(reinterpret_cast<v8::Isolate*>(cpp_heap_.isolate()));
     if (v8_value.IsEmpty()) return;
 
@@ -930,7 +929,7 @@ void CppGraphBuilderImpl::AddConservativeEphemeronKeyEdgesIfNeeded(
 
 void CppGraphBuilderImpl::VisitForVisibility(State& parent,
                                              const TracedReferenceBase& ref) {
-  v8::Local<v8::Value> v8_value =
+  v8::Local<v8::Data> v8_value =
       ref.Get(reinterpret_cast<v8::Isolate*>(cpp_heap_.isolate()));
   if (!v8_value.IsEmpty()) {
     parent.MarkVisible();

@@ -76,7 +76,7 @@ void HeapProfiler::SetGetDetachednessCallback(
 }
 
 v8::EmbedderGraph::Node::Detachedness HeapProfiler::GetDetachedness(
-    const v8::Local<v8::Value> v8_value, uint16_t class_id) {
+    const v8::Local<v8::Data> v8_value, uint16_t class_id) {
   DCHECK(HasGetDetachednessCallback());
   return get_detachedness_callback_.first(
       reinterpret_cast<v8::Isolate*>(heap()->isolate()), v8_value, class_id,
