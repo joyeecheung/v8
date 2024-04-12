@@ -420,6 +420,28 @@ TEST_F(GlobalHandlesTest,
       [this]() { InvokeMajorGC(); }, SurvivalMode::kSurvives);
 }
 
+TEST_F(GlobalHandlesTest, TracedReferenceData) {
+  ManualGCScope manual_gc(i_isolate());
+  v8::Isolate* isolate = v8_isolate();
+
+  TracedReference<v8::Module> handle;
+  {
+    v8::HandleScope scope(isolate);
+    v8::ScriptOrigin origin(v8::String::NewFromUtf8Literal(isolate, ""), 0, 0,
+                            false, -1, Local<v8::Value>(), false, false, true);
+    v8::ScriptCompiler::Source source(
+        v8::String::NewFromUtf8Literal(isolate, ""), origin);
+    v8::Local<v8::Module> module =
+        v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+
+    handle.Reset(isolate, module);
+  }
+  InvokeMajorGC();
+  CHECK(!handle.IsEmpty());
+  v8::Local<v8::Module> module = handle.Get(isolate);
+  CHECK_EQ(module->GetStatus(), v8::Module::kUninstantiated);
+}
+
 TEST_F(GlobalHandlesTest,
        TracedReferenceToJSApiObjectWithModifiedMapSurvivesScavenge) {
   if (v8_flags.single_generation) return;

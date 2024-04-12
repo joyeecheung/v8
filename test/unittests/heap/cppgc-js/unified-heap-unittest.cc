@@ -794,6 +794,42 @@ TEST_F(UnifiedHeapTest, WrapperDescriptorGetter) {
   EXPECT_EQ(1u, Wrappable2::destructor_call_count);
 }
 
+namespace {
+class WrappedModule final : public cppgc::GarbageCollected<WrappedModule> {
+ public:
+  WrappedModule(v8::Isolate* isolate, v8::Local<v8::Module> module) {
+    module_.Reset(isolate, module);
+  }
+
+  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(module_); }
+
+  v8::Local<v8::Module> module(v8::Isolate* isolate) {
+    return module_.Get(isolate);
+  }
+
+ private:
+  TracedReference<v8::Module> module_;
+};
+}  // namespace
+
+TEST_F(UnifiedHeapTest, WrapperWithTracedReferenceData) {
+  v8::Isolate* isolate = v8_isolate();
+
+  v8::ScriptOrigin origin(v8::String::NewFromUtf8Literal(isolate, ""), 0, 0,
+                          false, -1, Local<v8::Value>(), false, false, true);
+  v8::ScriptCompiler::Source source(v8::String::NewFromUtf8Literal(isolate, ""),
+                                    origin);
+  v8::Local<v8::Module> module =
+      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+
+  cppgc::Persistent<WrappedModule> live_wrap =
+      cppgc::MakeGarbageCollected<WrappedModule>(allocation_handle(), isolate,
+                                                 module);
+  CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
+  CHECK_EQ(live_wrap.Get()->module(isolate)->GetStatus(),
+           v8::Module::kUninstantiated);
+}
+
 TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
   if (!v8_flags.minor_ms) return;
   if (v8_flags.single_generation) return;

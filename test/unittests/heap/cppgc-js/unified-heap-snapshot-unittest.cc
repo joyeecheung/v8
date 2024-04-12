@@ -618,8 +618,9 @@ class DetachednessHandler {
       v8::Isolate* isolate, const v8::Local<v8::Data>& v8_value, uint16_t,
       void*) {
     callback_count++;
-    return WrapperHelper::UnwrapAs<GCedWithJSRef>(v8_value.As<v8::Object>())
-      ->detachedness();
+    return WrapperHelper::UnwrapAs<GCedWithJSRef>(
+               v8_value.As<v8::Value>().As<v8::Object>())
+        ->detachedness();
   }
 
   static void Reset() { callback_count = 0; }
