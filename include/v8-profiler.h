@@ -956,14 +956,14 @@ class V8_EXPORT HeapProfiler {
 
   /**
    * Callback function invoked during heap snapshot generation to retrieve
-   * the detachedness state of an object referenced by a TracedReference.
+   * the detachedness state of a JS object referenced by a TracedReference.
    *
    * The callback takes Local<Value> as parameter to allow the embedder to
    * unpack the TracedReference into a Local and reuse that Local for different
    * purposes.
    */
   using GetDetachednessCallback = EmbedderGraph::Node::Detachedness (*)(
-      v8::Isolate* isolate, const v8::Local<v8::Data>& v8_value,
+      v8::Isolate* isolate, const v8::Local<v8::Value>& v8_value,
       uint16_t class_id, void* data);
 
   /** Returns the number of snapshots taken. */

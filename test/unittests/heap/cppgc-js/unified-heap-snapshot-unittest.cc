@@ -615,11 +615,10 @@ class DetachednessHandler {
   static size_t callback_count;
 
   static v8::EmbedderGraph::Node::Detachedness GetDetachedness(
-      v8::Isolate* isolate, const v8::Local<v8::Data>& v8_value, uint16_t,
+      v8::Isolate* isolate, const v8::Local<v8::Value>& v8_value, uint16_t,
       void*) {
     callback_count++;
-    return WrapperHelper::UnwrapAs<GCedWithJSRef>(
-               v8_value.As<v8::Value>().As<v8::Object>())
+    return WrapperHelper::UnwrapAs<GCedWithJSRef>(v8_value.As<v8::Object>())
         ->detachedness();
   }
 
@@ -748,46 +747,25 @@ class WrappedContext : public cppgc::GarbageCollected<WrappedContext>,
   // Cycle:
   // Context -> EmbdderData -> WrappedContext JS object -> WrappedContext cppgc
   // object -> Context
-  static cppgc::Persistent<WrappedContext> New(
-      v8::Isolate* isolate, v8::WrapperDescriptor& descriptor) {
+  static cppgc::Persistent<WrappedContext> New(v8::Isolate* isolate,
+                                               void* wrappable_type) {
     v8::Local<v8::Context> context = v8::Context::New(isolate);
-    v8::Local<v8::FunctionTemplate> fn_template =
-        v8::FunctionTemplate::New(isolate);
-    fn_template->SetClassName(
-        v8::String::NewFromUtf8Literal(isolate, "js WrappedContext"));
-    v8::Local<v8::ObjectTemplate> obj_template =
-        fn_template->InstanceTemplate();
-    int field_count = std::max(descriptor.wrappable_type_index,
-                               descriptor.wrappable_instance_index) +
-                      1;
-    obj_template->SetInternalFieldCount(field_count);
-    v8::Local<v8::Object> obj =
-        obj_template->NewInstance(context).ToLocalChecked();
+    v8::Local<v8::Object> obj = WrapperHelper::CreateWrapper(
+        context, wrappable_type, nullptr, "js WrappedContext");
     context->SetEmbedderData(kContextDataIndex, obj);
-
     cppgc::Persistent<WrappedContext> ref =
         cppgc::MakeGarbageCollected<WrappedContext>(
             isolate->GetCppHeap()->GetAllocationHandle(), isolate, obj,
             context);
-    obj->SetAlignedPointerInInternalField(
-        descriptor.wrappable_type_index,
-        &descriptor.embedder_id_for_garbage_collected);
-    obj->SetAlignedPointerInInternalField(descriptor.wrappable_instance_index,
-                                          ref);
+    WrapperHelper::SetWrappableConnection(obj, wrappable_type, ref.Get());
     return ref;
   }
 
   static v8::EmbedderGraph::Node::Detachedness GetDetachedness(
-      v8::Isolate* isolate, const v8::Local<v8::Data>& v8_data,
+      v8::Isolate* isolate, const v8::Local<v8::Value>& v8_value,
       uint16_t class_id, void* data) {
-    // This is only called on embdder objects.
-    CHECK(v8_data->IsValue() && v8_data.As<v8::Value>()->IsObject());
-    auto* descriptor = static_cast<v8::WrapperDescriptor*>(data);
-    v8::Local<v8::Object> obj = v8_data.As<v8::Value>().As<v8::Object>();
-    WrappedContext* wrapped =
-        static_cast<WrappedContext*>(obj->GetAlignedPointerFromInternalField(
-            descriptor->wrappable_instance_index));
-    return wrapped->detachedness();
+    return WrapperHelper::UnwrapAs<WrappedContext>(v8_value.As<v8::Object>())
+        ->detachedness();
   }
 
  private:
@@ -805,8 +783,9 @@ TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
   v8::WrapperDescriptor desc = v8_isolate()->GetCppHeap()->wrapper_descriptor();
   v8_isolate()->GetHeapProfiler()->SetGetDetachednessCallback(
       WrappedContext::GetDetachedness, &desc);
+  uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
   cppgc::Persistent<WrappedContext> wrapped =
-      WrappedContext::New(v8_isolate(), desc);
+      WrappedContext::New(v8_isolate(), &wrappable_type);
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
   EXPECT_TRUE(ContainsRetainingPath(
