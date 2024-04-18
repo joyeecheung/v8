@@ -2752,8 +2752,13 @@ class EmbedderGraphImpl : public EmbedderGraph {
     Tagged<Object> object_;
   };
 
-  Node* V8Node(const v8::Local<v8::Data>& value) final {
-    Handle<Object> object = v8::Utils::OpenHandle(*value);
+  Node* V8Node(const v8::Local<v8::Value>& value) final {
+    v8::Local<v8::Data> data = value;
+    return V8Node(data);
+  }
+
+  Node* V8Node(const v8::Local<v8::Data>& data) final {
+    Handle<Object> object = v8::Utils::OpenHandle(*data);
     DCHECK(!object.is_null());
     return AddNode(std::unique_ptr<Node>(new V8NodeImpl(*object)));
   }
