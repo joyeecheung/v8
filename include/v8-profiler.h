@@ -912,9 +912,8 @@ class V8_EXPORT EmbedderGraph {
    * data is a v8::Value and forward it to the variant that takes v8::Value,
    * which is currently required to be implemented. In the future we'll remove
    * the v8::Value variant, and make this variant that takes v8::Data abstract
-   * instead. If the embedder subclasses v8::EmbedderGraph and needs to pass in
-   * actual v8::Data that are not v8::Value into this method, they must override
-   * this variant.
+   * instead. If the embedder subclasses v8::EmbedderGraph and also use
+   * v8::TracedReference<v8::Data>, they must override this variant.
    */
   virtual Node* V8Node(const v8::Local<v8::Data>& value);
 
