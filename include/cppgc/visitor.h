@@ -44,8 +44,8 @@ using WeakCallback = void (*)(const LivenessBroker&, const void*);
  * class Foo final : public GarbageCollected<Foo> {
  *  public:
  *   void Trace(Visitor* visitor) const {
- *     visitor->Trace(foo_);
- *     visitor->Trace(weak_foo_);
+ *     visitor->Trace(foo_, "foo");
+ *     visitor->Trace(weak_foo_, "weak foo");
  *   }
  *  private:
  *   Member<Foo> foo_;
@@ -69,21 +69,24 @@ class V8_EXPORT Visitor {
    * Trace method for Member.
    *
    * \param member Member reference retaining an object.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename T>
-  void Trace(const Member<T>& member) {
+  void Trace(const Member<T>& member, const char* edge_name = nullptr) {
     const T* value = member.GetRawAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
-    TraceImpl(value);
+    TraceImpl(value, edge_name);
   }
 
   /**
    * Trace method for WeakMember.
    *
    * \param weak_member WeakMember reference weakly retaining an object.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename T>
-  void Trace(const WeakMember<T>& weak_member) {
+  void Trace(const WeakMember<T>& weak_member,
+             const char* edge_name = nullptr) {
     static_assert(sizeof(T), "Pointee type must be fully defined.");
     static_assert(internal::IsGarbageCollectedOrMixinType<T>::value,
                   "T must be GarbageCollected or GarbageCollectedMixin type");
@@ -99,7 +102,7 @@ class V8_EXPORT Visitor {
 
     CPPGC_DCHECK(value != kSentinelPointer);
     VisitWeak(value, TraceTrait<T>::GetTraceDescriptor(value),
-              &HandleWeak<WeakMember<T>>, &weak_member);
+              &HandleWeak<WeakMember<T>>, &weak_member, edge_name);
   }
 
 #if defined(CPPGC_POINTER_COMPRESSION)
@@ -107,12 +110,14 @@ class V8_EXPORT Visitor {
    * Trace method for UncompressedMember.
    *
    * \param member UncompressedMember reference retaining an object.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename T>
-  void Trace(const subtle::UncompressedMember<T>& member) {
+  void Trace(const subtle::UncompressedMember<T>& member,
+             const char* edge_name = nullptr) {
     const T* value = member.GetRawAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
-    TraceImpl(value);
+    TraceImpl(value, edge_name);
   }
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
@@ -145,9 +150,10 @@ class V8_EXPORT Visitor {
    * otherwise follow managed heap layout and have a Trace() method.
    *
    * \param object reference of the inlined object.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename T>
-  void Trace(const T& object) {
+  void Trace(const T& object, const char* edge_name = nullptr) {
 #if V8_ENABLE_CHECKS
     // This object is embedded in potentially multiple nested objects. The
     // outermost object must not be in construction as such objects are (a) not
@@ -155,7 +161,7 @@ class V8_EXPORT Visitor {
     // otherwise possible.
     CheckObjectNotInConstruction(&object);
 #endif  // V8_ENABLE_CHECKS
-    TraceTrait<T>::Trace(this, &object);
+    TraceTrait<T>::Trace(this, &object, edge_name);
   }
 
   template <typename T>
@@ -194,10 +200,12 @@ class V8_EXPORT Visitor {
    *
    * \param ephemeron_pair EphemeronPair reference weakly retaining a key object
    * and strongly retaining a value object in case the key object is alive.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename K, typename V>
-  void Trace(const EphemeronPair<K, V>& ephemeron_pair) {
-    TraceEphemeron(ephemeron_pair.key, &ephemeron_pair.value);
+  void Trace(const EphemeronPair<K, V>& ephemeron_pair,
+             const char* edge_name = nullptr) {
+    TraceEphemeron(ephemeron_pair.key, &ephemeron_pair.value, edge_name);
     RegisterWeakCallbackMethod<EphemeronPair<K, V>,
                                &EphemeronPair<K, V>::ClearValueIfKeyIsDead>(
         &ephemeron_pair);
@@ -209,10 +217,12 @@ class V8_EXPORT Visitor {
    *
    * \param weak_member_key WeakMember reference weakly retaining a key object.
    * \param member_value Member reference with ephemeron semantics.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename KeyType, typename ValueType>
   void TraceEphemeron(const WeakMember<KeyType>& weak_member_key,
-                      const Member<ValueType>* member_value) {
+                      const Member<ValueType>* member_value,
+                      const char* edge_name = nullptr) {
     const KeyType* key = weak_member_key.GetRawAtomic();
     if (!key) return;
 
@@ -229,7 +239,7 @@ class V8_EXPORT Visitor {
         TraceTrait<KeyType>::GetTraceDescriptor(key).base_object_payload;
     CPPGC_DCHECK(key_base_object_payload);
 
-    VisitEphemeron(key_base_object_payload, value, value_desc);
+    VisitEphemeron(key_base_object_payload, value, value_desc, name);
   }
 
   /**
@@ -242,10 +252,11 @@ class V8_EXPORT Visitor {
    *   `ValueType` here should not be `Member`. It is expected that
    *   `TraceTrait<ValueType>::GetTraceDescriptor(value)` returns a
    *   `TraceDescriptor` with a null base pointer but a valid trace method.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename KeyType, typename ValueType>
   void TraceEphemeron(const WeakMember<KeyType>& weak_member_key,
-                      const ValueType* value) {
+                      const ValueType* value, const char* edge_name = nullptr) {
     static_assert(!IsGarbageCollectedOrMixinTypeV<ValueType>,
                   "garbage-collected types must use WeakMember and Member");
     const KeyType* key = weak_member_key.GetRawAtomic();
@@ -264,29 +275,32 @@ class V8_EXPORT Visitor {
         TraceTrait<KeyType>::GetTraceDescriptor(key).base_object_payload;
     CPPGC_DCHECK(key_base_object_payload);
 
-    VisitEphemeron(key_base_object_payload, value, value_desc);
+    VisitEphemeron(key_base_object_payload, value, value_desc, name);
   }
 
   /**
    * Trace method that strongifies a WeakMember.
    *
    * \param weak_member WeakMember reference retaining an object.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename T>
-  void TraceStrongly(const WeakMember<T>& weak_member) {
+  void TraceStrongly(const WeakMember<T>& weak_member,
+                     const char* edge_name = nullptr) {
     const T* value = weak_member.GetRawAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
-    TraceImpl(value);
+    TraceImpl(value, edge_name);
   }
 
   /**
    * Trace method for retaining containers strongly.
    *
    * \param object reference to the container.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename T>
-  void TraceStrongContainer(const T* object) {
-    TraceImpl(object);
+  void TraceStrongContainer(const T* object, const char* edge_name = nullptr) {
+    TraceImpl(object, edge_name);
   }
 
   /**
@@ -296,14 +310,16 @@ class V8_EXPORT Visitor {
    * \param object reference to the container.
    * \param callback to be invoked.
    * \param callback_data custom data that is passed to the callback.
+   * \param edge_name Optional of the edge shown in heap snapshots.
    */
   template <typename T>
   void TraceWeakContainer(const T* object, WeakCallback callback,
-                          const void* callback_data) {
+                          const void* callback_data,
+                          const char* edge_name = nullptr) {
     if (!object) return;
     VisitWeakContainer(object, TraceTrait<T>::GetTraceDescriptor(object),
                        TraceTrait<T>::GetWeakTraceDescriptor(object), callback,
-                       callback_data);
+                       callback_data, edge_name);
   }
 
   /**
@@ -351,14 +367,18 @@ class V8_EXPORT Visitor {
   }
 
  protected:
-  virtual void Visit(const void* self, TraceDescriptor) {}
+  virtual void Visit(const void* self, TraceDescriptor,
+                     const char* edge_name = nullptr) {}
   virtual void VisitWeak(const void* self, TraceDescriptor, WeakCallback,
-                         const void* weak_member) {}
+                         const void* weak_member,
+                         const char* edge_name = nullptr) {}
   virtual void VisitEphemeron(const void* key, const void* value,
-                              TraceDescriptor value_desc) {}
+                              TraceDescriptor value_desc,
+                              const char* edge_name = nullptr) {}
   virtual void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
                                   TraceDescriptor weak_desc,
-                                  WeakCallback callback, const void* data) {}
+                                  WeakCallback callback, const void* data,
+                                  const char* edge_name = nullptr) {}
   virtual void HandleMovableReference(const void**) {}
 
   virtual void VisitMultipleUncompressedMember(
@@ -412,14 +432,14 @@ class V8_EXPORT Visitor {
   }
 
   template <typename T>
-  void TraceImpl(const T* t) {
+  void TraceImpl(const T* t, const char* name) {
     static_assert(sizeof(T), "Pointee type must be fully defined.");
     static_assert(internal::IsGarbageCollectedOrMixinType<T>::value,
                   "T must be GarbageCollected or GarbageCollectedMixin type");
     if (!t) {
       return;
     }
-    Visit(t, TraceTrait<T>::GetTraceDescriptor(t));
+    Visit(t, TraceTrait<T>::GetTraceDescriptor(t), name);
   }
 
 #if V8_ENABLE_CHECKS

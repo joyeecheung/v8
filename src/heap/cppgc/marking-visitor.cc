@@ -18,7 +18,8 @@ MarkingVisitorBase::MarkingVisitorBase(HeapBase& heap,
                                        BasicMarkingState& marking_state)
     : marking_state_(marking_state) {}
 
-void MarkingVisitorBase::Visit(const void* object, TraceDescriptor desc) {
+void MarkingVisitorBase::Visit(const void* object, TraceDescriptor desc,
+                               const char* edge_name = nullptr) {
   marking_state_.MarkAndPush(object, desc);
 }
 
@@ -57,21 +58,21 @@ void MarkingVisitorBase::VisitMultipleCompressedMember(
 
 void MarkingVisitorBase::VisitWeak(const void* object, TraceDescriptor desc,
                                    WeakCallback weak_callback,
-                                   const void* weak_member) {
+                                   const void* weak_member,
+                                   const char* edge_name = nullptr) {
   marking_state_.RegisterWeakReferenceIfNeeded(object, desc, weak_callback,
                                                weak_member);
 }
 
 void MarkingVisitorBase::VisitEphemeron(const void* key, const void* value,
-                                        TraceDescriptor value_desc) {
+                                        TraceDescriptor value_desc,
+                                        const char* edge_name = nullptr) {
   marking_state_.ProcessEphemeron(key, value, value_desc, *this);
 }
 
-void MarkingVisitorBase::VisitWeakContainer(const void* object,
-                                            TraceDescriptor strong_desc,
-                                            TraceDescriptor weak_desc,
-                                            WeakCallback callback,
-                                            const void* data) {
+void MarkingVisitorBase::VisitWeakContainer(
+    const void* object, TraceDescriptor strong_desc, TraceDescriptor weak_desc,
+    WeakCallback callback, const void* data, const char* edge_name = nullptr) {
   marking_state_.ProcessWeakContainer(object, weak_desc, callback, data);
 }
 

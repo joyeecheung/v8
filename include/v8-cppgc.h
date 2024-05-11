@@ -193,15 +193,16 @@ class JSVisitor : public cppgc::Visitor {
   explicit JSVisitor(cppgc::Visitor::Key key) : cppgc::Visitor(key) {}
   ~JSVisitor() override = default;
 
-  void Trace(const TracedReferenceBase& ref) {
+  void Trace(const TracedReferenceBase& ref, const char* edge_name = nullptr) {
     if (ref.IsEmptyThreadSafe()) return;
-    Visit(ref);
+    Visit(ref, edge_name);
   }
 
  protected:
   using cppgc::Visitor::Visit;
 
-  virtual void Visit(const TracedReferenceBase& ref) {}
+  virtual void Visit(const TracedReferenceBase& ref,
+                     const char* edge_name = nullptr) {}
 };
 
 /**
@@ -234,9 +235,10 @@ struct TraceTrait<v8::TracedReference<T>> {
     return {nullptr, Trace};
   }
 
-  static void Trace(Visitor* visitor, const void* self) {
+  static void Trace(Visitor* visitor, const void* self,
+                    const char* edge_name = nullptr) {
     static_cast<v8::JSVisitor*>(visitor)->Trace(
-        *static_cast<const v8::TracedReference<T>*>(self));
+        *static_cast<const v8::TracedReference<T>*>(self), edge_name);
   }
 };
 
