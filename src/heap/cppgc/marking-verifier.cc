@@ -159,12 +159,13 @@ class VerificationVisitor final : public cppgc::Visitor {
   explicit VerificationVisitor(VerificationState& state)
       : cppgc::Visitor(VisitorFactory::CreateKey()), state_(state) {}
 
-  void Visit(const void*, TraceDescriptor desc) final {
+  void Visit(const void*, TraceDescriptor desc,
+             const char* name = nullptr) final {
     state_.VerifyMarked(desc.base_object_payload);
   }
 
-  void VisitWeak(const void*, TraceDescriptor desc, WeakCallback,
-                 const void*) final {
+  void VisitWeak(const void*, TraceDescriptor desc, WeakCallback, const void*,
+                 const char* edge_name = nullptr) final {
     // Weak objects should have been cleared at this point. As a consequence,
     // all objects found through weak references have to point to live objects
     // at this point.
@@ -172,8 +173,8 @@ class VerificationVisitor final : public cppgc::Visitor {
   }
 
   void VisitWeakContainer(const void* object, TraceDescriptor,
-                          TraceDescriptor weak_desc, WeakCallback,
-                          const void*) final {
+                          TraceDescriptor weak_desc, WeakCallback, const void*,
+                          const char* edge_name = nullptr) final {
     if (!object) return;
 
     // Contents of weak containers are found themselves through page iteration

@@ -26,18 +26,22 @@ class V8_EXPORT_PRIVATE MarkingVisitorBase : public VisitorBase {
   ~MarkingVisitorBase() override = default;
 
  protected:
-  void Visit(const void*, TraceDescriptor) final;
+  void Visit(const void*, TraceDescriptor,
+             const char* edge_name = nullptr) final;
   void VisitMultipleUncompressedMember(const void*, size_t,
                                        TraceDescriptorCallback) final;
 #if defined(CPPGC_POINTER_COMPRESSION)
   void VisitMultipleCompressedMember(const void*, size_t,
                                      TraceDescriptorCallback) final;
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
-  void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
-  void VisitEphemeron(const void*, const void*, TraceDescriptor) final;
+  void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*,
+                 const char* edge_name = nullptr) final;
+  void VisitEphemeron(const void*, const void*, TraceDescriptor,
+                      const char* edge_name = nullptr) final;
   void VisitWeakContainer(const void* object, TraceDescriptor strong_desc,
                           TraceDescriptor weak_desc, WeakCallback callback,
-                          const void* data) final;
+                          const void* data,
+                          const char* edge_name = nullptr) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
   void HandleMovableReference(const void**) final;
 

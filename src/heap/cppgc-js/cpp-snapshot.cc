@@ -625,7 +625,7 @@ class WeakVisitor : public JSVisitor {
   void VisitWeakContainer(const void* object,
                           cppgc::TraceDescriptor strong_desc,
                           cppgc::TraceDescriptor weak_desc, cppgc::WeakCallback,
-                          const void*) final {
+                          const void*, const char* edge_name = nullptr) final {
     const auto& container_header =
         HeapObjectHeader::FromObject(strong_desc.base_object_payload);
     WeakContainerScope weak_container_scope(*this, container_header);
@@ -653,7 +653,8 @@ class WeakVisitor : public JSVisitor {
     }
   }
   void VisitEphemeron(const void* key, const void* value,
-                      cppgc::TraceDescriptor value_desc) final {
+                      cppgc::TraceDescriptor value_desc,
+                      const char* edge_name = nullptr) final {
     // For ephemerons, the key retains the value.
     // Key always must be a GarbageCollected object.
     auto& key_header = HeapObjectHeader::FromObject(key);
@@ -704,14 +705,16 @@ class VisiblityVisitor final : public WeakVisitor {
       : WeakVisitor(graph_builder), parent_scope_(parent_scope) {}
 
   // C++ handling.
-  void Visit(const void*, cppgc::TraceDescriptor desc) final {
+  void Visit(const void*, cppgc::TraceDescriptor desc,
+             const char* name = nullptr) final {
     graph_builder_.VisitForVisibility(
         &parent_scope_.ParentAsRegularState(),
         HeapObjectHeader::FromObject(desc.base_object_payload));
   }
 
   // JS handling.
-  void Visit(const TracedReferenceBase& ref) final {
+  void Visit(const TracedReferenceBase& ref,
+             const char* edge_name = nullptr) final {
     graph_builder_.VisitForVisibility(parent_scope_.ParentAsRegularState(),
                                       ref);
   }
@@ -747,27 +750,30 @@ class GraphBuildingVisitor final : public JSVisitor {
         parent_scope_(parent_scope) {}
 
   // C++ handling.
-  void Visit(const void*, cppgc::TraceDescriptor desc) final {
+  void Visit(const void*, cppgc::TraceDescriptor desc,
+             const char* edge_name = nullptr) final {
     graph_builder_.AddEdge(
         parent_scope_.ParentAsRegularState(),
-        HeapObjectHeader::FromObject(desc.base_object_payload), edge_name_);
+        HeapObjectHeader::FromObject(desc.base_object_payload),
+        edge_name == nullptr ? edge_name_ : edge_name);
   }
   void VisitWeakContainer(const void* object,
                           cppgc::TraceDescriptor strong_desc,
                           cppgc::TraceDescriptor weak_desc, cppgc::WeakCallback,
-                          const void*) final {
+                          const void*, const char* edge_name = nullptr) final {
     // Add an edge from the object holding the weak container to the weak
     // container itself.
     graph_builder_.AddEdge(
         parent_scope_.ParentAsRegularState(),
         HeapObjectHeader::FromObject(strong_desc.base_object_payload),
-        edge_name_);
+        edge_name == nullptr ? edge_name_ : edge_name);
   }
 
   // JS handling.
-  void Visit(const TracedReferenceBase& ref) final {
+  void Visit(const TracedReferenceBase& ref,
+             const char* edge_name = nullptr) final {
     graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), ref,
-                           edge_name_);
+                           edge_name == nullptr ? edge_name_ : edge_name);
   }
 
   void set_edge_name(std::string edge_name) {

@@ -42,23 +42,28 @@ class V8_EXPORT_PRIVATE UnifiedHeapMarkingVisitorBase : public JSVisitor {
 
  protected:
   // C++ handling.
-  void Visit(const void*, TraceDescriptor) final;
+  void Visit(const void*, TraceDescriptor,
+             const char* edge_name = nullptr) final;
   void VisitMultipleUncompressedMember(const void*, size_t,
                                        TraceDescriptorCallback) final;
 #if defined(CPPGC_POINTER_COMPRESSION)
   void VisitMultipleCompressedMember(const void*, size_t,
                                      TraceDescriptorCallback) final;
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
-  void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
-  void VisitEphemeron(const void*, const void*, TraceDescriptor) final;
+  void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*,
+                 const char* edge_name = nullptr) final;
+  void VisitEphemeron(const void*, const void*, TraceDescriptor,
+                      const char* edge_name = nullptr) final;
   void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
                           TraceDescriptor weak_desc, WeakCallback callback,
-                          const void* data) final;
+                          const void* data,
+                          const char* edge_name = nullptr) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;
   void HandleMovableReference(const void**) final;
 
   // JS handling.
-  void Visit(const TracedReferenceBase& ref) override;
+  void Visit(const TracedReferenceBase& ref,
+             const char* edge_name = nullptr) override;
 
   cppgc::internal::BasicMarkingState& marking_state_;
   UnifiedHeapMarkingState& unified_heap_marking_state_;

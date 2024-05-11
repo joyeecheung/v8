@@ -78,20 +78,22 @@ void UnifiedHeapMarkingVisitorBase::VisitMultipleCompressedMember(
 void UnifiedHeapMarkingVisitorBase::VisitWeak(const void* object,
                                               TraceDescriptor desc,
                                               WeakCallback weak_callback,
-                                              const void* weak_member) {
+                                              const void* weak_member,
+                                              const char* edge_name) {
   marking_state_.RegisterWeakReferenceIfNeeded(object, desc, weak_callback,
                                                weak_member);
 }
 
 void UnifiedHeapMarkingVisitorBase::VisitEphemeron(const void* key,
                                                    const void* value,
-                                                   TraceDescriptor value_desc) {
+                                                   TraceDescriptor value_desc,
+                                                   const char* edge_name) {
   marking_state_.ProcessEphemeron(key, value, value_desc, *this);
 }
 
 void UnifiedHeapMarkingVisitorBase::VisitWeakContainer(
     const void* self, TraceDescriptor strong_desc, TraceDescriptor weak_desc,
-    WeakCallback callback, const void* data) {
+    WeakCallback callback, const void* data, const char* edge_name) {
   marking_state_.ProcessWeakContainer(self, weak_desc, callback, data);
 }
 
@@ -104,7 +106,8 @@ void UnifiedHeapMarkingVisitorBase::HandleMovableReference(const void** slot) {
   marking_state_.RegisterMovableReference(slot);
 }
 
-void UnifiedHeapMarkingVisitorBase::Visit(const TracedReferenceBase& ref) {
+void UnifiedHeapMarkingVisitorBase::Visit(const TracedReferenceBase& ref,
+                                          const char* edge_name) {
   unified_heap_marking_state_.MarkAndPush(ref);
 }
 

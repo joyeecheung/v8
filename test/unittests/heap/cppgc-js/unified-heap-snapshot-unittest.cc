@@ -777,5 +777,46 @@ TEST_F(UnifiedHeapSnapshotTest, WrappedContext) {
       });
 }
 
+namespace {
+struct WrapperWithEdges : public cppgc::GarbageCollected<WrapperWithEdges>,
+                          public cppgc::NameProvider {
+ public:
+  WrapperWithEdges(v8::Isolate* isolate, v8::Local<v8::Object> o) {
+    object.Reset(isolate, o);
+  }
+  void Trace(cppgc::Visitor* v) const {
+    v->Trace(object, "object_edge");
+    v->Trace(next, "next_edge");
+  }
+  const char* GetHumanReadableName() const final { return "WrapperWithEdges"; }
+  TracedReference<v8::Object> object;
+  cppgc::Member<WrapperWithEdges> next;
+};
+}  // namespace
+
+TEST_F(UnifiedHeapSnapshotTest, NamedEdge) {
+  v8::Isolate* isolate = v8_isolate();
+  JsTestingScope testing_scope(isolate);
+  v8::Local<v8::Object> a = v8::Object::New(isolate);
+  v8::Local<v8::Object> b = v8::Object::New(isolate);
+
+  cppgc::Persistent<WrapperWithEdges> wrapper1 =
+      cppgc::MakeGarbageCollected<WrapperWithEdges>(
+          isolate->GetCppHeap()->GetAllocationHandle(), isolate, a);
+  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, a,
+                                                       wrapper1.Get());
+
+  cppgc::Persistent<WrapperWithEdges> wrapper2 =
+      cppgc::MakeGarbageCollected<WrapperWithEdges>(
+          isolate->GetCppHeap()->GetAllocationHandle(), isolate, b);
+  v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, b,
+                                                       wrapper1.Get());
+
+  wrapper1->next = wrapper2.Get();
+  wrapper2->next = wrapper1.Get();
+
+  const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+}
 }  // namespace internal
 }  // namespace v8

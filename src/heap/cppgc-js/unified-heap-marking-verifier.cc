@@ -22,12 +22,13 @@ class UnifiedHeapVerificationVisitor final : public JSVisitor {
       : JSVisitor(cppgc::internal::VisitorFactory::CreateKey()),
         state_(state) {}
 
-  void Visit(const void*, cppgc::TraceDescriptor desc) final {
+  void Visit(const void*, cppgc::TraceDescriptor desc,
+             const char* edge_name = nullptr) final {
     state_.VerifyMarked(desc.base_object_payload);
   }
 
   void VisitWeak(const void*, cppgc::TraceDescriptor desc, cppgc::WeakCallback,
-                 const void*) final {
+                 const void*, const char* edge_name = nullptr) final {
     // Weak objects should have been cleared at this point. As a consequence,
     // all objects found through weak references have to point to live objects
     // at this point.
@@ -36,7 +37,7 @@ class UnifiedHeapVerificationVisitor final : public JSVisitor {
 
   void VisitWeakContainer(const void* object, cppgc::TraceDescriptor,
                           cppgc::TraceDescriptor weak_desc, cppgc::WeakCallback,
-                          const void*) final {
+                          const void*, const char* edge_name = nullptr) final {
     if (!object) return;
 
     // Contents of weak containers are found themselves through page iteration
@@ -46,7 +47,8 @@ class UnifiedHeapVerificationVisitor final : public JSVisitor {
     state_.VerifyMarked(weak_desc.base_object_payload);
   }
 
-  void Visit(const TracedReferenceBase& ref) final {
+  void Visit(const TracedReferenceBase& ref,
+             const char* edge_name = nullptr) final {
     state_.VerifyMarkedTracedReference(ref);
   }
 
