@@ -36,7 +36,7 @@ using cppgc::internal::HeapObjectHeader;
 // Node representing a C++ object on the heap.
 class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
-  EmbedderNode(const HeapObjectHeader* header_address,
+  EmbedderNode(const void* header_address,
                cppgc::internal::HeapObjectName name, size_t size)
       : header_address_(header_address),
         name_(name.value),
@@ -471,6 +471,24 @@ class CppGraphBuilderImpl final {
             &header, header.GetName(), header.AllocatedSize())}));
   }
 
+  void AddEdge(State& parent, size_t size, const char* type_name,
+               const std::string& edge_name) {
+    DCHECK(parent.IsVisibleNotDependent());
+    if (!parent.get_node()) {
+      parent.set_node(AddNode(*parent.header()));
+    }
+    v8::EmbedderGraph::Node* child =
+        graph_.AddNode(std::unique_ptr<v8::EmbedderGraph::Node>{
+            new EmbedderNode(nullptr, {type_name, false}, size)});
+
+    if (!edge_name.empty()) {
+      graph_.AddEdge(parent.get_node(), child,
+                     parent.get_node()->InternalizeEdgeName(edge_name));
+    } else {
+      graph_.AddEdge(parent.get_node(), child);
+    }
+  }
+
   void AddEdge(State& parent, const HeapObjectHeader& header,
                const std::string& edge_name) {
     DCHECK(parent.IsVisibleNotDependent());
@@ -774,6 +792,14 @@ class GraphBuildingVisitor final : public JSVisitor {
              const char* edge_name = nullptr) final {
     graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), ref,
                            edge_name == nullptr ? edge_name_ : edge_name);
+  }
+
+  void VisitExternal(size_t size, const char* type_name,
+                     const char* edge_name = nullptr) final {
+    graph_builder_.AddNode() graph_builder_.AddEdge(
+        parent_scope_.ParentAsRegularState(),
+        HeapObjectHeader::FromObject(desc.base_object_payload),
+        edge_name == nullptr ? edge_name_ : edge_name);
   }
 
   void set_edge_name(std::string edge_name) {

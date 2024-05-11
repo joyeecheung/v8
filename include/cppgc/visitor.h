@@ -323,6 +323,19 @@ class V8_EXPORT Visitor {
   }
 
   /**
+   * Trace method for members with externally-managed memory. Only used for
+   * diagnostics.
+   *
+   * \param size Size of the externally-managed member.
+   * \param type_name Type name of the member.
+   * \param edge_name Optional of the edge shown in heap snapshots.
+   */
+  void TraceExternal(size_t size, const char* type_name,
+                     const char* edge_name = nullptr) {
+    VisitExternal(size, type_name, edge_name);
+  }
+
+  /**
    * Registers a slot containing a reference to an object allocated on a
    * compactable space. Such references maybe be arbitrarily moved by the GC.
    *
@@ -379,6 +392,8 @@ class V8_EXPORT Visitor {
                                   TraceDescriptor weak_desc,
                                   WeakCallback callback, const void* data,
                                   const char* edge_name = nullptr) {}
+  virtual void VisitExternal(size_t size, const char* type_name,
+                             const char* edge_name = nullptr) {}
   virtual void HandleMovableReference(const void**) {}
 
   virtual void VisitMultipleUncompressedMember(
