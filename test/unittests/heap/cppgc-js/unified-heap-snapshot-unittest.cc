@@ -818,5 +818,33 @@ TEST_F(UnifiedHeapSnapshotTest, NamedEdge) {
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
 }
+
+namespace {
+struct GCedWithExternal : public cppgc::GarbageCollected<GCedWithExternal>,
+                          public cppgc::NameProvider {
+ public:
+  explicit GCedWithExternal(size_t size)
+      : data(std::make_unique<uint32_t[]>(size)), data_size(size) {}
+  void Trace(cppgc::Visitor* v) const {
+    v->TraceExternal(data_size, "uint32[]", "data");
+  }
+  const char* GetHumanReadableName() const final { return "GCedWithExternal"; }
+  std::unique_ptr<uint32_t[]> data;
+  size_t data_size = 0;
+};
+}  // namespace
+
+TEST_F(UnifiedHeapSnapshotTest, ExternalMember) {
+  v8::Isolate* isolate = v8_isolate();
+  JsTestingScope testing_scope(isolate);
+
+  cppgc::Persistent<GCedWithExternal> ref =
+      cppgc::MakeGarbageCollected<GCedWithExternal>(
+          isolate->GetCppHeap()->GetAllocationHandle(), isolate, 10);
+
+  const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
+  EXPECT_TRUE(IsValidSnapshot(snapshot));
+}
+
 }  // namespace internal
 }  // namespace v8
