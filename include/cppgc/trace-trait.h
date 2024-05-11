@@ -35,7 +35,8 @@ struct TraceTraitImpl;
  * \param visitor The visitor to dispatch to.
  * \param object The object to invoke tracing on.
  */
-using TraceCallback = void (*)(Visitor* visitor, const void* object);
+using TraceCallback = void (*)(Visitor* visitor, const void* object,
+                               const char* edge_name);
 
 /**
  * Describes how to trace an object, i.e., how to visit all Oilpan-relevant
