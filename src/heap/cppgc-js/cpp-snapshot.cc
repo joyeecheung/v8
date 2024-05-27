@@ -36,8 +36,8 @@ using cppgc::internal::HeapObjectHeader;
 // Node representing a C++ object on the heap.
 class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
-  EmbedderNode(const void* header_address,
-               cppgc::internal::HeapObjectName name, size_t size)
+  EmbedderNode(const void* header_address, cppgc::internal::HeapObjectName name,
+               size_t size)
       : header_address_(header_address),
         name_(name.value),
         size_(name.name_was_hidden ? 0 : size) {}
@@ -796,10 +796,9 @@ class GraphBuildingVisitor final : public JSVisitor {
 
   void VisitExternal(size_t size, const char* type_name,
                      const char* edge_name = nullptr) final {
-    graph_builder_.AddNode() graph_builder_.AddEdge(
-        parent_scope_.ParentAsRegularState(),
-        HeapObjectHeader::FromObject(desc.base_object_payload),
-        edge_name == nullptr ? edge_name_ : edge_name);
+    graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), size,
+                           type_name,
+                           edge_name == nullptr ? edge_name_ : edge_name);
   }
 
   void set_edge_name(std::string edge_name) {
@@ -914,7 +913,7 @@ void CppGraphBuilderImpl::
   // queuing processing for all reachable values.
   ParentScope parent_scope(key_state);
   VisiblityVisitor visitor(*this, parent_scope);
-  value_desc.callback(&visitor, value);
+  value_desc.callback(&visitor, value, nullptr);
   key_state.AddEagerEphemeronEdge(value, value_desc.callback);
 }
 
@@ -1048,7 +1047,7 @@ void CppGraphBuilderImpl::Run() {
         "part of key -> value pair in ephemeron table");
     state.ForAllEagerEphemeronEdges(
         [&object_visitor](const void* value, cppgc::TraceCallback callback) {
-          callback(&object_visitor, value);
+          callback(&object_visitor, value, nullptr);
         });
   });
   // Add roots.

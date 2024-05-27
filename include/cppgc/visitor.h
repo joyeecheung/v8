@@ -69,7 +69,7 @@ class V8_EXPORT Visitor {
    * Trace method for Member.
    *
    * \param member Member reference retaining an object.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename T>
   void Trace(const Member<T>& member, const char* edge_name = nullptr) {
@@ -82,7 +82,7 @@ class V8_EXPORT Visitor {
    * Trace method for WeakMember.
    *
    * \param weak_member WeakMember reference weakly retaining an object.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename T>
   void Trace(const WeakMember<T>& weak_member,
@@ -110,7 +110,7 @@ class V8_EXPORT Visitor {
    * Trace method for UncompressedMember.
    *
    * \param member UncompressedMember reference retaining an object.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename T>
   void Trace(const subtle::UncompressedMember<T>& member,
@@ -150,7 +150,7 @@ class V8_EXPORT Visitor {
    * otherwise follow managed heap layout and have a Trace() method.
    *
    * \param object reference of the inlined object.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename T>
   void Trace(const T& object, const char* edge_name = nullptr) {
@@ -200,7 +200,7 @@ class V8_EXPORT Visitor {
    *
    * \param ephemeron_pair EphemeronPair reference weakly retaining a key object
    * and strongly retaining a value object in case the key object is alive.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename K, typename V>
   void Trace(const EphemeronPair<K, V>& ephemeron_pair,
@@ -217,7 +217,7 @@ class V8_EXPORT Visitor {
    *
    * \param weak_member_key WeakMember reference weakly retaining a key object.
    * \param member_value Member reference with ephemeron semantics.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename KeyType, typename ValueType>
   void TraceEphemeron(const WeakMember<KeyType>& weak_member_key,
@@ -252,7 +252,7 @@ class V8_EXPORT Visitor {
    *   `ValueType` here should not be `Member`. It is expected that
    *   `TraceTrait<ValueType>::GetTraceDescriptor(value)` returns a
    *   `TraceDescriptor` with a null base pointer but a valid trace method.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename KeyType, typename ValueType>
   void TraceEphemeron(const WeakMember<KeyType>& weak_member_key,
@@ -282,7 +282,7 @@ class V8_EXPORT Visitor {
    * Trace method that strongifies a WeakMember.
    *
    * \param weak_member WeakMember reference retaining an object.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename T>
   void TraceStrongly(const WeakMember<T>& weak_member,
@@ -296,7 +296,7 @@ class V8_EXPORT Visitor {
    * Trace method for retaining containers strongly.
    *
    * \param object reference to the container.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename T>
   void TraceStrongContainer(const T* object, const char* edge_name = nullptr) {
@@ -310,7 +310,7 @@ class V8_EXPORT Visitor {
    * \param object reference to the container.
    * \param callback to be invoked.
    * \param callback_data custom data that is passed to the callback.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   template <typename T>
   void TraceWeakContainer(const T* object, WeakCallback callback,
@@ -328,7 +328,7 @@ class V8_EXPORT Visitor {
    *
    * \param size Size of the externally-managed member.
    * \param type_name Type name of the member.
-   * \param edge_name Optional of the edge shown in heap snapshots.
+   * \param edge_name Optional name of the edge shown in heap snapshots.
    */
   void TraceExternal(size_t size, const char* type_name,
                      const char* edge_name = nullptr) {

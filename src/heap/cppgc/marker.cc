@@ -640,7 +640,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
               [this](
                   const MarkingWorklists::ConcurrentMarkingBailoutItem& item) {
                 mutator_marking_state_.AccountMarkedBytes(item.bailedout_size);
-                item.callback(&visitor(), item.parameter);
+                item.callback(&visitor(), item.parameter, nullptr);
               })) {
         return false;
       }
@@ -676,7 +676,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
                 DCHECK(!header.IsInConstruction<AccessMode::kNonAtomic>());
                 DCHECK(header.IsMarked<AccessMode::kAtomic>());
                 mutator_marking_state_.AccountMarkedBytes(header);
-                item.callback(&visitor(), item.base_object_payload);
+                item.callback(&visitor(), item.base_object_payload, nullptr);
               })) {
         return false;
       }

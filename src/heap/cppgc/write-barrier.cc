@@ -88,7 +88,7 @@ void WriteBarrier::DijkstraMarkingBarrierRangeSlow(
   cppgc::subtle::DisallowGarbageCollectionScope disallow_gc_scope(heap_base);
   const char* array = static_cast<const char*>(first_element);
   while (number_of_elements-- > 0) {
-    trace_callback(&heap_base.marker()->Visitor(), array);
+    trace_callback(&heap_base.marker()->Visitor(), array, nullptr);
     array += element_size;
   }
 }
