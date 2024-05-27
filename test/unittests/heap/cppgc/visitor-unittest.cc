@@ -95,7 +95,7 @@ TEST_F(TraceTraitTest, TraceGCedThroughTraceDescriptor) {
   auto* gced = MakeGarbageCollected<GCed>(GetAllocationHandle());
   EXPECT_EQ(0u, GCed::trace_callcount);
   TraceDescriptor desc = TraceTrait<GCed>::GetTraceDescriptor(gced);
-  desc.callback(nullptr, desc.base_object_payload);
+  desc.callback(nullptr, desc.base_object_payload, nullptr);
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
@@ -105,7 +105,7 @@ TEST_F(TraceTraitTest, TraceGCedMixinThroughTraceDescriptor) {
   auto* gced_mixin = static_cast<GCedMixin*>(gced_mixin_app);
   EXPECT_EQ(0u, GCed::trace_callcount);
   TraceDescriptor desc = TraceTrait<GCedMixin>::GetTraceDescriptor(gced_mixin);
-  desc.callback(nullptr, desc.base_object_payload);
+  desc.callback(nullptr, desc.base_object_payload, nullptr);
   EXPECT_EQ(1u, GCed::trace_callcount);
 }
 
@@ -132,7 +132,7 @@ TEST_F(TraceTraitTest, MixinInstanceWithoutTrace) {
   TraceDescriptor desc =
       TraceTrait<MixinInstanceWithoutTrace>::GetTraceDescriptor(
           mixin_without_trace);
-  desc.callback(nullptr, desc.base_object_payload);
+  desc.callback(nullptr, desc.base_object_payload, nullptr);
   EXPECT_EQ(1u, GCedMixin::trace_callcount);
 }
 
@@ -148,8 +148,8 @@ class DispatchingVisitor : public VisitorBase {
   }
 
  protected:
-  void Visit(const void* t, TraceDescriptor desc) override {
-    desc.callback(this, desc.base_object_payload);
+  void Visit(const void* t, TraceDescriptor desc, const char* edge_name) override {
+    desc.callback(this, desc.base_object_payload, edge_name);
   }
 };
 
@@ -161,14 +161,14 @@ class CheckingVisitor final : public DispatchingVisitor {
       : object_(object), payload_(payload) {}
 
  protected:
-  void Visit(const void* t, TraceDescriptor desc) final {
+  void Visit(const void* t, TraceDescriptor desc, const char* edge_name) final {
     EXPECT_EQ(object_, t);
     EXPECT_EQ(payload_, desc.base_object_payload);
-    desc.callback(this, desc.base_object_payload);
+    desc.callback(this, desc.base_object_payload, edge_name);
   }
 
   void VisitWeak(const void* t, TraceDescriptor desc, WeakCallback callback,
-                 const void* weak_member) final {
+                 const void* weak_member, const char* edge_name) final {
     EXPECT_EQ(object_, t);
     EXPECT_EQ(payload_, desc.base_object_payload);
     LivenessBroker broker = LivenessBrokerFactory::Create();
@@ -378,9 +378,9 @@ class HashingVisitor final : public DispatchingVisitor {
   size_t hash() const { return hash_; }
 
  protected:
-  void Visit(const void* t, TraceDescriptor desc) final {
+  void Visit(const void* t, TraceDescriptor desc, const char* edge_name) final {
     hash_combine(hash_, desc.base_object_payload);
-    desc.callback(this, desc.base_object_payload);
+    desc.callback(this, desc.base_object_payload, edge_name);
   }
 
  private:

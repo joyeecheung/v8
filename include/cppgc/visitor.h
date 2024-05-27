@@ -447,14 +447,14 @@ class V8_EXPORT Visitor {
   }
 
   template <typename T>
-  void TraceImpl(const T* t, const char* name) {
+  void TraceImpl(const T* t, const char* edge_name = nullptr) {
     static_assert(sizeof(T), "Pointee type must be fully defined.");
     static_assert(internal::IsGarbageCollectedOrMixinType<T>::value,
                   "T must be GarbageCollected or GarbageCollectedMixin type");
     if (!t) {
       return;
     }
-    Visit(t, TraceTrait<T>::GetTraceDescriptor(t), name);
+    Visit(t, TraceTrait<T>::GetTraceDescriptor(t), edge_name);
   }
 
 #if V8_ENABLE_CHECKS

@@ -101,7 +101,7 @@ class TestRootVisitor final : public RootVisitorBase {
  protected:
   void VisitRoot(const void* t, TraceDescriptor desc,
                  const SourceLocation&) final {
-    desc.callback(nullptr, desc.base_object_payload);
+    desc.callback(nullptr, desc.base_object_payload, nullptr);
   }
   void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback callback,
                      const void* object, const SourceLocation&) final {
