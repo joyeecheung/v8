@@ -319,7 +319,7 @@ void BasicMarkingState::ProcessEphemeron(const void* key, const void* value,
     } else {
       // If value_desc.base_object_payload is nullptr, the value is not GCed and
       // should be immediately traced.
-      value_desc.callback(&visitor, value);
+      value_desc.callback(&visitor, value, nullptr);
     }
   } else {
     discovered_ephemeron_pairs_worklist_.Push({key, value, value_desc});

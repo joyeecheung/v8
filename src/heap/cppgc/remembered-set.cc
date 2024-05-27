@@ -241,7 +241,7 @@ void VisitRememberedSourceObjects(
         GlobalGCInfoTable::GCInfoFromIndex(source_hoh->GetGCInfoIndex()).trace;
 
     // Process eagerly to avoid reaccounting.
-    trace_callback(&visitor, source_hoh->ObjectStart());
+    trace_callback(&visitor, source_hoh->ObjectStart(), nullptr);
   }
 }
 
@@ -262,7 +262,7 @@ void RevisitInConstructionObjects(
       // If the object is fully constructed, trace precisely.
       const TraceCallback trace_callback =
           GlobalGCInfoTable::GCInfoFromIndex(hoh->GetGCInfoIndex()).trace;
-      trace_callback(&visitor, hoh->ObjectStart());
+      trace_callback(&visitor, hoh->ObjectStart(), nullptr);
     }
   }
 }

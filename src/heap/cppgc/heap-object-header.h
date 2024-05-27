@@ -349,7 +349,7 @@ template <AccessMode mode>
 void HeapObjectHeader::Trace(Visitor* visitor) const {
   const GCInfo& gc_info =
       GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex<mode>());
-  return gc_info.trace(visitor, ObjectStart());
+  return gc_info.trace(visitor, ObjectStart(), nullptr);
 }
 
 template <AccessMode mode, HeapObjectHeader::EncodedHalf part,
