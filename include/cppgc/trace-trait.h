@@ -95,7 +95,7 @@ struct TraceTraitBase {
    * \param visitor The visitor to dispatch to.
    * \param self The object to invoke tracing on.
    */
-  static void Trace(Visitor* visitor, const void* self) {
+  static void Trace(Visitor* visitor, const void* self, const char* edge_name = nullptr) {
     static_cast<const T*>(self)->Trace(visitor);
   }
 };

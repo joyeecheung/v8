@@ -37,7 +37,8 @@ UnifiedHeapMarkingVisitorBase::UnifiedHeapMarkingVisitorBase(
       unified_heap_marking_state_(unified_heap_marking_state) {}
 
 void UnifiedHeapMarkingVisitorBase::Visit(const void* object,
-                                          TraceDescriptor desc) {
+                                          TraceDescriptor desc,
+                                          const char* edge_name) {
   marking_state_.MarkAndPush(object, desc);
 }
 

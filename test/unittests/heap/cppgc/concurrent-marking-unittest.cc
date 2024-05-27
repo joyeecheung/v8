@@ -155,7 +155,7 @@ struct NotConcurrentlyTraceable
   void Trace(Visitor* visitor) const {
     if (visitor->DeferTraceToMutatorThreadIfConcurrent(
             this,
-            [](Visitor*, const void*) {
+            [](Visitor*, const void*, const char*) {
               ++NotConcurrentlyTraceable::trace_counter;
             },
             sizeof(NotConcurrentlyTraceable)))
