@@ -175,7 +175,7 @@ class JSVisitorForTesting final : public JSVisitor {
       : JSVisitor(cppgc::internal::VisitorFactory::CreateKey()),
         expected_object_(expected_object) {}
 
-  void Visit(const TracedReferenceBase& ref) final {
+  void Visit(const TracedReferenceBase& ref, const char* edge_name = nullptr) final {
     EXPECT_EQ(ref, expected_object_);
     visit_count_++;
   }

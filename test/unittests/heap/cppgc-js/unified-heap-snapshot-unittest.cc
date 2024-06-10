@@ -840,7 +840,7 @@ TEST_F(UnifiedHeapSnapshotTest, ExternalMember) {
 
   cppgc::Persistent<GCedWithExternal> ref =
       cppgc::MakeGarbageCollected<GCedWithExternal>(
-          isolate->GetCppHeap()->GetAllocationHandle(), isolate, 10);
+          isolate->GetCppHeap()->GetAllocationHandle(), 10);
 
   const v8::HeapSnapshot* snapshot = TakeHeapSnapshot();
   EXPECT_TRUE(IsValidSnapshot(snapshot));
