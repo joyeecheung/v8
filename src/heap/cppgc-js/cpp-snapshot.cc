@@ -471,6 +471,24 @@ class CppGraphBuilderImpl final {
             &header, header.GetName(), header.AllocatedSize())}));
   }
 
+  void AddEdge(State& parent, size_t size, const char* type_name,
+               const std::string& edge_name) {
+    DCHECK(parent.IsVisibleNotDependent());
+    if (!parent.get_node()) {
+      parent.set_node(AddNode(*parent.header()));
+    }
+    v8::EmbedderGraph::Node* child =
+        graph_.AddNode(std::unique_ptr<v8::EmbedderGraph::Node>{
+            new EmbedderNode(nullptr, {type_name, false}, size)});
+
+    if (!edge_name.empty()) {
+      graph_.AddEdge(parent.get_node(), child,
+                     parent.get_node()->InternalizeEdgeName(edge_name));
+    } else {
+      graph_.AddEdge(parent.get_node(), child);
+    }
+  }
+
   void AddEdge(State& parent, const HeapObjectHeader& header,
                const std::string& edge_name) {
     DCHECK(parent.IsVisibleNotDependent());
@@ -768,6 +786,12 @@ class GraphBuildingVisitor final : public JSVisitor {
   void Visit(const TracedReferenceBase& ref) final {
     graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), ref,
                            edge_name_);
+  }
+
+  // JS handling.
+  void VisitExternal(size_t size, const char* type_name) final {
+    graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), size,
+                           type_name, edge_name_);
   }
 
   void set_edge_name(std::string edge_name) {
