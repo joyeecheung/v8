@@ -789,6 +789,16 @@ class GraphBuildingVisitor final : public JSVisitor {
   }
 
   // JS handling.
+  void Visit(const cppgc::External* ref) final {
+    auto& state = graph_builder_.states_.GetOrCreateState(ref);
+    ParentScope parent_scope(state);
+    ExternalVisitor visitor(*this, parent_scope);
+    ref->Trace(visitor);
+    graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), ref->GetSelfSize(),
+                           ref->GetName());
+  }
+
+  // JS handling.
   void VisitExternal(size_t size, const char* type_name) final {
     graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), size,
                            type_name, edge_name_);
