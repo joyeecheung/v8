@@ -9,6 +9,7 @@
 
 #include "cppgc/custom-space.h"
 #include "cppgc/ephemeron-pair.h"
+#include "cppgc/external.h"
 #include "cppgc/garbage-collected.h"
 #include "cppgc/internal/logging.h"
 #include "cppgc/internal/member-storage.h"
@@ -313,9 +314,7 @@ class V8_EXPORT Visitor {
    * \param size Size of the externally-managed member.
    * \param type_name Type name of the member.
    */
-  void TraceExternal(size_t size, const char* type_name) {
-    VisitExternal(size, type_name);
-  }
+  void Trace(const External* external) { VisitExternal(external); }
 
   /**
    * Registers a slot containing a reference to an object allocated on a
@@ -370,7 +369,7 @@ class V8_EXPORT Visitor {
   virtual void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
                                   TraceDescriptor weak_desc,
                                   WeakCallback callback, const void* data) {}
-  virtual void VisitExternal(size_t size, const char* type_name) {}
+  virtual void VisitExternal(const External* external) {}
   virtual void HandleMovableReference(const void**) {}
 
   virtual void VisitMultipleUncompressedMember(

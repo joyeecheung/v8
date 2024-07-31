@@ -355,6 +355,16 @@ class StateStorage final {
     return GetExistingState(header);
   }
 
+  State& GetOrCreateState(const cppgc::External* ref) {
+    if (!StateExists(ref)) {
+      auto it = states_.insert(
+          std::make_pair(ref, std::make_unique<State>(ref, ++state_count_)));
+      DCHECK(it.second);
+      USE(it);
+    }
+    return static_cast<State&>(GetExistingState(ref));
+  }
+
   RootState& CreateRootState(EmbedderRootNode* root_node) {
     CHECK(!StateExists(root_node));
     auto it = states_.insert(std::make_pair(
@@ -455,6 +465,7 @@ class CppGraphBuilderImpl final {
   void VisitWeakContainerForVisibility(const HeapObjectHeader&);
   void VisitRootForGraphBuilding(RootState&, const HeapObjectHeader&,
                                  const cppgc::SourceLocation&);
+  void VisitExternalForGraphBuilding(const cppgc::External* ref);
   void ProcessPendingObjects();
 
   void RecordEphemeronKey(const HeapObjectHeader&, const HeapObjectHeader&);
@@ -789,19 +800,10 @@ class GraphBuildingVisitor final : public JSVisitor {
   }
 
   // JS handling.
-  void Visit(const cppgc::External* ref) final {
-    auto& state = graph_builder_.states_.GetOrCreateState(ref);
-    ParentScope parent_scope(state);
-    ExternalVisitor visitor(*this, parent_scope);
-    ref->Trace(visitor);
-    graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), ref->GetSelfSize(),
-                           ref->GetName());
-  }
-
-  // JS handling.
-  void VisitExternal(size_t size, const char* type_name) final {
-    graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), size,
-                           type_name, edge_name_);
+  void VisitExternal(const cppgc::External* ref) final {
+    graph_builder_.AddEdge(parent_scope_.ParentAsRegularState(), ref->GetSize(),
+                           ref->GetHumanReadableName(), edge_name_);
+    graph_builder_.VisitExternalForGraphBuilding(ref);
   }
 
   void set_edge_name(std::string edge_name) {
@@ -874,6 +876,16 @@ class CppGraphBuilderImpl::VisitationItem final : public WorkstackItemBase {
     }
   }
 };
+
+void CppGraphBuilderImpl::VisitExternalForGraphBuilding(
+    const cppgc::External* ref) {
+  auto& current = states_.GetOrCreateState(ref);
+  ParentScope parent_scope(current);
+  // TODO(joyee): or use a special ExternalVisitor? How do we avoid re-visiting
+  // the same ref?
+  GraphBuildingVisitor visitor(*this, parent_scope);
+  ref->Trace(&visitor);
+}
 
 void CppGraphBuilderImpl::VisitForVisibility(State* parent,
                                              const HeapObjectHeader& header) {
