@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "cppgc/internal/external-graph-trait.h"
 #include "cppgc/internal/finalizer-trait.h"
 #include "cppgc/internal/logging.h"
 #include "cppgc/internal/name-trait.h"

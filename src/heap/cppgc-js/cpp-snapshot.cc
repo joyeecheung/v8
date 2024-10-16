@@ -26,6 +26,14 @@
 #include "src/profiler/heap-profiler.h"
 
 namespace v8 {
+
+void ExternalProvider::SetSize(Isolate* isolate, size_t size) {
+  size_t old_size = size_;
+  isolate->AdjustAmountOfExternalAllocatedMemory(
+      static_cast<int64_t>(size - old_size));
+  size_ = size;
+}
+
 namespace internal {
 
 class CppGraphBuilderImpl;

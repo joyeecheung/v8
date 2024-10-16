@@ -24,6 +24,12 @@ class HeapHandle;
 
 namespace v8 {
 
+class EmbedderGraph;
+class EmbedderGraph {
+ public:
+  class Node;
+};
+
 class Object;
 
 namespace internal {
@@ -170,6 +176,16 @@ class CustomSpaceStatisticsReceiver {
    */
   virtual void AllocatedBytes(cppgc::CustomSpaceIndex space_index,
                               size_t bytes) = 0;
+};
+
+class V8_EXPORT ExternalProvider {
+ public:
+  virtual void ReportGraph(v8::EmbedderGraph::Node* self,
+                           v8::EmbedderGraph* graph) {}
+  void SetSize(v8::Isolate* isolate, size_t size);
+
+ private:
+  size_t size_;
 };
 
 }  // namespace v8

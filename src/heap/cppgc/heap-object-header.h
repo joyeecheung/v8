@@ -24,6 +24,14 @@
 #include "src/heap/cppgc/caged-heap.h"
 #endif  // defined(CPPGC_CAGED_HEAP)
 
+namespace v8 {
+
+class EmbedderGraph;
+class EmbedderGraph {
+ public:
+  class Node;
+};
+}  // namespace v8
 namespace cppgc {
 
 class Visitor;
@@ -122,6 +130,8 @@ class HeapObjectHeader {
 
   template <AccessMode = AccessMode::kNonAtomic>
   void Trace(Visitor*) const;
+
+  void ReportGraph(v8::EmbedderGraph::Node* self, v8::EmbedderGraph* graph);
 
  private:
   enum class EncodedHalf : uint8_t { kLow, kHigh };

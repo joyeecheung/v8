@@ -47,5 +47,13 @@ HeapObjectName HeapObjectHeader::GetName(
   return gc_info.name(ObjectStart(), heap_object_name);
 }
 
+void HeapObjectHeader::ReportGraph(v8::EmbedderGraph::Node* self,
+                                   v8::EmbedderGraph* graph) {
+  const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
+  if (gc_info.external_graph) {
+    gc_info.external_graph(ObjectStart(), self, graph);
+  }
+}
+
 }  // namespace internal
 }  // namespace cppgc

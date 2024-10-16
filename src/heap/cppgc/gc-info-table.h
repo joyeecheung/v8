@@ -23,12 +23,16 @@ namespace internal {
 // inherit from GarbageCollected.
 struct GCInfo final {
   constexpr GCInfo(FinalizationCallback finalize, TraceCallback trace,
-                   NameCallback name)
-      : finalize(finalize), trace(trace), name(name) {}
+                   NameCallback name, ExternalGraphCallback external_graph)
+      : finalize(finalize),
+        trace(trace),
+        name(name),
+        external_graph(external_graph) {}
 
   FinalizationCallback finalize;
   TraceCallback trace;
   NameCallback name;
+  ExternalGraphCallback external_graph;
   size_t padding = 0;
 };
 
