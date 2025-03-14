@@ -1163,6 +1163,11 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   if (use_stub_cache == kUseStubCache) {
     DCHECK(IsSet());
     BIND(&try_stub_cache);
+
+    if (IsAnyDefineOwn()) {
+      Print(ShouldReconfigureExisting() ? "should reconfigure\n" : "should not reconfigure\n");
+      Print("EmitGenericPropertyStore ", p->value());
+    }
     // Do megamorphic cache lookup only for Api objects where it definitely
     // pays off.
     GotoIfNot(IsJSApiObjectInstanceType(instance_type), slow);
@@ -1330,6 +1335,9 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
 
   BIND(&miss);
   {
+    if (IsDefineNamedOwn()) {
+      Print("StoreIC_NoFeedback ", value);
+    }
     auto runtime = IsDefineNamedOwn() ? Runtime::kDefineNamedOwnIC_Miss
                                       : Runtime::kStoreIC_Miss;
     TNode<TaggedIndex> slot =

@@ -1396,6 +1396,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
     if (p->IsAnyDefineOwn()) {
+      Print("HandleStoreICHandlerCase if_smi_handler IsAnyDefineOwn", handler);
       NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
                                                &if_slow, nullptr, miss);
     } else {
@@ -1491,6 +1492,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
            &store_transition_or_global_or_accessor);
     TNode<HeapObject> strong_handler = CAST(handler);
     TNode<Map> handler_map = LoadMap(strong_handler);
+    Print("HandleStoreICHandlerCase if_nonsmi_handler", strong_handler);
     Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
 
     BIND(&if_proto_handler);
@@ -3905,6 +3907,10 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 
   BIND(&miss);
   {
+    if (p->IsDefineNamedOwn()) {
+      Print("AccessorAssembler::StoreIC receiver", p->value());
+      Print("vector", p->vector());
+    }
     auto runtime = p->IsDefineNamedOwn() ? Runtime::kDefineNamedOwnIC_Miss
                                          : Runtime::kStoreIC_Miss;
     TailCallRuntime(runtime, p->context(), p->value(), p->slot(), p->vector(),
