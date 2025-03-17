@@ -1396,7 +1396,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     TVARIABLE(IntPtrT, var_name_index);
     Label dictionary_found(this, &var_name_index);
     if (p->IsAnyDefineOwn()) {
-      Print("HandleStoreICHandlerCase if_smi_handler IsAnyDefineOwn", handler);
+      Print("HandleStoreICHandlerCase if_smi_handler IsAnyDefineOwn\n- hanlder: ", handler);
       NameDictionaryLookup<PropertyDictionary>(properties, CAST(p->name()),
                                                &if_slow, nullptr, miss);
     } else {
@@ -1529,7 +1529,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&store_global);
     {
-      if (p->IsDefineKeyedOwn()) {
+      if (p->IsDefineNamedOwn()) {
+        GotoIf(IsJSGlobalProxy(CAST(p->receiver())), &if_slow);
+      } else if (p->IsDefineKeyedOwn()) {
         Label proceed_defining(this);
         // StoreGlobalIC_PropertyCellCase doesn't support definition
         // of private fields, so handle them in runtime.
@@ -1541,10 +1543,13 @@ void AccessorAssembler::HandleStoreICHandlerCase(
       TNode<PropertyCell> property_cell = CAST(strong_handler);
       ExitPoint direct_exit(this);
       StoreGlobalIC_PropertyCellCase(property_cell, p->value(), &direct_exit,
-                                     miss);
+                                    miss);
     }
     BIND(&store_accessor);
     {
+      if (p->IsDefineNamedOwn()) {
+        Print("HandleStoreICHandlerCase store_accessor\n- hanlder: ", handler);
+      }
       TNode<AccessorPair> pair = CAST(strong_handler);
       TNode<JSFunction> setter = CAST(LoadAccessorPairSetter(pair));
       // As long as this code path is not used for StoreSuperIC the receiver
@@ -1555,6 +1560,9 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
     BIND(&store_transition);
     {
+      if (p->IsDefineNamedOwn()) {
+        Print("HandleStoreICHandlerCase store_transition\n- hanlder: ", handler);
+      }
       TNode<Map> map = CAST(strong_handler);
       HandleStoreICTransitionMapHandlerCase(p, map, miss,
                                             p->IsAnyDefineOwn()
@@ -3871,6 +3879,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
                          &if_handler, &var_handler, &try_polymorphic);
   BIND(&if_handler);
   {
+    Print("---- AccessorAssembler::StoreIC if_handler ----\n- value: ", p->value());
     Comment("StoreIC_if_handler");
     HandleStoreICHandlerCase(p, var_handler.value(), &miss,
                              ICMode::kNonGlobalIC);
@@ -3879,6 +3888,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   BIND(&try_polymorphic);
   TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
   {
+    Print("---- AccessorAssembler::StoreIC try_polymorphic ----\n- value: ", p->value());
+    Print("- vector", p->vector());
     // Check polymorphic case.
     Comment("StoreIC_try_polymorphic");
     GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &try_megamorphic);
@@ -3888,6 +3899,10 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 
   BIND(&try_megamorphic);
   {
+    if (p->IsDefineNamedOwn()) {
+      Print("---- AccessorAssembler::StoreIC try_megamorphic ----\n- value: ", p->value());
+      Print("- vector", p->vector());
+    }
     // Check megamorphic case.
     GotoIfNot(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()), &miss);
 
@@ -3897,6 +3912,9 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 
   BIND(&no_feedback);
   {
+    if (p->IsDefineNamedOwn()) {
+      Print("---- AccessorAssembler::StoreIC no_feedback ----\n- value: ", p->value());
+    }
     // TODO(v8:12548): refactor SetNamedIC as a subclass of StoreIC, which can
     // be called here and below when !p->IsDefineNamedOwn().
     auto builtin = p->IsDefineNamedOwn() ? Builtin::kDefineNamedOwnIC_NoFeedback
@@ -3908,8 +3926,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   BIND(&miss);
   {
     if (p->IsDefineNamedOwn()) {
-      Print("AccessorAssembler::StoreIC receiver", p->value());
-      Print("vector", p->vector());
+      Print("---- AccessorAssembler::StoreIC miss ----\n- value: ", p->value());
+      Print("- vector", p->vector());
     }
     auto runtime = p->IsDefineNamedOwn() ? Runtime::kDefineNamedOwnIC_Miss
                                          : Runtime::kStoreIC_Miss;

@@ -738,17 +738,16 @@ void IC::SetCache(DirectHandle<Name> name, Handle<Object> handler) {
 }
 
 void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
-  PrintF("IC::SetCache ");
-  HeapObject::Print(*name);
+  PrintF("------- IC::SetCache() ------ \n- name: ");
+  name->NameShortPrint();
   Tagged<HeapObject> heap_object;
   Tagged<MaybeObject> maybe = *handler;
-  if (maybe.GetHeapObjectIfStrong(&heap_object)) {
-    PrintF("\nhandler: ");
+  PrintF("\n- handler: ");
+  if (maybe.GetHeapObjectIfStrong(&heap_object) || maybe.GetHeapObjectIfWeak(isolate(), &heap_object)) {
     HeapObject::Print(*heap_object);
+  } else {
+    PrintF("no handler");
   }
-  PrintF("\nnexus: ");
-  nexus()->Print(std::cout);
-  PrintF("\n");
   DCHECK(IsHandler(*handler));
   // Currently only load and store ICs support non-code handlers.
   DCHECK(IsAnyLoad() || IsAnyStore() || IsAnyHas());
@@ -783,6 +782,9 @@ void IC::SetCache(DirectHandle<Name> name, const MaybeObjectHandle& handler) {
     case GENERIC:
       UNREACHABLE();
   }
+  PrintF("\n- nexus after update: ");
+  nexus()->Print(std::cout);
+  PrintF("\n--------------\n");
 }
 
 void LoadIC::UpdateCaches(LookupIterator* lookup) {

@@ -1,0 +1,177 @@
+------- IC::SetCache() ------ 
+- name: #<class_fields_symbol>
+- handler: no handler
+- nexus after update: MONOMORPHIC
+   0x224a00099c5d <Map[32](HOLEY_ELEMENTS)>: StoreHandler(Smi)(kind = kSlow, keyed access store mode = kInBounds)
+
+--------------
+------- IC::SetCache() ------ 
+- name: #<class_fields_symbol>
+- handler: no handler
+- nexus after update: MONOMORPHIC
+   [weak] 0x224a00099d1d <Map[32](HOLEY_ELEMENTS)>: LoadHandler(Smi)(kind = kField, is in object = 0, is double = 0, field index = 3)
+--------------
+AccessorAssembler::StoreIC receiver: DebugPrint: 0x224a00288c25: [String]: "abc0"
+0x224a000000b5: [Map] in ReadOnlySpace
+ - map: 0x224a00000475 <MetaMap (0x224a0000002d <null>)>
+ - type: SEQ_ONE_BYTE_STRING_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - non-extensible
+ - back pointer: 0x224a00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x224a00000779 <DescriptorArray[0]>
+ - prototype: 0x224a0000002d <null>
+ - constructor: 0x224a0000002d <null>
+ - dependent code: 0x224a00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+vector: DebugPrint: 0x224a00099cf1: [FeedbackVector]
+ - map: 0x224a00000801 <Map(FEEDBACK_VECTOR_TYPE)>
+ - length: 4
+ - shared function info: 0x224a000998f5 <SharedFunctionInfo C2>
+ - tiering_in_progress: 0
+ - osr_tiering_in_progress: 0
+ - invocation count: 1
+ - closure feedback cell array: 0x224a00002159: [ClosureFeedbackCellArray] in ReadOnlySpace
+ - map: 0x224a000007d9 <Map(CLOSURE_FEEDBACK_CELL_ARRAY_TYPE)>
+ - length: 0
+ - elements:
+
+ - slot #0 BinaryOp BinaryOp:Any {
+     [0]: 511
+  }
+ - slot #1 BinaryOp BinaryOp:SignedSmall {
+     [1]: 1
+  }
+ - slot #2 DefineNamedOwn UNINITIALIZED {
+     [2]: 0x224a00000e21 <Symbol: (uninitialized_symbol)>
+     [3]: 0x224a00000e21 <Symbol: (uninitialized_symbol)>
+  }
+0x224a00000801: [Map] in ReadOnlySpace
+ - map: 0x224a00000475 <MetaMap (0x224a0000002d <null>)>
+ - type: FEEDBACK_VECTOR_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - back pointer: 0x224a00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x224a00000779 <DescriptorArray[0]>
+ - prototype: 0x224a0000002d <null>
+ - constructor: 0x224a0000002d <null>
+ - dependent code: 0x224a00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+------- IC::SetCache() ------ 
+- name: field
+- handler: 0x224a00099eb5: [StoreHandler]
+ - map: 0x224a00001619 <Map[20](STORE_HANDLER_TYPE)>
+ - handler: 22
+ - validity_cell: 0x224a00099ead <Cell value= 0>
+ - data1: [weak] 0x224a00099e99 <PropertyCell name=0x224a00099789 <String[5]: #field> value=0x224a00288c25 <String[4]: "abc0">>
+ - data2: [weak] 0x224a00081b75 <NativeContext[302]>
+
+- nexus after update: MONOMORPHIC
+   0x224a000984e1 <Map[16](HOLEY_ELEMENTS)>: StoreHandler(do access check on lookup start object = 1, lookup on lookup start object = 0, kind = kGlobalProxy, data1 = [weak] 0x224a00099e99 <PropertyCell name=0x224a00099789 <String[5]: #field> value=0x224a00288c25 <String[4]: "abc0">>, data2 = [weak] 0x224a00081b75 <NativeContext[302]>, validity cell = 0x224a00099ead <Cell value= 0>)
+
+--------------
+HandleStoreICHandlerCase if_nonsmi_handler: DebugPrint: 0x224a00099eb5: [StoreHandler]
+ - map: 0x224a00001619 <Map[20](STORE_HANDLER_TYPE)>
+ - handler: 22
+ - validity_cell: 0x224a00099ead <Cell value= 1>
+ - data1: [weak] 0x224a00099e99 <PropertyCell name=0x224a00099789 <String[5]: #field> value=0x224a00288c25 <String[4]: "abc0">>
+ - data2: [weak] 0x224a00081b75 <NativeContext[302]>
+0x224a00001619: [Map] in ReadOnlySpace
+ - map: 0x224a00000475 <MetaMap (0x224a0000002d <null>)>
+ - type: STORE_HANDLER_TYPE
+ - instance size: 20
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - back pointer: 0x224a00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x224a00000779 <DescriptorArray[0]>
+ - prototype: 0x224a0000002d <null>
+ - constructor: 0x224a0000002d <null>
+ - dependent code: 0x224a00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+AccessorAssembler::StoreIC receiver: DebugPrint: 0x224a00288ca5: [String]: "abc1"
+0x224a000000b5: [Map] in ReadOnlySpace
+ - map: 0x224a00000475 <MetaMap (0x224a0000002d <null>)>
+ - type: SEQ_ONE_BYTE_STRING_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - non-extensible
+ - back pointer: 0x224a00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x224a00000779 <DescriptorArray[0]>
+ - prototype: 0x224a0000002d <null>
+ - constructor: 0x224a0000002d <null>
+ - dependent code: 0x224a00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+vector: DebugPrint: 0x224a00099cf1: [FeedbackVector]
+ - map: 0x224a00000801 <Map(FEEDBACK_VECTOR_TYPE)>
+ - length: 4
+ - shared function info: 0x224a000998f5 <SharedFunctionInfo C2>
+ - tiering_in_progress: 0
+ - osr_tiering_in_progress: 0
+ - invocation count: 2
+ - closure feedback cell array: 0x224a00002159: [ClosureFeedbackCellArray] in ReadOnlySpace
+ - map: 0x224a000007d9 <Map(CLOSURE_FEEDBACK_CELL_ARRAY_TYPE)>
+ - length: 0
+ - elements:
+
+ - slot #0 BinaryOp BinaryOp:Any {
+     [0]: 511
+  }
+ - slot #1 BinaryOp BinaryOp:SignedSmall {
+     [1]: 1
+  }
+ - slot #2 DefineNamedOwn MONOMORPHIC
+   0x224a000984e1 <Map[16](HOLEY_ELEMENTS)>: StoreHandler(do access check on lookup start object = 1, lookup on lookup start object = 0, kind = kGlobalProxy, data1 = [weak] 0x224a00099e99 <PropertyCell name=0x224a00099789 <String[5]: #field> value=0x224a00288c25 <String[4]: "abc0">>, data2 = [weak] 0x224a00081b75 <NativeContext[302]>, validity cell = 0x224a00099ead <Cell value= 1>)
+ {
+     [2]: [weak] 0x224a000984e1 <Map[16](HOLEY_ELEMENTS)>
+     [3]: 0x224a00099eb5 <Other heap object (STORE_HANDLER_TYPE)>
+  }
+0x224a00000801: [Map] in ReadOnlySpace
+ - map: 0x224a00000475 <MetaMap (0x224a0000002d <null>)>
+ - type: FEEDBACK_VECTOR_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - back pointer: 0x224a00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x224a00000779 <DescriptorArray[0]>
+ - prototype: 0x224a0000002d <null>
+ - constructor: 0x224a0000002d <null>
+ - dependent code: 0x224a00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+------- IC::SetCache() ------ 
+- name: field
+- handler: 0x224a00099e99: [PropertyCell]
+ - map: 0x224a00000a89 <Map[20](PROPERTY_CELL_TYPE)>
+ - name: 0x224a00099789: [String]: #field
+ - value: 0x224a00288c25 <String[4]: "abc0">
+ - details: (data, dict_index: 83, attrs: [WEC])
+ - cell_type: Constant
+ - dependent code: 0x224a00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+
+- nexus after update: MONOMORPHIC
+   0x224a000984e1 <Map[16](HOLEY_ELEMENTS)>: StoreHandler(<unexpected>)(0x224a00099e99 <PropertyCell name=0x224a00099789 <String[5]: #field> value=0x224a00288c25 <String[4]: "abc0">>)
+
+--------------
+------- IC::SetCache() ------ 
+- name: seal
+- handler: no handler
+- nexus after update: MONOMORPHIC
+   [weak] 0x224a000820b5 <Map[32](HOLEY_ELEMENTS)>: LoadHandler(Smi)(kind = kField, is in object = 0, is double = 0, field index = 10)
+--------------

@@ -1,0 +1,227 @@
+------- IC::SetCache() ------ 
+- name: #<class_fields_symbol>
+- handler: no handler
+- nexus after update: MONOMORPHIC
+   0x14fa00099c1d <Map[32](HOLEY_ELEMENTS)>: StoreHandler(Smi)(kind = kSlow, keyed access store mode = kInBounds)
+
+--------------
+------- IC::SetCache() ------ 
+- name: #<class_fields_symbol>
+- handler: no handler
+- nexus after update: MONOMORPHIC
+   [weak] 0x14fa00099cdd <Map[32](HOLEY_ELEMENTS)>: LoadHandler(Smi)(kind = kField, is in object = 0, is double = 0, field index = 3)
+--------------
+AccessorAssembler::StoreIC receiver: DebugPrint: 0x14fa00288c39: [String]: "abc0"
+0x14fa000000b5: [Map] in ReadOnlySpace
+ - map: 0x14fa00000475 <MetaMap (0x14fa0000002d <null>)>
+ - type: SEQ_ONE_BYTE_STRING_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - non-extensible
+ - back pointer: 0x14fa00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x14fa00000779 <DescriptorArray[0]>
+ - prototype: 0x14fa0000002d <null>
+ - constructor: 0x14fa0000002d <null>
+ - dependent code: 0x14fa00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+vector: DebugPrint: 0x14fa00099cb1: [FeedbackVector]
+ - map: 0x14fa00000801 <Map(FEEDBACK_VECTOR_TYPE)>
+ - length: 4
+ - shared function info: 0x14fa000998f5 <SharedFunctionInfo C2>
+ - tiering_in_progress: 0
+ - osr_tiering_in_progress: 0
+ - invocation count: 1
+ - closure feedback cell array: 0x14fa00002159: [ClosureFeedbackCellArray] in ReadOnlySpace
+ - map: 0x14fa000007d9 <Map(CLOSURE_FEEDBACK_CELL_ARRAY_TYPE)>
+ - length: 0
+ - elements:
+
+ - slot #0 BinaryOp BinaryOp:Any {
+     [0]: 511
+  }
+ - slot #1 BinaryOp BinaryOp:SignedSmall {
+     [1]: 1
+  }
+ - slot #2 DefineNamedOwn UNINITIALIZED {
+     [2]: 0x14fa00000e21 <Symbol: (uninitialized_symbol)>
+     [3]: 0x14fa00000e21 <Symbol: (uninitialized_symbol)>
+  }
+0x14fa00000801: [Map] in ReadOnlySpace
+ - map: 0x14fa00000475 <MetaMap (0x14fa0000002d <null>)>
+ - type: FEEDBACK_VECTOR_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - back pointer: 0x14fa00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x14fa00000779 <DescriptorArray[0]>
+ - prototype: 0x14fa0000002d <null>
+ - constructor: 0x14fa0000002d <null>
+ - dependent code: 0x14fa00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+------- IC::SetCache() ------ 
+- name: field
+- handler: 0x14fa00099e59: [Map]
+ - map: 0x14fa00081b25 <MetaMap (0x14fa00081b75 <NativeContext[302]>)>
+ - type: JS_OBJECT_TYPE
+ - instance size: 28
+ - inobject properties: 4
+ - unused property fields: 3
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - back pointer: 0x14fa000828ad <Map[28](HOLEY_ELEMENTS)>
+ - prototype_validity cell: 0x14fa00000a81 <Cell value= 1>
+ - instance descriptors (own) #1: 0x14fa00288c49 <DescriptorArray[1]>
+ - prototype: 0x14fa00082a81 <Object map = 0x14fa0008208d>
+ - constructor: 0x14fa000825a1 <JSFunction Object (sfi = 0x14fa0025a75d)>
+ - dependent code: 0x14fa00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+- nexus after update: MONOMORPHIC
+   0x14fa000828ad <Map[28](HOLEY_ELEMENTS)>: StoreHandler(field transition to 0x14fa00099e59 <Map[28](HOLEY_ELEMENTS)>)
+
+--------------
+AccessorAssembler::StoreIC receiver: DebugPrint: 0x14fa00288c9d: [String]: "abc1"
+0x14fa000000b5: [Map] in ReadOnlySpace
+ - map: 0x14fa00000475 <MetaMap (0x14fa0000002d <null>)>
+ - type: SEQ_ONE_BYTE_STRING_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - non-extensible
+ - back pointer: 0x14fa00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x14fa00000779 <DescriptorArray[0]>
+ - prototype: 0x14fa0000002d <null>
+ - constructor: 0x14fa0000002d <null>
+ - dependent code: 0x14fa00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+vector: DebugPrint: 0x14fa00099cb1: [FeedbackVector]
+ - map: 0x14fa00000801 <Map(FEEDBACK_VECTOR_TYPE)>
+ - length: 4
+ - shared function info: 0x14fa000998f5 <SharedFunctionInfo C2>
+ - tiering_in_progress: 0
+ - osr_tiering_in_progress: 0
+ - invocation count: 2
+ - closure feedback cell array: 0x14fa00002159: [ClosureFeedbackCellArray] in ReadOnlySpace
+ - map: 0x14fa000007d9 <Map(CLOSURE_FEEDBACK_CELL_ARRAY_TYPE)>
+ - length: 0
+ - elements:
+
+ - slot #0 BinaryOp BinaryOp:Any {
+     [0]: 511
+  }
+ - slot #1 BinaryOp BinaryOp:SignedSmall {
+     [1]: 1
+  }
+ - slot #2 DefineNamedOwn MONOMORPHIC
+   0x14fa000828ad <Map[28](HOLEY_ELEMENTS)>: StoreHandler(field transition to 0x14fa00099e59 <Map[28](HOLEY_ELEMENTS)>)
+ {
+     [2]: [weak] 0x14fa000828ad <Map[28](HOLEY_ELEMENTS)>
+     [3]: [weak] 0x14fa00099e59 <Map[28](HOLEY_ELEMENTS)>
+  }
+0x14fa00000801: [Map] in ReadOnlySpace
+ - map: 0x14fa00000475 <MetaMap (0x14fa0000002d <null>)>
+ - type: FEEDBACK_VECTOR_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - back pointer: 0x14fa00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x14fa00000779 <DescriptorArray[0]>
+ - prototype: 0x14fa0000002d <null>
+ - constructor: 0x14fa0000002d <null>
+ - dependent code: 0x14fa00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+------- IC::SetCache() ------ 
+- name: field
+- handler: no handler
+- nexus after update: POLYMORPHIC
+   [weak] 0x14fa000828ad <Map[28](HOLEY_ELEMENTS)>: StoreHandler(field transition to 0x14fa00099e59 <Map[28](HOLEY_ELEMENTS)>)
+
+   [weak] 0x14fa00099e59 <Map[28](HOLEY_ELEMENTS)>: StoreHandler(Smi)(kind = kField, descriptor = 0, is in object = 1, representation = h, field index = 3)
+
+--------------
+------- IC::SetCache() ------ 
+- name: seal
+- handler: no handler
+- nexus after update: MONOMORPHIC
+   [weak] 0x14fa000820b5 <Map[32](HOLEY_ELEMENTS)>: LoadHandler(Smi)(kind = kField, is in object = 0, is double = 0, field index = 10)
+--------------
+AccessorAssembler::StoreIC receiver: DebugPrint: 0x14fa00288d19: [String]: "abc2"
+0x14fa000000b5: [Map] in ReadOnlySpace
+ - map: 0x14fa00000475 <MetaMap (0x14fa0000002d <null>)>
+ - type: SEQ_ONE_BYTE_STRING_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - non-extensible
+ - back pointer: 0x14fa00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x14fa00000779 <DescriptorArray[0]>
+ - prototype: 0x14fa0000002d <null>
+ - constructor: 0x14fa0000002d <null>
+ - dependent code: 0x14fa00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+vector: DebugPrint: 0x14fa00099cb1: [FeedbackVector]
+ - map: 0x14fa00000801 <Map(FEEDBACK_VECTOR_TYPE)>
+ - length: 4
+ - shared function info: 0x14fa000998f5 <SharedFunctionInfo C2>
+ - tiering_in_progress: 0
+ - osr_tiering_in_progress: 0
+ - invocation count: 3
+ - closure feedback cell array: 0x14fa00002159: [ClosureFeedbackCellArray] in ReadOnlySpace
+ - map: 0x14fa000007d9 <Map(CLOSURE_FEEDBACK_CELL_ARRAY_TYPE)>
+ - length: 0
+ - elements:
+
+ - slot #0 BinaryOp BinaryOp:Any {
+     [0]: 511
+  }
+ - slot #1 BinaryOp BinaryOp:SignedSmall {
+     [1]: 1
+  }
+ - slot #2 DefineNamedOwn POLYMORPHIC
+   [weak] 0x14fa000828ad <Map[28](HOLEY_ELEMENTS)>: StoreHandler(field transition to 0x14fa00099e59 <Map[28](HOLEY_ELEMENTS)>)
+
+   [weak] 0x14fa00099e59 <Map[28](HOLEY_ELEMENTS)>: StoreHandler(Smi)(kind = kField, descriptor = 0, is in object = 1, representation = h, field index = 3)
+ {
+     [2]: 0x14fa00288cad <WeakFixedArray[4]>
+     [3]: 0x14fa00000e21 <Symbol: (uninitialized_symbol)>
+  }
+0x14fa00000801: [Map] in ReadOnlySpace
+ - map: 0x14fa00000475 <MetaMap (0x14fa0000002d <null>)>
+ - type: FEEDBACK_VECTOR_TYPE
+ - instance size: variable
+ - elements kind: HOLEY_ELEMENTS
+ - enum length: invalid
+ - stable_map
+ - back pointer: 0x14fa00000011 <undefined>
+ - prototype_validity cell: 0
+ - instance descriptors (own) #0: 0x14fa00000779 <DescriptorArray[0]>
+ - prototype: 0x14fa0000002d <null>
+ - constructor: 0x14fa0000002d <null>
+ - dependent code: 0x14fa00000755 <Other heap object (WEAK_ARRAY_LIST_TYPE)>
+ - construction counter: 0
+
+test.js:9: TypeError: Cannot redefine property: field
+  field = 'abc' + i++;
+                ^
+TypeError: Cannot redefine property: field
+    at <instance_members_initializer> (test.js:9:17)
+    at new C2 (test.js:8:1)
+    at test.js:14:1
+
