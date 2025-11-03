@@ -2127,6 +2127,24 @@ Local<FixedArray> ModuleRequest::GetImportAttributes() const {
       i::direct_handle(self->import_attributes(), i_isolate));
 }
 
+Local<Value> Module::GetResourceName() const {
+  auto self = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = i::Isolate::Current();
+  i::DisallowGarbageCollection no_gc;
+
+  if (i::IsSyntheticModule(*self)) {
+    return ToApiHandle<Value>(
+        i::direct_handle(i::Cast<i::SyntheticModule>(self)->name(), i_isolate));
+  }
+
+  i::DirectHandle<i::SharedFunctionInfo> sfi(
+      i::Cast<i::SourceTextModule>(self)->GetSharedFunctionInfo(), i_isolate);
+  CHECK(IsScript(sfi->script()));
+  i::DirectHandle<i::Object> script(sfi->script(), i_isolate);
+  return ToApiHandle<Value>(
+      i::direct_handle(i::Cast<i::Script>(sfi->script())->name(), i_isolate));
+}
+
 Module::Status Module::GetStatus() const {
   auto self = Utils::OpenDirectHandle(this);
   switch (self->status()) {
