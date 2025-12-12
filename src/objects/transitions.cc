@@ -175,9 +175,9 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
       array->SetRawTarget(insertion_index, MakeWeak(*target));
       // The new size exceeds the threshold for linear search, sort the array
       // for binary search later.
-      if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
-        array->Sort();
-      }
+      // if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
+      //   array->Sort();
+      // }
       SLOW_DCHECK(array->IsSortedNoDuplicates());
       return;
     }
@@ -229,9 +229,9 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
 
   // The new size exceeds the threshold for linear search, sort the array
   // for binary search later.
-  if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
-    result->Sort();
-  }
+  // if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
+  //   result->Sort();
+  // }
   SLOW_DCHECK(result->IsSortedNoDuplicates());
   ReplaceTransitions(isolate, map, result);
 }
