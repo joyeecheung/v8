@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include "src/api/api-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/execution.h"
 #include "src/heap/factory.h"
@@ -314,6 +315,40 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   }
 
   DCHECK(transitions.IsSortedNoDuplicates());
+}
+
+TEST(TransitionArray_InsertionAfterLinearThreshold) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+
+  // A shuffled permuatation of the characters so that we can insert transitions
+  // and check that they are sorted after ht
+  std::string names = "HNkgAQeqBsnyCDEOiPFRUxfwcIKtlVZTMYbdvJpLhXmouzrGajSW";
+  std::reverse(names.begin(), names.end());
+  CHECK_GT(names.size(), TransitionArray::kMaxElementsForLinearSearch);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  DirectHandle<Map> first_map;
+  int len = static_cast<int>(names.size());
+  for (int i = 0; i < len; i++) {
+    v8::Local<v8::Object> obj = v8::Object::New(isolate);
+    if (i == 0) {
+      first_map =
+          direct_handle(v8::Utils::OpenDirectHandle(*obj)->map(), i_isolate);
+    }
+    v8::Local<v8::String> name =
+        v8::String::NewFromOneByte(isolate,
+                                   reinterpret_cast<const uint8_t*>(&names[i]),
+                                   v8::NewStringType::kNormal, 1)
+            .ToLocalChecked();
+    obj->Set(context, name, v8::Integer::New(isolate, i)).Check();
+    DirectHandle<Map> current_map(v8::Utils::OpenDirectHandle(*obj)->map(),
+                                  i_isolate);
+  }
+  TestTransitionsAccessor transitions(i_isolate, first_map);
+  CHECK_EQ(names.size(), transitions.NumberOfTransitions());
+  CHECK(transitions.transitions()->IsSortedNoDuplicates());
 }
 
 }  // namespace internal
