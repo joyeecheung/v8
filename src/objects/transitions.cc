@@ -178,7 +178,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
       // if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
       //   array->Sort();
       // }
-      SLOW_DCHECK(array->IsSortedNoDuplicates());
+      DCHECK(array->IsSortedNoDuplicates());
       return;
     }
   }
@@ -232,7 +232,7 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
   // if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
   //   result->Sort();
   // }
-  SLOW_DCHECK(result->IsSortedNoDuplicates());
+  DCHECK(result->IsSortedNoDuplicates());
   ReplaceTransitions(isolate, map, result);
 }
 
