@@ -17,7 +17,13 @@ from gdb.FrameDecorator import FrameDecorator
 from shared_bridge import DebuggerBridge
 
 _VERBOSE = os.environ.get("V8_DEBUG_HELPER_VERBOSE", "") != ""
-_BRIDGE = DebuggerBridge()
+_bridges = {}
+
+
+def _get_bridge(ptr_size):
+  if ptr_size not in _bridges:
+    _bridges[ptr_size] = DebuggerBridge(ptr_size=ptr_size)
+  return _bridges[ptr_size]
 
 
 class V8DbgFrameDecorator(FrameDecorator):
@@ -35,7 +41,7 @@ class V8DbgFrameDecorator(FrameDecorator):
         if _VERBOSE:
           traceback.print_exc()
         base_name = ""
-    if "Builtin" not in base_name:
+    if base_name and "Builtin" not in base_name:
       return base_name
 
     frame_pointer = 0
@@ -51,7 +57,11 @@ class V8DbgFrameDecorator(FrameDecorator):
       if frame_pointer:
         break
 
-    suffix = _BRIDGE.frame_suffix(
+    try:
+      ptr_size = gdb.lookup_type("void").pointer().sizeof
+    except Exception:
+      ptr_size = None
+    suffix = _get_bridge(ptr_size).frame_suffix(
         frame_pointer, lambda address, byte_count: bytes(gdb.selected_inferior(
         ).read_memory(address, byte_count)))
     if not suffix:

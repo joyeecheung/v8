@@ -11,16 +11,12 @@ import ast
 import ctypes
 import os
 import re
+import types
 
 _MEMORY_ACCESS_OK = 0
 _MEMORY_ACCESS_INVALID = 1
 
 _STRING_LITERAL_RE = re.compile(r'"(?:[^"\\]|\\.)*"')
-
-# Use a pointer-sized unsigned integer to match C uintptr_t.
-_c_uintptr = (
-    ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8 else ctypes.c_uint32)
-_UINTPTR_MAX = (1 << (ctypes.sizeof(ctypes.c_void_p) * 8)) - 1
 
 
 class StructProperty(ctypes.Structure):
@@ -36,61 +32,75 @@ class StructProperty(ctypes.Structure):
 StructPropertyPointer = ctypes.POINTER(StructProperty)
 
 
-class ObjectProperty(ctypes.Structure):
-  _fields_ = [
-      ("name", ctypes.c_char_p),
-      ("type", ctypes.c_char_p),
-      ("address", _c_uintptr),
-      ("num_values", ctypes.c_size_t),
-      ("size", ctypes.c_size_t),
-      ("num_struct_fields", ctypes.c_size_t),
-      ("struct_fields", ctypes.POINTER(StructPropertyPointer)),
-      ("kind", ctypes.c_int),
-  ]
+def _make_types(ptr_size):
+  """Create ctypes types parameterized by the target pointer size (4 or 8)."""
+  c_uintptr = ctypes.c_uint64 if ptr_size == 8 else ctypes.c_uint32
+  uintptr_max = (1 << (ptr_size * 8)) - 1
 
+  class ObjectProperty(ctypes.Structure):
+    _fields_ = [
+        ("name", ctypes.c_char_p),
+        ("type", ctypes.c_char_p),
+        ("address", c_uintptr),
+        ("num_values", ctypes.c_size_t),
+        ("size", ctypes.c_size_t),
+        ("num_struct_fields", ctypes.c_size_t),
+        ("struct_fields", ctypes.POINTER(StructPropertyPointer)),
+        ("kind", ctypes.c_int),
+    ]
 
-ObjectPropertyPointer = ctypes.POINTER(ObjectProperty)
+  ObjectPropertyPointer = ctypes.POINTER(ObjectProperty)
 
+  class ObjectPropertiesResult(ctypes.Structure):
+    _fields_ = [
+        ("type_check_result", ctypes.c_int),
+        ("brief", ctypes.c_char_p),
+        ("type", ctypes.c_char_p),
+        ("num_properties", ctypes.c_size_t),
+        ("properties", ctypes.POINTER(ObjectPropertyPointer)),
+        ("num_guessed_types", ctypes.c_size_t),
+        ("guessed_types", ctypes.POINTER(ctypes.c_char_p)),
+    ]
 
-class ObjectPropertiesResult(ctypes.Structure):
-  _fields_ = [
-      ("type_check_result", ctypes.c_int),
-      ("brief", ctypes.c_char_p),
-      ("type", ctypes.c_char_p),
-      ("num_properties", ctypes.c_size_t),
-      ("properties", ctypes.POINTER(ObjectPropertyPointer)),
-      ("num_guessed_types", ctypes.c_size_t),
-      ("guessed_types", ctypes.POINTER(ctypes.c_char_p)),
-  ]
+  class StackFrameResult(ctypes.Structure):
+    _fields_ = [
+        ("num_properties", ctypes.c_size_t),
+        ("properties", ctypes.POINTER(ObjectPropertyPointer)),
+    ]
 
+  class HeapAddresses(ctypes.Structure):
+    _fields_ = [
+        ("map_space_first_page", c_uintptr),
+        ("old_space_first_page", c_uintptr),
+        ("read_only_space_first_page", c_uintptr),
+        ("any_heap_pointer", c_uintptr),
+        ("metadata_pointer_table", c_uintptr),
+        ("isolate_heap_member_offset", c_uintptr),
+    ]
 
-class StackFrameResult(ctypes.Structure):
-  _fields_ = [
-      ("num_properties", ctypes.c_size_t),
-      ("properties", ctypes.POINTER(ObjectPropertyPointer)),
-  ]
+  MemoryAccessor = ctypes.CFUNCTYPE(ctypes.c_int, c_uintptr, ctypes.c_void_p,
+                                    ctypes.c_size_t)
 
-
-class HeapAddresses(ctypes.Structure):
-  _fields_ = [
-      ("map_space_first_page", _c_uintptr),
-      ("old_space_first_page", _c_uintptr),
-      ("read_only_space_first_page", _c_uintptr),
-      ("any_heap_pointer", _c_uintptr),
-      ("metadata_pointer_table", _c_uintptr),
-      ("isolate_heap_member_offset", _c_uintptr),
-  ]
-
-
-MemoryAccessor = ctypes.CFUNCTYPE(ctypes.c_int, _c_uintptr, ctypes.c_void_p,
-                                  ctypes.c_size_t)
+  return types.SimpleNamespace(
+      c_uintptr=c_uintptr,
+      uintptr_max=uintptr_max,
+      ObjectProperty=ObjectProperty,
+      ObjectPropertyPointer=ObjectPropertyPointer,
+      ObjectPropertiesResult=ObjectPropertiesResult,
+      StackFrameResult=StackFrameResult,
+      HeapAddresses=HeapAddresses,
+      MemoryAccessor=MemoryAccessor,
+  )
 
 
 class DebuggerBridge:
 
-  def __init__(self, library_path=None):
+  def __init__(self, library_path=None, ptr_size=None):
     self._library_path = library_path
     self._library_handle = None
+    if ptr_size is None:
+      ptr_size = ctypes.sizeof(ctypes.c_void_p)
+    self._t = _make_types(ptr_size)
 
   def _resolved_library_path(self):
     lib_path = self._library_path or os.environ.get("V8_DEBUG_HELPER_LIB_PATH")
@@ -102,25 +112,26 @@ class DebuggerBridge:
   def _library(self):
     if self._library_handle is None:
       library = ctypes.CDLL(self._resolved_library_path())
+      t = self._t
       library._v8_debug_helper_GetStackFrame.argtypes = [
-          _c_uintptr,
-          MemoryAccessor,
+          t.c_uintptr,
+          t.MemoryAccessor,
       ]
       library._v8_debug_helper_GetStackFrame.restype = ctypes.POINTER(
-          StackFrameResult)
+          t.StackFrameResult)
       library._v8_debug_helper_Free_StackFrameResult.argtypes = [
-          ctypes.POINTER(StackFrameResult)
+          ctypes.POINTER(t.StackFrameResult)
       ]
       library._v8_debug_helper_GetObjectProperties.argtypes = [
-          _c_uintptr,
-          MemoryAccessor,
-          ctypes.POINTER(HeapAddresses),
+          t.c_uintptr,
+          t.MemoryAccessor,
+          ctypes.POINTER(t.HeapAddresses),
           ctypes.c_char_p,
       ]
       library._v8_debug_helper_GetObjectProperties.restype = ctypes.POINTER(
-          ObjectPropertiesResult)
+          t.ObjectPropertiesResult)
       library._v8_debug_helper_Free_ObjectPropertiesResult.argtypes = [
-          ctypes.POINTER(ObjectPropertiesResult)
+          ctypes.POINTER(t.ObjectPropertiesResult)
       ]
       self._library_handle = library
     return self._library_handle
@@ -137,7 +148,7 @@ class DebuggerBridge:
       ctypes.memmove(destination, data, byte_count)
       return _MEMORY_ACCESS_OK
 
-    return MemoryAccessor(callback)
+    return self._t.MemoryAccessor(callback)
 
   def _summarize_brief(self, brief):
     if not brief:
@@ -161,17 +172,17 @@ class DebuggerBridge:
     raw_value = int.from_bytes(
         read_memory(prop.address, prop.size), byteorder="little", signed=False)
     memory_callback = self._make_memory_accessor(read_memory)
-    heap_addresses = HeapAddresses(
+    heap_addresses = self._t.HeapAddresses(
         0,
         0,
         0,
-        int(prop.address) & _UINTPTR_MAX,
+        int(prop.address) & self._t.uintptr_max,
         0,
         0,
     )
     library = self._library()
     result_ptr = library._v8_debug_helper_GetObjectProperties(
-        int(raw_value) & _UINTPTR_MAX,
+        int(raw_value) & self._t.uintptr_max,
         memory_callback,
         ctypes.byref(heap_addresses),
         None,
@@ -211,7 +222,7 @@ class DebuggerBridge:
     memory_callback = self._make_memory_accessor(read_memory)
     library = self._library()
     result_ptr = library._v8_debug_helper_GetStackFrame(
-        int(frame_pointer) & _UINTPTR_MAX, memory_callback)
+        int(frame_pointer) & self._t.uintptr_max, memory_callback)
     if not result_ptr:
       return None
     try:
@@ -249,7 +260,10 @@ class DebuggerBridge:
               byteorder="little",
               signed=False,
           )
-          char_offset = ctypes.c_int32(raw_start).value >> 1
+          # Use c_int64 for 64-bit (non-pointer-compressed) builds where the
+          # Smi is 8 bytes wide; c_int32 for 4-byte pointer-compressed Smis.
+          signed_type = ctypes.c_int32 if field_width <= 4 else ctypes.c_int64
+          char_offset = signed_type(raw_start).value >> 1
           if script_source and 0 <= char_offset <= len(script_source):
             # char_offset points to the '(' of the parameter list (V8's
             # scope start position).  Search backward for the 'function'

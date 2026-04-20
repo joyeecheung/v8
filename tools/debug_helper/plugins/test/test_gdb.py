@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 
-from check_annotations import check_frame_annotations
+from check_annotations import check_frame_annotations, EXPECTED_FRAME_ANNOTATIONS
 
 
 def run_gdb(args):
@@ -49,13 +49,7 @@ def run_gdb(args):
 def check_frame_annotation_test(output, script_path):
   """Verify that JS frame annotations are present in backtrace output."""
   script_name = os.path.basename(script_path)
-  expected = (
-      ("test_func_3", 15, 1),
-      ("<anonymous>", 10, 11),
-      ("test_func_2", 9, 1),
-      ("test_func_1", 5, 1),
-      ("<anonymous>", 1, 1),
-  )
+  expected = EXPECTED_FRAME_ANNOTATIONS
   missing, found = check_frame_annotations(output, script_name, expected)
   if missing:
     sys.stderr.write(output)

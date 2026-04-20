@@ -37,3 +37,12 @@ def check_frame_annotations(output, script_basename, expected):
   ]
   missing = [ann for ann in full_expected if ann not in found]
   return missing, sorted(found)
+
+
+EXPECTED_FRAME_ANNOTATIONS = (
+    ("test_func_3", 15, 1),
+    ("<anonymous>", 10, 11),
+    ("test_func_2", 9, 1),
+    ("test_func_1", 5, 1),
+    ("<anonymous>", 1, 1),
+)
