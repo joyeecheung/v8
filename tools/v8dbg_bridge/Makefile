@@ -1,19 +1,19 @@
-PYTHON ?= python3
 GDB ?= gdb
 LLDB ?= lldb
 
-OUT_DIR ?= ../../out.gn/x64.release
+ifeq ($(shell uname -s),Darwin)
+OUT_DIR ?= ../../out/arm64.release
+DEBUG_HELPER_LIB ?= $(OUT_DIR)/libv8_debug_helper.dylib
+else
+OUT_DIR ?= ../../out/x64.release
 DEBUG_HELPER_LIB ?= $(OUT_DIR)/libv8_debug_helper.so
-D8 ?= $(OUT_DIR)/d8
+endif
+
+D8 ?= $(dir $(DEBUG_HELPER_LIB))d8
 SCRIPT ?= ./test_script.js
 GDBINIT ?= ../gdbinit
 
-.PHONY: all python-test gdb-test lldb-test test clean
-
-all: test
-
-python-test:
-	V8_DEBUG_HELPER_LIB_PATH="$(abspath $(DEBUG_HELPER_LIB))" $(PYTHON) run_demo.py
+.PHONY: gdb-test lldb-test test
 
 gdb-test:
 	V8_DEBUG_HELPER_LIB_PATH="$(abspath $(DEBUG_HELPER_LIB))" \
@@ -36,7 +36,4 @@ lldb-test:
 		-O 'run' \
 		-O 'bt'
 
-test: python-test gdb-test lldb-test
-
-clean:
-	@true
+test: gdb-test lldb-test
