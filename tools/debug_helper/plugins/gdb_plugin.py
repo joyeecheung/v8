@@ -8,15 +8,16 @@
 # search path, so we need to do it ourselves to load the shared bridge.
 import os
 import sys
+import traceback
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import gdb
 from gdb.FrameDecorator import FrameDecorator
 
+from shared_bridge import DebuggerBridge
 
-from shared_pridge import DebuggerBridge
-
-
+_VERBOSE = os.environ.get("V8_DEBUG_HELPER_VERBOSE", "") != ""
 _BRIDGE = DebuggerBridge()
 
 
@@ -31,6 +32,8 @@ class V8DbgFrameDecorator(FrameDecorator):
       try:
         base_name = frame.name() or ""
       except Exception:
+        if _VERBOSE:
+          traceback.print_exc()
         base_name = ""
     if "Builtin" not in base_name:
       return base_name

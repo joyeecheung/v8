@@ -12,7 +12,7 @@ endif
 
 D8 ?= $(dir $(DEBUG_HELPER_LIB))d8
 TEST_DIR ?= ./test
-SCRIPT ?= $(TEST_DIR)/test_script.js
+SCRIPT ?= $(TEST_DIR)/throw.js
 D8_ARGS ?= --abort-on-uncaught-exception
 GDBINIT ?= ../../gdbinit
 GDB_PLUGIN ?= ./gdb_plugin.py

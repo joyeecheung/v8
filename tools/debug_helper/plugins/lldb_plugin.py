@@ -4,9 +4,12 @@
 
 """LLDB integration for the V8 debugger bridge."""
 
-from shared_pridge import DebuggerBridge
+import os
+import traceback
 
+from shared_bridge import DebuggerBridge
 
+_VERBOSE = os.environ.get("V8_DEBUG_HELPER_VERBOSE", "") != ""
 _BRIDGE = DebuggerBridge()
 
 _DEFAULT_FRAME_FORMAT = (
@@ -39,6 +42,8 @@ def frame_annotation(frame, _unused):
 
     return _BRIDGE.frame_suffix(frame.GetFP(), read_memory)
   except Exception:
+    if _VERBOSE:
+      traceback.print_exc()
     return ""
 
 

@@ -19,6 +19,11 @@ _MEMORY_ACCESS_INVALID = 1
 
 _STRING_LITERAL_RE = re.compile(r'"(?:[^"\\]|\\.)*"')
 
+# Use a pointer-sized unsigned integer to match C uintptr_t.
+_c_uintptr = (ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8
+              else ctypes.c_uint32)
+_UINTPTR_MAX = (1 << (ctypes.sizeof(ctypes.c_void_p) * 8)) - 1
+
 
 class StructProperty(ctypes.Structure):
   _fields_ = [
@@ -37,7 +42,7 @@ class ObjectProperty(ctypes.Structure):
   _fields_ = [
     ("name", ctypes.c_char_p),
     ("type", ctypes.c_char_p),
-    ("address", ctypes.c_uint64),
+    ("address", _c_uintptr),
     ("num_values", ctypes.c_size_t),
     ("size", ctypes.c_size_t),
     ("num_struct_fields", ctypes.c_size_t),
@@ -70,17 +75,17 @@ class StackFrameResult(ctypes.Structure):
 
 class HeapAddresses(ctypes.Structure):
   _fields_ = [
-    ("map_space_first_page", ctypes.c_uint64),
-    ("old_space_first_page", ctypes.c_uint64),
-    ("read_only_space_first_page", ctypes.c_uint64),
-    ("any_heap_pointer", ctypes.c_uint64),
-    ("metadata_pointer_table", ctypes.c_uint64),
-    ("isolate_heap_member_offset", ctypes.c_uint64),
+    ("map_space_first_page", _c_uintptr),
+    ("old_space_first_page", _c_uintptr),
+    ("read_only_space_first_page", _c_uintptr),
+    ("any_heap_pointer", _c_uintptr),
+    ("metadata_pointer_table", _c_uintptr),
+    ("isolate_heap_member_offset", _c_uintptr),
   ]
 
 
 MemoryAccessor = ctypes.CFUNCTYPE(
-  ctypes.c_int, ctypes.c_uint64, ctypes.c_void_p, ctypes.c_size_t
+  ctypes.c_int, _c_uintptr, ctypes.c_void_p, ctypes.c_size_t
 )
 
 
@@ -88,9 +93,6 @@ class DebuggerBridge:
   def __init__(self, library_path=None):
     self._library_path = library_path
     self._library_handle = None
-    # Prevent the ctypes callback from being garbage-collected while the FFI
-    # call is in flight by storing a reference on the bridge instance.
-    self._memory_callback = None
 
   def _resolved_library_path(self):
     lib_path = self._library_path or os.environ.get("V8_DEBUG_HELPER_LIB_PATH")
@@ -103,7 +105,7 @@ class DebuggerBridge:
     if self._library_handle is None:
       library = ctypes.CDLL(self._resolved_library_path())
       library._v8_debug_helper_GetStackFrame.argtypes = [
-        ctypes.c_uint64,
+        _c_uintptr,
         MemoryAccessor,
       ]
       library._v8_debug_helper_GetStackFrame.restype = ctypes.POINTER(
@@ -113,7 +115,7 @@ class DebuggerBridge:
         ctypes.POINTER(StackFrameResult)
       ]
       library._v8_debug_helper_GetObjectProperties.argtypes = [
-        ctypes.c_uint64,
+        _c_uintptr,
         MemoryAccessor,
         ctypes.POINTER(HeapAddresses),
         ctypes.c_char_p,
@@ -161,19 +163,19 @@ class DebuggerBridge:
 
     raw_value = int.from_bytes(
       read_memory(prop.address, prop.size), byteorder="little", signed=False)
-    self._memory_callback = self._make_memory_accessor(read_memory)
+    memory_callback = self._make_memory_accessor(read_memory)
     heap_addresses = HeapAddresses(
       0,
       0,
       0,
-      int(prop.address) & ((1 << 64) - 1),
+      int(prop.address) & _UINTPTR_MAX,
       0,
       0,
     )
     library = self._library()
     result_ptr = library._v8_debug_helper_GetObjectProperties(
-      int(raw_value) & ((1 << 64) - 1),
-      self._memory_callback,
+      int(raw_value) & _UINTPTR_MAX,
+      memory_callback,
       ctypes.byref(heap_addresses),
       None,
     )
@@ -193,10 +195,10 @@ class DebuggerBridge:
     if not frame_pointer:
       return None
 
-    self._memory_callback = self._make_memory_accessor(read_memory)
+    memory_callback = self._make_memory_accessor(read_memory)
     library = self._library()
     result_ptr = library._v8_debug_helper_GetStackFrame(
-      int(frame_pointer) & ((1 << 64) - 1), self._memory_callback
+      int(frame_pointer) & _UINTPTR_MAX, memory_callback
     )
     if not result_ptr:
       return None

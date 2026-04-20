@@ -2,26 +2,18 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Run the GDB bridge test and assert JS frame annotations are present."""
+"""Run the GDB bridge test and assert expected output."""
 
 import argparse
 import os
 import subprocess
 import sys
 
-from check_annotations import find_missing_annotations
+from check_annotations import check_frame_annotations
 
 
-def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument("--gdb", default="gdb")
-  parser.add_argument("--gdbinit", required=True)
-  parser.add_argument("--plugin", required=True)
-  parser.add_argument("--d8", required=True)
-  parser.add_argument("--script", required=True)
-  parser.add_argument("--debug-helper-lib", required=True)
-  args = parser.parse_args()
-
+def run_gdb(args):
+  """Launch GDB in batch mode and return combined stdout+stderr."""
   env = os.environ.copy()
   env["V8_DEBUG_HELPER_LIB_PATH"] = os.path.abspath(args.debug_helper_lib)
   script_path = os.path.abspath(args.script)
@@ -52,28 +44,51 @@ def main():
     env=env,
     check=False,
   )
-  output = completed.stdout + completed.stderr
+  return completed.stdout + completed.stderr
 
-  expected_annotations = (
-    ("test_func_4", os.path.basename(script_path), 6, 7),
-    ("test_func_3", os.path.basename(script_path), 6, 7),
-    ("test_func_2", os.path.basename(script_path), 5, 21),
-    ("test_func_1", os.path.basename(script_path), 1, 21),
+
+def check_frame_annotation_test(output, script_path):
+  """Verify that JS frame annotations are present in backtrace output."""
+  script_name = os.path.basename(script_path)
+  expected = (
+    ("test_func_3", 5, 7),
+    ("<anonymous>", 5, 7),
+    ("test_func_2", 5, 7),
+    ("test_func_1", 1, 21),
+    ("<anonymous>", 1, 1),
   )
-  missing, parsed_annotations = find_missing_annotations(
-    output, expected_annotations)
-
+  missing, found = check_frame_annotations(output, script_name, expected)
   if missing:
     sys.stderr.write(output)
-    sys.stderr.write("\nParsed annotations:\n")
-    for annotation in parsed_annotations:
-      sys.stderr.write(f"  {annotation}\n")
+    sys.stderr.write("\nParsed frame annotations:\n")
+    for ann in found:
+      sys.stderr.write(f"  {ann}\n")
     sys.stderr.write(
-      "\nMissing GDB annotations: " + ", ".join(map(str, missing)) + "\n")
-    return 1
+      "\nMissing GDB frame annotations: "
+      + ", ".join(map(str, missing)) + "\n")
+    return False
+  return True
 
-  print("GDB annotations verified.")
-  return 0
+
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--gdb", default="gdb")
+  parser.add_argument("--gdbinit", required=True)
+  parser.add_argument("--plugin", required=True)
+  parser.add_argument("--d8", required=True)
+  parser.add_argument("--script", required=True)
+  parser.add_argument("--debug-helper-lib", required=True)
+  args = parser.parse_args()
+
+  output = run_gdb(args)
+  ok = True
+
+  if not check_frame_annotation_test(output, args.script):
+    ok = False
+
+  if ok:
+    print("GDB checks passed.")
+  return 0 if ok else 1
 
 
 if __name__ == "__main__":

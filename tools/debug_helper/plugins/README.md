@@ -1,7 +1,7 @@
 # V8 Debug Helper Plugins
 
 This directory contains Python debugger plugins that load
-`libv8_debug_helper` to faciliate post-mortem and live debugging of V8 frames and objects in GDB and LLDB.
+`libv8_debug_helper` to facilitate post-mortem and live debugging of V8 frames and objects in GDB and LLDB.
 
 ## How To Build It
 
@@ -63,19 +63,19 @@ OUT_DIR="$(pwd)/out/<config>" make -C tools/debug_helper/plugins lldb-check
 OUT_DIR="$(pwd)/out/<config>" make -C tools/debug_helper/plugins test
 ```
 
-The test fixture is `test/test_script.js`. It should be run with
+The test fixture is `test/throw.js`. It should be run with
 `d8 --abort-on-uncaught-exception` to stop on a nested throw so the harnesses
 can check the annotated frames.
 
 ## Directory Layout
 
-- `shared_pridge.py`: shared `ctypes` bridge and `DebuggerBridge` class.
+- `shared_bridge.py`: shared `ctypes` bridge and `DebuggerBridge` class.
 - `gdb_plugin.py`: GDB entry point.
 - `lldb_plugin.py`: LLDB entry point.
-- `test/check_annotations.py`: shared annotation parser used by the harnesses.
+- `test/check_annotations.py`: shared helpers for validating plugin output.
 - `test/test_gdb.py`: GDB assertion harness.
 - `test/test_lldb.py`: LLDB assertion harness.
-- `test/test_script.js`: JavaScript crash fixture used by the debugger tests.
+- `test/throw.js`: JavaScript crash fixture used by the debugger tests.
 
 ## Design
 
