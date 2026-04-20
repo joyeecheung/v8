@@ -1,0 +1,76 @@
+# Copyright 2026 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+"""GDB integration for the V8 debugger bridge."""
+
+# GDB does not add the directory of the current script to the module
+# search path, so we need to do it ourselves to load the shared bridge.
+import os
+import sys
+import traceback
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import gdb
+from gdb.FrameDecorator import FrameDecorator
+
+from shared_bridge import DebuggerBridge
+
+_VERBOSE = os.environ.get("V8_DEBUG_HELPER_VERBOSE", "") != ""
+_BRIDGE = DebuggerBridge()
+
+
+class V8DbgFrameDecorator(FrameDecorator):
+
+  def __init__(self, frame_obj):
+    super().__init__(frame_obj)
+
+  def function(self):
+    base_name = super().function()
+    frame = self.inferior_frame()
+    if not base_name:
+      try:
+        base_name = frame.name() or ""
+      except Exception:
+        if _VERBOSE:
+          traceback.print_exc()
+        base_name = ""
+    if "Builtin" not in base_name:
+      return base_name
+
+    frame_pointer = 0
+    for register_name in ("rbp", "fp", "x29"):
+      try:
+        value = frame.read_register(register_name)
+      except Exception:
+        continue
+      try:
+        frame_pointer = int(value)
+      except Exception:
+        frame_pointer = 0
+      if frame_pointer:
+        break
+
+    suffix = _BRIDGE.frame_suffix(
+        frame_pointer, lambda address, byte_count: bytes(gdb.selected_inferior(
+        ).read_memory(address, byte_count)))
+    if not suffix:
+      return base_name
+    if not base_name:
+      return suffix.strip()
+    return f"{base_name}{suffix}"
+
+
+class V8DbgFrameFilter:
+
+  def __init__(self):
+    self.name = "v8dbg_bridge"
+    self.priority = 100
+    self.enabled = True
+    gdb.frame_filters[self.name] = self
+
+  def filter(self, frame_iter):
+    return (V8DbgFrameDecorator(frame_obj) for frame_obj in frame_iter)
+
+
+V8DbgFrameFilter()
