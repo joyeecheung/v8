@@ -21,17 +21,20 @@ _bridges = {}
 
 
 def _get_bridge(ptr_size):
+  """Cache one bridge per target pointer size."""
   if ptr_size not in _bridges:
     _bridges[ptr_size] = DebuggerBridge(ptr_size=ptr_size)
   return _bridges[ptr_size]
 
 
 class V8DbgFrameDecorator(FrameDecorator):
+  """Appends V8 JS frame annotations to backtraces."""
 
   def __init__(self, frame_obj):
     super().__init__(frame_obj)
 
   def function(self):
+    """Keep the native frame name when it is useful, else append JS context."""
     base_name = super().function()
     frame = self.inferior_frame()
     if not base_name:
@@ -72,6 +75,7 @@ class V8DbgFrameDecorator(FrameDecorator):
 
 
 class V8DbgFrameFilter:
+  """Registers the V8 frame decorator."""
 
   def __init__(self):
     self.name = "v8dbg_bridge"
@@ -80,6 +84,7 @@ class V8DbgFrameFilter:
     gdb.frame_filters[self.name] = self
 
   def filter(self, frame_iter):
+    """Wrap each frame with the V8-aware decorator."""
     return (V8DbgFrameDecorator(frame_obj) for frame_obj in frame_iter)
 
 

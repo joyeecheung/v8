@@ -150,3 +150,25 @@ v8_shared_library("v8_debug_helper_shared") {
   remove_configs = [ "//build/config/compiler:no_rtti" ]
   configs += [ "//build/config/compiler:rtti" ]
 }
+
+v8_executable("corruption_harness") {
+  testonly = true
+
+  sources = [ "corruption-harness.cc" ]
+
+  configs = [ "../..:internal_config_base" ]
+
+  deps = [
+    "../..:v8",
+    "../..:v8_internal_headers",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "//build/win:default_exe_manifest",
+  ]
+
+  if (current_os == "zos" && is_component_build) {
+    deps += [ "../..:zoslib" ]
+  }
+
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+}

@@ -93,9 +93,12 @@ def _make_types(ptr_size):
   )
 
 
+# TODO(joyee): add a method to check that the library is compatible with the binary
+# being debugged e.g. the V8 build configs should match.
 class DebuggerBridge:
 
   def __init__(self, library_path=None, ptr_size=None):
+    """Set up a lazily loaded bridge for one target pointer width."""
     self._library_path = library_path
     self._library_handle = None
     if ptr_size is None:
@@ -103,6 +106,7 @@ class DebuggerBridge:
     self._t = _make_types(ptr_size)
 
   def _resolved_library_path(self):
+    """Resolve the debug-helper shared library from config or environment."""
     lib_path = self._library_path or os.environ.get("V8_DEBUG_HELPER_LIB_PATH")
     if not lib_path:
       raise RuntimeError(
@@ -110,6 +114,7 @@ class DebuggerBridge:
     return os.path.abspath(lib_path)
 
   def _library(self):
+    """Load and type the C ABI once for this bridge instance."""
     if self._library_handle is None:
       library = ctypes.CDLL(self._resolved_library_path())
       t = self._t
@@ -137,6 +142,7 @@ class DebuggerBridge:
     return self._library_handle
 
   def _make_memory_accessor(self, read_memory):
+    """Adapt a debugger-specific memory reader to the C callback ABI."""
 
     def callback(address, destination, byte_count):
       try:
@@ -151,6 +157,7 @@ class DebuggerBridge:
     return self._t.MemoryAccessor(callback)
 
   def _summarize_brief(self, brief):
+    """Normalize object briefs down to the user-facing string value."""
     if not brief:
       return ""
     match = _STRING_LITERAL_RE.search(brief)
@@ -165,6 +172,7 @@ class DebuggerBridge:
     return brief
 
   def _resolve_property_string(self, props, prop_name, read_memory):
+    """Resolve one debug-helper property into a Python string when possible."""
     prop = props.get(prop_name)
     if prop is None or not prop.address or not prop.size:
       return ""
@@ -215,7 +223,7 @@ class DebuggerBridge:
       library._v8_debug_helper_Free_ObjectPropertiesResult(result_ptr)
 
   def describe_js_frame(self, frame_pointer, read_memory):
-    """Return a dict with JS frame metadata, or None."""
+    """Return high-level JS frame metadata, or None if the frame is unusable."""
     if not frame_pointer:
       return None
 
@@ -278,7 +286,11 @@ class DebuggerBridge:
             column = (
                 adjusted + 1 if last_newline == -1 else adjusted - last_newline)
             position = (line, column)
+          elif not script_source and char_offset == 0 and function_name == "":
+            position = (1, 1)
 
+      if function_name == "" and not script_name:
+        return None
       if function_name == "":
         function_name = "<anonymous>"
       return {
@@ -290,7 +302,15 @@ class DebuggerBridge:
       library._v8_debug_helper_Free_StackFrameResult(result_ptr)
 
   def frame_suffix(self, frame_pointer, read_memory):
-    """Return a bracket-wrapped annotation string for a JS frame, or ''."""
+    """Format one bracket-wrapped JS annotation suffix for a debugger frame:
+
+    [<function_name> @ <script_name>:<line>:<column>]
+
+    If source text cannot be recovered but the script name still can, the
+    annotation degrades to:
+
+    [<function_name> @ <script_name>]
+    """
     annotation = self.describe_js_frame(frame_pointer, read_memory)
     if not annotation:
       return ""

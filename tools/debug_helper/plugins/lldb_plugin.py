@@ -16,9 +16,11 @@ _bridges = {}
 
 
 def _get_bridge(ptr_size):
+  """Cache one bridge per target pointer size."""
   if ptr_size not in _bridges:
     _bridges[ptr_size] = DebuggerBridge(ptr_size=ptr_size)
   return _bridges[ptr_size]
+
 
 _DEFAULT_FRAME_FORMAT = ("frame #${frame.index}:{ ${frame.no-debug}${frame.pc}}"
                          "{ ${module.file.basename}{`${function.name-with-args}"
@@ -30,6 +32,7 @@ _CALLBACK_MARKER = f"script.frame:{__name__}.frame_annotation"
 
 
 def frame_annotation(frame, _unused):
+  """Return the V8 JS suffix for one LLDB frame, or an empty string."""
   try:
     function_name = frame.GetFunctionName()
     if not function_name:
@@ -60,12 +63,13 @@ def frame_annotation(frame, _unused):
 
 
 def __lldb_init_module(debugger, internal_dict):
+  """Hook the LLDB frame format once to annotate V8 frames."""
   del internal_dict
   callback = f"${{script.frame:{__name__}.frame_annotation}}"
   # Read the current frame-format to avoid clobbering user customizations.
   result = lldb.SBCommandReturnObject()
-  debugger.GetCommandInterpreter().HandleCommand(
-      "settings show frame-format", result)
+  debugger.GetCommandInterpreter().HandleCommand("settings show frame-format",
+                                                 result)
   current_format = None
   if result.Succeeded():
     m = re.search(r'"(.*)"', result.GetOutput(), re.DOTALL)
@@ -80,5 +84,4 @@ def __lldb_init_module(debugger, internal_dict):
     base = base[:-2]
   if not base:
     base = _DEFAULT_FRAME_FORMAT
-  debugger.HandleCommand(
-      f"settings set frame-format '{base}{callback}\\n'")
+  debugger.HandleCommand(f"settings set frame-format '{base}{callback}\\n'")

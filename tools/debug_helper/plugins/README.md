@@ -36,10 +36,17 @@ command script import tools/debug_helper/plugins/lldb_plugin.py
 The plugins currently only annotate V8 frames in backtraces, but the bridge can support more features later.
 
 Once loaded, the plugins append JavaScript annotations to candidate V8 frames
-when you print a backtrace. The annotation format is:
+when you print a backtrace via `bt`. The annotation format is:
 
 ```
 [<function_name> @ <script_name>:<line>:<column>]
+```
+
+If source text cannot be recovered but the script name still can, the
+annotation degrades to:
+
+```
+[<function_name> @ <script_name>]
 ```
 
 For anonymous functions the name is shown as `<anonymous>`. The line and column
@@ -48,42 +55,59 @@ top-level script scope) of the function, not the callsite.
 
 ## How To Test It
 
-Before running the debugger tests, build both `d8` and
-`v8_debug_helper_shared` in the same output directory:
+Before running the debugger tests, build the test dependencies:
 
 ```sh
-autoninja -C out/<config> d8 v8_debug_helper_shared
+autoninja -C out/<config> d8 v8_debug_helper_shared corruption_harness
 ```
 
-The Makefile resolves both binaries from `OUT_DIR` relative to the plugin
-directory, so when invoking it from the repository root pass an absolute path:
+There are several types of targets in the Makefile:
+
+- `prepare-cores` generates core files from the test scripts for reuse in `run-core-*` and `test-core-*` targets. The files are saved to `CORE_DIR`, which defaults to `$(OUT_DIR)/debug_helper.cores/` and is kept out of source control.
+- `run-live-*` targets run a debugging session on a test script in non-interactive mode and print the output. This is useful for debugging the plugins themselves.
+  - `run-core-*` targets run the same sessions but load from a prepared core file instead of a live process.
+- `test-live-*` targets run the same live sessions but also assert the expected annotations in Python.
+  - `test-core-*` targets run the same assertions but against the prepared core files instead of live processes.
+  - `test-core` runs core-file test suites on both debuggers.
+  - `test-live` runs live test suites on both debuggers.
+
+On macOS, with `lldb` installed globally, if the output directory is `out/arm64.release`,
+build and run the tests with:
 
 ```sh
-OUT_DIR="$(pwd)/out/<config>" make -C tools/debug_helper/plugins gdb-test
-OUT_DIR="$(pwd)/out/<config>" make -C tools/debug_helper/plugins lldb-test
+autoninja -C out/arm64.release d8 v8_debug_helper_shared corruption_harness
+make -C tools/debug_helper/plugins test-live-lldb
+# To run core tests, first prepare cores, this can take a while
+make -C tools/debug_helper/plugins prepare-cores
+make -C tools/debug_helper/plugins test-core-lldb
 ```
 
-To assert the annotations instead of only printing a backtrace:
+On Linux, with `gdb` and `lldb` installed, if the output directory is `out/x64.release`,
+build and run the tests with:
 
 ```sh
-OUT_DIR="$(pwd)/out/<config>" make -C tools/debug_helper/plugins gdb-check
-OUT_DIR="$(pwd)/out/<config>" make -C tools/debug_helper/plugins lldb-check
-OUT_DIR="$(pwd)/out/<config>" make -C tools/debug_helper/plugins test
+autoninja -C out/x64.release d8 v8_debug_helper_shared corruption_harness
+make -C tools/debug_helper/plugins test-live
+# To run core tests, first prepare cores, this can take a while
+make -C tools/debug_helper/plugins prepare-cores
+make -C tools/debug_helper/plugins test-core
 ```
-
-The test fixture is `test/throw.js`. It should be run with
-`d8 --abort-on-uncaught-exception` to stop on a nested throw so the harnesses
-can check the annotated frames.
 
 ## Directory Layout
 
 - `shared_bridge.py`: shared `ctypes` bridge and `DebuggerBridge` class.
-- `gdb_plugin.py`: GDB entry point.
-- `lldb_plugin.py`: LLDB entry point.
-- `test/check_annotations.py`: shared helpers for validating plugin output.
-- `test/test_gdb.py`: GDB assertion harness.
-- `test/test_lldb.py`: LLDB assertion harness.
-- `test/throw.js`: JavaScript crash fixture used by the debugger tests.
+- `gdb_plugin.py`: GDB plugin entry point.
+- `lldb_plugin.py`: LLDB plugin entry point.
+- `test/`
+  - `fixtures/`: test scripts and expected annotation fixtures.
+  - `helpers/`: Python helpers for the tests
+    - `backtrace.py`: rendered backtrace annotation assertions.
+    - `corruptions.py`: corruption cases and high-level corruption-trace checks.
+    - `runtime.py`: debugger runtime config and process helpers.
+  - `test_gdb.py`: live-process GDB tests.
+  - `test_lldb.py`: live-process LLDB tests.
+  - `test_gdb_core.py`: core-file GDB tests.
+  - `test_lldb_core.py`: core-file LLDB tests.
 
 ## Design
 
@@ -114,6 +138,4 @@ to call into.
 
 The current `DebuggerBridge` API includes:
 
-- `frame_suffix`: which takes the frame pointer and a callback for reading memory, and returns a string annotation for the frame if it's a V8 frame.
-  - It uses `_v8_debug_helper_GetStackFrame` to get the frame structure,
-    then reads source information using `_v8_debug_helper_GetObjectProperties` to format the annotation string.
+- `frame_suffix`: takes a frame pointer plus a memory-reading callback and returns the JS annotation suffix for that frame when enough V8 metadata can be recovered.

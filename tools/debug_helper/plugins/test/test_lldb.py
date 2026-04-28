@@ -1,30 +1,29 @@
 # Copyright 2026 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-"""Run the LLDB bridge test and assert expected output."""
+"""Run the LLDB bridge tests and assert expected output."""
 
-import argparse
 import os
-import subprocess
-import sys
+import unittest
 
-from check_annotations import check_frame_annotations, EXPECTED_FRAME_ANNOTATIONS
+from .helpers.corruptions import check_corruption
+from .helpers.corruptions import get_corruption_cases
+from .helpers.backtrace import check_backtrace
+from .helpers.runtime import get_lldb_test_config
+from .helpers.runtime import run_debugger_command
 
 
-def run_lldb(args):
-  """Launch LLDB in batch mode and return combined stdout+stderr."""
-  env = os.environ.copy()
-  env["V8_DEBUG_HELPER_LIB_PATH"] = os.path.abspath(args.debug_helper_lib)
-  script_path = os.path.abspath(args.script)
+def run_lldb(config, binary_path, run_arguments):
+  """Run one LLDB backtrace command and return its combined text output."""
   command = [
-      args.lldb,
+      config.debugger_binary,
       "-b",
       "-O",
-      f'command script import "{os.path.abspath(args.plugin)}"',
+      f'command script import "{os.path.abspath(config.plugin_path)}"',
       "-O",
-      f'target create "{os.path.abspath(args.d8)}"',
+      f'target create "{os.path.abspath(binary_path)}"',
       "-O",
-      f'settings set -- target.run-args --abort-on-uncaught-exception "{script_path}"',
+      f'settings set -- target.run-args {run_arguments}',
       "-O",
       "run",
       "-k",
@@ -32,51 +31,47 @@ def run_lldb(args):
       "-k",
       "quit",
   ]
-  completed = subprocess.run(
-      command,
-      capture_output=True,
-      text=True,
-      env=env,
-      check=False,
-  )
-  return completed.stdout + completed.stderr
+  return run_debugger_command(command, config.debug_helper_lib)
 
 
-def check_frame_annotation_test(output, script_path):
-  """Verify that JS frame annotations are present in backtrace output."""
-  script_name = os.path.basename(script_path)
-  expected = EXPECTED_FRAME_ANNOTATIONS
-  missing, found = check_frame_annotations(output, script_name, expected)
-  if missing:
-    sys.stderr.write(output)
-    sys.stderr.write("\nParsed frame annotations:\n")
-    for ann in found:
-      sys.stderr.write(f"  {ann}\n")
-    sys.stderr.write("\nMissing LLDB frame annotations: " +
-                     ", ".join(map(str, missing)) + "\n")
-    return False
-  return True
+class LldbBacktraceTest(unittest.TestCase):
+  """Checks the normal d8 throw.js backtrace under LLDB."""
+
+  @classmethod
+  def setUpClass(cls):
+    cls.config = get_lldb_test_config()
+    cls.backtrace_script = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "fixtures", "throw.js")
+
+  def test_backtrace(self):
+    """Ensure the regular nested JS backtrace is annotated as expected."""
+    output = run_lldb(
+        self.config, self.config.d8_binary, '--abort-on-uncaught-exception '
+        f'"{self.backtrace_script}"')
+    failure = check_backtrace(output, "LLDB")
+    if failure is not None:
+      self.fail(failure)
 
 
-def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument("--lldb", default="lldb")
-  parser.add_argument("--plugin", required=True)
-  parser.add_argument("--d8", required=True)
-  parser.add_argument("--script", required=True)
-  parser.add_argument("--debug-helper-lib", required=True)
-  args = parser.parse_args()
+class LldbCorruptionTest(unittest.TestCase):
+  """Checks corruption-harness backtraces under LLDB."""
 
-  output = run_lldb(args)
-  ok = True
+  @classmethod
+  def setUpClass(cls):
+    cls.config = get_lldb_test_config()
 
-  if not check_frame_annotation_test(output, args.script):
-    ok = False
+  def test_corruption_cases(self):
+    """Verify each corruption case still yields the expected high-level trace."""
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    for case in get_corruption_cases(test_dir):
+      with self.subTest(corruption=case["name"]):
+        output = run_lldb(self.config, self.config.corruption_binary,
+                          f'"{case["script"]}"')
 
-  if ok:
-    print("LLDB checks passed.")
-  return 0 if ok else 1
+        failure = check_corruption(output, case, "LLDB")
+        if failure is not None:
+          self.fail(failure)
 
 
 if __name__ == "__main__":
-  raise SystemExit(main())
+  unittest.main()
