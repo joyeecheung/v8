@@ -224,6 +224,8 @@ class DebuggerBridge:
 
   def _decode_tagged_smi(self, raw_value, field_width):
     """Decode one tagged Smi value read from target memory."""
+    # TODO(joyee): we need the debug helper to not hard-code the width to
+    # 4-byte for Smi fields for this to work.
     if field_width <= 4:
       return ctypes.c_int32(raw_value).value >> 1
     return ctypes.c_int64(raw_value).value >> 32

@@ -810,7 +810,7 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
                       "start", kObjectAsStoredInHeap, 0, 0, 0));
               position_info_struct_field_list.push_back(
                   std::make_unique<StructProperty>("end", kObjectAsStoredInHeap,
-                                                   4, 0, 0));
+                                   i::kTaggedSize, 0, 0));
               TqScopeInfo scope_info(scope_info_address);
               props.push_back(std::make_unique<ObjectProperty>(
                   "function_character_offset", "",
