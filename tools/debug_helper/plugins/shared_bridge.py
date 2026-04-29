@@ -180,6 +180,11 @@ class DebuggerBridge:
         read_memory(prop.address, prop.size), byteorder="little", signed=False)
 
     memory_callback = self._make_memory_accessor(read_memory)
+    # `any_heap_pointer` is used by the debug helper to locate the V8 cage /
+    # read-only space. We pass `prop.address` here, which is the address of
+    # the parent object's *field* rather than a heap object pointer, but it
+    # still lies within the isolate's heap and is therefore good enough for
+    # cage detection.
     heap_addresses = self._t.HeapAddresses(
         0,
         0,
@@ -264,15 +269,17 @@ class DebuggerBridge:
       field = offset_prop.struct_fields[index].contents
       fields[field.name.decode("utf-8")] = field
     start_field = fields.get("start")
-    if start_field is None:
+    end_field = fields.get("end")
+    if start_field is None or end_field is None:
       return None
 
     # TODO(joyee): fix the debug helper to stop hard-coding Smi fields to be
     # 4 bytes wide, which isn't true for e.g. non-pointer-compressed 64-bit
     # builds.
-    field_width = 4
-    if "end" in fields:
-      field_width = max(1, fields["end"].offset - start_field.offset)
+    raw_width = end_field.offset - start_field.offset
+    # Clamp to the only widths the rest of this code can decode so a
+    # corrupted struct layout cannot turn into a 1-byte read.
+    field_width = 8 if raw_width >= 8 else 4
     raw_start = int.from_bytes(
         read_memory(offset_prop.address + start_field.offset, field_width),
         byteorder="little",

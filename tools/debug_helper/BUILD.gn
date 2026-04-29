@@ -102,10 +102,12 @@ if (v8_enable_temporal_support) {
   _debug_helper_deps += [ "//third_party/rust/temporal_capi" ]
 }
 
-_debug_helper_extra_configs = []
+_debug_helper_extra_configs = [ "//build/config/compiler:rtti" ]
 if (v8_enable_i18n_support) {
   _debug_helper_extra_configs += [ "$v8_icu_path:icu_config" ]
 }
+
+_debug_helper_remove_configs = [ "//build/config/compiler:no_rtti" ]
 
 v8_component("v8_debug_helper_internal") {
   testonly = true
@@ -115,8 +117,7 @@ v8_component("v8_debug_helper_internal") {
   deps = _debug_helper_deps
 
   configs = [ ":internal_config" ] + _debug_helper_extra_configs
-  remove_configs = [ "//build/config/compiler:no_rtti" ]
-  configs += [ "//build/config/compiler:rtti" ]
+  remove_configs = _debug_helper_remove_configs
 }
 
 group("v8_debug_helper") {
@@ -147,8 +148,7 @@ v8_shared_library("v8_debug_helper_shared") {
   deps = _debug_helper_deps
 
   configs = [ ":shared_config" ] + _debug_helper_extra_configs
-  remove_configs = [ "//build/config/compiler:no_rtti" ]
-  configs += [ "//build/config/compiler:rtti" ]
+  remove_configs = _debug_helper_remove_configs
 }
 
 v8_executable("corruption_harness") {
@@ -156,19 +156,19 @@ v8_executable("corruption_harness") {
 
   sources = [ "corruption-harness.cc" ]
 
-  configs = [ "../..:internal_config_base" ]
+  configs = [
+    "../..:internal_config_base",
+    "../..:v8_tracing_config",
+  ]
 
   deps = [
     "../..:v8",
-    "../..:v8_internal_headers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
-    "//build/win:default_exe_manifest",
+    "../..:v8_tracing",
   ]
 
-  if (current_os == "zos" && is_component_build) {
-    deps += [ "../..:zoslib" ]
-  }
-
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

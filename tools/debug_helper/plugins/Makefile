@@ -130,10 +130,12 @@ endef
 
 .PHONY: run-live-gdb run-live-backtrace-gdb run-live-corruption-gdb run-live-lldb run-live-backtrace-lldb run-live-corruption-lldb run-live run-core-gdb run-core-backtrace-gdb run-core-corruption-gdb run-core-lldb run-core-backtrace-lldb run-core-corruption-lldb run-core run prepare-cores clean-cores test-live-gdb test-live-backtrace-gdb test-live-corruption-gdb test-live-lldb test-live-backtrace-lldb test-live-corruption-lldb test-live test-core-gdb test-core-lldb test-core test
 
-$(BACKTRACE_CORE):
+$(BACKTRACE_CORE): $(BACKTRACE_SCRIPT) $(D8)
 	$(call generate_core,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))",$(abspath $@))
 
-$(CORE_DIR)/%.core: $(FIXTURES_DIR)/%.js
+# The corruption cores depend on the harness binary too, so they get
+# regenerated whenever the harness changes.
+$(CORE_DIR)/%.core: $(FIXTURES_DIR)/%.js $(CORRUPTION_BIN)
 	$(call generate_core,$(abspath $(CORRUPTION_BIN)),"$(abspath $(FIXTURES_DIR))/$*.js",$(abspath $@))
 
 run-live-gdb: run-live-backtrace-gdb run-live-corruption-gdb

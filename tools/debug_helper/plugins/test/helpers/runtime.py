@@ -6,6 +6,7 @@
 import os
 import subprocess
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -15,8 +16,8 @@ class DebuggerTestConfig:
   d8_binary: str
   corruption_binary: str
   debug_helper_lib: str
-  gdbinit_path: str | None = None
-  core_dir: str | None = None
+  gdbinit_path: Optional[str] = None
+  core_dir: Optional[str] = None
 
 
 def _require_env(name):
@@ -103,4 +104,10 @@ def run_debugger_command(command, debug_helper_lib):
       env=env,
       check=False,
   )
-  return completed.stdout + completed.stderr
+  output = completed.stdout + completed.stderr
+  if completed.returncode != 0:
+    raise RuntimeError(
+        f"Debugger exited with code {completed.returncode}\n"
+        f"Command: {' '.join(command)}\n"
+        f"Output:\n{output}")
+  return output

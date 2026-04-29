@@ -33,7 +33,7 @@ namespace i = v8::internal;
 namespace {
 
 constexpr i::Tagged_t kBogusTaggedValue =
-    static_cast<i::Tagged_t>(0x5a5a5a5bULL);
+    static_cast<i::Tagged_t>(0x5a5a5a5b5a5a5a5bULL);
 
 void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
   v8::Local<v8::Message> message = try_catch->Message();
@@ -49,7 +49,6 @@ bool ReadFile(const char* path, std::string* contents) {
 
   *contents = std::string(std::istreambuf_iterator<char>(input),
                           std::istreambuf_iterator<char>());
-  if (!input.good() && !input.eof()) return false;
   return true;
 }
 

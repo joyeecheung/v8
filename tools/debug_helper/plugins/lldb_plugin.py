@@ -51,7 +51,7 @@ def frame_annotation(frame, _unused):
     fp = frame.GetFP()
     if fp == lldb.LLDB_INVALID_ADDRESS:
       return ""
-    ptr_size = frame.GetThread().GetProcess().GetTarget().GetAddressByteSize()
+    ptr_size = process.GetTarget().GetAddressByteSize()
     return _get_bridge(ptr_size).frame_suffix(fp, read_memory)
   except Exception:
     if _VERBOSE:
@@ -59,8 +59,27 @@ def frame_annotation(frame, _unused):
     return ""
 
 
+def _current_frame_format(debugger):
+  """Return the debugger's current `frame-format` setting, if available."""
+  result = lldb.SBCommandReturnObject()
+  debugger.GetCommandInterpreter().HandleCommand(
+      "settings show frame-format", result)
+  if not result.Succeeded():
+    return ""
+  return (result.GetOutput() or "").strip()
+
+
 def __lldb_init_module(debugger, _internal_dict):
   """Hook the LLDB frame format once to annotate V8 frames."""
   callback = f"${{script.frame:{__name__}.frame_annotation}}"
+  # We will take over the frame formatting as documented. Warn the user if
+  # they had already customised `frame-format` so the takeover is not silent.
+  current = _current_frame_format(debugger)
+  if current and _DEFAULT_FRAME_FORMAT not in current:
+    print("v8 debug helper: overriding existing 'frame-format' setting; "
+          "V8 frame annotations will replace your custom format for this "
+          "session.")
+    if _VERBOSE:
+      print(f"v8 debug helper: previous frame-format was: {current}")
   debugger.HandleCommand(
       f"settings set frame-format '{_DEFAULT_FRAME_FORMAT}{callback}\\n'")

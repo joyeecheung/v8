@@ -44,9 +44,12 @@ class V8DbgFrameDecorator(FrameDecorator):
         if _VERBOSE:
           traceback.print_exc()
         base_name = ""
+    # TODO(joyee): "Builtin" substring check is a coarse heuristic for
+    # detecting JS-bridge frames whose native name should not suppress the
+    # JS annotation; it can also match unrelated builtins with JS-y names.
+    # Refine this when we have a robust way to identify V8 trampoline frames.
     if base_name and "Builtin" not in base_name:
       return base_name
-
     frame_pointer = 0
     # Extend this register list as the plugin grows support for more
     # architectures. Today the tested targets are x64 and arm64.
