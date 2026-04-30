@@ -6,14 +6,13 @@
 import os
 import unittest
 
-from .helpers.corruptions import check_corruption
-from .helpers.corruptions import get_corruption_cases
-from .helpers.backtrace import check_backtrace
-from .helpers.runtime import get_lldb_test_config
-from .helpers.runtime import run_debugger_command
+from .helpers.backtrace import assert_live_backtrace
+from .helpers.corruptions import assert_live_corruption_cases
+from .helpers.utils import get_lldb_live_test_config
+from .helpers.utils import run_debugger_command
 
 
-def run_lldb(config, binary_path, run_arguments):
+def run_lldb_live(config, binary_path, run_arguments):
   """Run one LLDB backtrace command and return its combined text output."""
   command = [
       config.debugger_binary,
@@ -37,40 +36,47 @@ def run_lldb(config, binary_path, run_arguments):
 class LldbBacktraceTest(unittest.TestCase):
   """Checks the normal d8 throw.js backtrace under LLDB."""
 
+  debugger_name = "LLDB"
+
+  @classmethod
+  def get_config(cls):
+    return get_lldb_live_test_config()
+
+  @staticmethod
+  def run_debugger(config, binary_path, argument):
+    return run_lldb_live(config, binary_path, argument)
+
   @classmethod
   def setUpClass(cls):
-    cls.config = get_lldb_test_config()
-    cls.backtrace_script = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "fixtures", "throw.js")
+    cls.config = cls.get_config()
 
   def test_backtrace(self):
     """Ensure the regular nested JS backtrace is annotated as expected."""
-    output = run_lldb(
-        self.config, self.config.d8_binary, '--abort-on-uncaught-exception '
-        f'"{self.backtrace_script}"')
-    failure = check_backtrace(output, "LLDB")
-    if failure is not None:
-      self.fail(failure)
+    assert_live_backtrace(self, __file__, self.debugger_name, self.config,
+                          self.run_debugger)
 
 
 class LldbCorruptionTest(unittest.TestCase):
   """Checks corruption-harness backtraces under LLDB."""
 
+  debugger_name = "LLDB"
+
+  @classmethod
+  def get_config(cls):
+    return get_lldb_live_test_config()
+
+  @staticmethod
+  def run_debugger(config, binary_path, argument):
+    return run_lldb_live(config, binary_path, argument)
+
   @classmethod
   def setUpClass(cls):
-    cls.config = get_lldb_test_config()
+    cls.config = cls.get_config()
 
   def test_corruption_cases(self):
-    """Verify each corruption case still yields the expected high-level trace."""
-    test_dir = os.path.dirname(os.path.abspath(__file__))
-    for case in get_corruption_cases(test_dir):
-      with self.subTest(corruption=case["name"]):
-        output = run_lldb(self.config, self.config.corruption_binary,
-                          f'"{case["script"]}"')
-
-        failure = check_corruption(output, case, "LLDB")
-        if failure is not None:
-          self.fail(failure)
+    """Verify each corruption case yields the expected trace."""
+    assert_live_corruption_cases(self, __file__, self.debugger_name,
+                                 self.config, self.run_debugger)
 
 
 if __name__ == "__main__":

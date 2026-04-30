@@ -85,8 +85,8 @@ There are several types of targets in the Makefile:
   - `test-core` runs core-file test suites on both debuggers.
   - `test-live` runs live test suites on both debuggers.
 
-On macOS, with `lldb` installed globally, if the output directory is
-`out/arm64.release`, build and run the tests with:
+On macOS, with `lldb` installed globally, the output directory is
+assumed to be `out/arm64.release`. Build and run the tests with:
 
 ```sh
 autoninja -C out/arm64.release d8 v8_debug_helper_shared corruption_harness
@@ -96,8 +96,8 @@ make -C tools/debug_helper/plugins prepare-cores
 make -C tools/debug_helper/plugins test-core-lldb
 ```
 
-On Linux, with `gdb` and `lldb` installed, if the output directory is
-`out/x64.release`, build and run the tests with:
+On Linux, with `gdb` and `lldb` installed, the output directory is assumed
+to be `out/x64.release`. Build and run the tests with:
 
 ```sh
 autoninja -C out/x64.release d8 v8_debug_helper_shared corruption_harness
@@ -107,8 +107,8 @@ make -C tools/debug_helper/plugins prepare-cores
 make -C tools/debug_helper/plugins test-core
 ```
 
-If the output directory is different, set the `OUT_DIR` environment variable
-when running the Makefile.
+If the output directory is different from the assumed one,
+set the `OUT_DIR` environment variable when running the Makefile.
 
 ```sh
 OUT_DIR="$(pwd)/out/x64.release.test" make -C tools/debug_helper/plugins test-live-lldb
@@ -133,9 +133,6 @@ make -C tools/debug_helper/plugins run-live-backtrace-lldb
 - `test/`
   - `fixtures/`: test scripts and expected annotation fixtures.
   - `helpers/`: Python helpers for the tests
-    - `backtrace.py`: rendered backtrace annotation assertions.
-    - `corruptions.py`: corruption cases and high-level corruption-trace checks.
-    - `runtime.py`: debugger runtime config and process helpers.
   - `test_gdb_live.py`: live-process GDB tests.
   - `test_lldb_live.py`: live-process LLDB tests.
   - `test_gdb_core.py`: core-file GDB tests.
@@ -171,4 +168,5 @@ to call into.
 The current `DebuggerBridge` API includes:
 
 - `frame_suffix`: takes a frame pointer plus a memory-reading callback and
-  returns the JS annotation suffix for that frame when enough V8 metadata can be recovered.
+  returns the JS annotation suffix for that frame when enough V8 metadata
+  can be recovered.

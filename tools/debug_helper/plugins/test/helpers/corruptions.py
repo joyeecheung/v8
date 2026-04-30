@@ -3,32 +3,50 @@
 # found in the LICENSE file.
 """Helpers for corruption-harness test cases."""
 
+from dataclasses import dataclass
 import os
 
 from .backtrace import check_backtrace
 
+
+@dataclass(frozen=True)
+class CorruptionCase:
+  name: str
+  script_path: str
+  expected_annotations: tuple[str, ...]
+  absent_output: tuple[str, ...] = ()
+
+  def resolve(self, test_dir):
+    """Return one case with its fixture path resolved against the test dir."""
+    return CorruptionCase(
+        name=self.name,
+        script_path=os.path.join(test_dir, self.script_path),
+        expected_annotations=self.expected_annotations,
+        absent_output=self.absent_output,
+    )
+
+
 CORRUPTION_CASES = (
-    {
-        "name": "invalid-script-source",
-        "script": "fixtures/invalid-script-source.js",
-        "expected_annotations": (
+    CorruptionCase(
+        name="invalid-script-source",
+        script_path="fixtures/invalid-script-source.js",
+        expected_annotations=(
             "[test_func_3 @ <base>/invalid-script-source.js]",
             "[test_func_2 @ <base>/invalid-script-source.js]",
             "[test_func_1 @ <base>/invalid-script-source.js]",
             "[<anonymous> @ <base>/invalid-script-source.js:1:1]",
         ),
-        "absent_output": (),
-    },
-    {
-        "name": "invalid-shared-function-info",
-        "script": "fixtures/invalid-shared-function-info.js",
-        "expected_annotations": (
+    ),
+    CorruptionCase(
+        name="invalid-shared-function-info",
+        script_path="fixtures/invalid-shared-function-info.js",
+        expected_annotations=(
             "[test_func_2 @ <base>/invalid-shared-function-info.js:9:1]",
             "[test_func_1 @ <base>/invalid-shared-function-info.js:13:1]",
             "[<anonymous> @ <base>/invalid-shared-function-info.js:1:1]",
         ),
-        "absent_output": ("test_func_3",),
-    },
+        absent_output=("test_func_3",),
+    ),
 )
 
 
@@ -37,11 +55,11 @@ def check_corruption(output, case, debugger_name):
   failures = []
 
   failure = check_backtrace(output, f"{debugger_name} corruption",
-                            case["expected_annotations"])
+                            case.expected_annotations)
   if failure is not None:
     failures.append(failure)
 
-  unexpected = [entry for entry in case["absent_output"] if entry in output]
+  unexpected = [entry for entry in case.absent_output if entry in output]
   if unexpected:
     lines = [output, f"\nUnexpected {debugger_name} corruption output:\n"]
     for entry in unexpected:
@@ -53,9 +71,32 @@ def check_corruption(output, case, debugger_name):
   return "\n".join(failures)
 
 
-def get_corruption_cases(test_dir):
-  """Resolve fixture paths for the corruption cases in this test package."""
-  return tuple({
-      **case,
-      "script": os.path.join(test_dir, case["script"]),
-  } for case in CORRUPTION_CASES)
+def get_corruption_cases(test_file):
+  """Return the resolved corruption cases for one test module."""
+  test_dir = os.path.dirname(os.path.abspath(test_file))
+  return tuple(case.resolve(test_dir) for case in CORRUPTION_CASES)
+
+
+def assert_live_corruption_cases(test_case, test_file, debugger_name, config,
+                                 run_debugger):
+  """Run and validate all live corruption cases for one debugger."""
+  for case in get_corruption_cases(test_file):
+    with test_case.subTest(corruption=case.name):
+      output = run_debugger(config, config.corruption_binary,
+                            f'"{case.script_path}"')
+      failure = check_corruption(output, case, debugger_name)
+      if failure is not None:
+        test_case.fail(failure)
+
+
+def assert_core_corruption_cases(test_case, test_file, debugger_name, config,
+                                 run_debugger):
+  """Run and validate all core-file corruption cases for one debugger."""
+  for case in get_corruption_cases(test_file):
+    with test_case.subTest(corruption=case.name):
+      output = run_debugger(
+          config, config.corruption_binary,
+          os.path.join(os.path.abspath(config.core_dir), f"{case.name}.core"))
+      failure = check_corruption(output, case, debugger_name)
+      if failure is not None:
+        test_case.fail(failure)

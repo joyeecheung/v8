@@ -62,8 +62,8 @@ def frame_annotation(frame, _unused):
 def _current_frame_format(debugger):
   """Return the debugger's current `frame-format` setting, if available."""
   result = lldb.SBCommandReturnObject()
-  debugger.GetCommandInterpreter().HandleCommand(
-      "settings show frame-format", result)
+  debugger.GetCommandInterpreter().HandleCommand("settings show frame-format",
+                                                 result)
   if not result.Succeeded():
     return ""
   return (result.GetOutput() or "").strip()

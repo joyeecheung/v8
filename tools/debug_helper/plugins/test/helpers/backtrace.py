@@ -76,3 +76,26 @@ def check_backtrace(output, label, expected_annotations=None):
     for annotation in extras:
       lines.append(f"  {annotation}\n")
   return "".join(lines)
+
+
+def assert_live_backtrace(test_case, test_file, debugger_name, config,
+                          run_debugger):
+  """Run and validate the shared live-process backtrace case."""
+  test_dir = os.path.dirname(os.path.abspath(test_file))
+  test_script = os.path.join(test_dir, "fixtures", "throw.js")
+  output = run_debugger(
+      config, config.d8_binary,
+      f'--abort-on-uncaught-exception "{test_script}"')
+  failure = check_backtrace(output, debugger_name)
+  if failure is not None:
+    test_case.fail(failure)
+
+
+def assert_core_backtrace(test_case, debugger_name, config, run_debugger):
+  """Run and validate the shared core-file backtrace case."""
+  output = run_debugger(config, config.d8_binary,
+                        os.path.join(os.path.abspath(config.core_dir),
+                                     "throw.core"))
+  failure = check_backtrace(output, debugger_name)
+  if failure is not None:
+    test_case.fail(failure)

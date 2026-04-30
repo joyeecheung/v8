@@ -1,7 +1,7 @@
 # Copyright 2026 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-"""Runtime configuration helpers for debugger plugin tests."""
+"""Shared utilities for debugger plugin integration tests."""
 
 import os
 import subprocess
@@ -28,8 +28,8 @@ def _require_env(name):
   return value
 
 
-def get_gdb_test_config():
-  """Build the runtime config for the GDB test entry points."""
+def get_gdb_live_test_config():
+  """Build the runtime config for the GDB live-process test entry points."""
   return DebuggerTestConfig(
       debugger_binary=_require_env("GDB"),
       plugin_path=_require_env("GDB_PLUGIN"),
@@ -40,8 +40,8 @@ def get_gdb_test_config():
   )
 
 
-def get_lldb_test_config():
-  """Build the runtime config for the LLDB test entry points."""
+def get_lldb_live_test_config():
+  """Build the runtime config for the LLDB live-process test entry points."""
   return DebuggerTestConfig(
       debugger_binary=_require_env("LLDB"),
       plugin_path=_require_env("LLDB_PLUGIN"),
@@ -76,23 +76,6 @@ def get_lldb_core_test_config():
   )
 
 
-def _require_core_dir(config):
-  """Return the configured core directory or raise a helpful error."""
-  if config.core_dir:
-    return os.path.abspath(config.core_dir)
-  raise RuntimeError("Missing core directory configuration")
-
-
-def get_backtrace_core_path(config):
-  """Return the path to the prepared d8 backtrace core file."""
-  return os.path.join(_require_core_dir(config), "throw.core")
-
-
-def get_corruption_core_path(config, case_name):
-  """Return the path to one prepared corruption core file."""
-  return os.path.join(_require_core_dir(config), f"{case_name}.core")
-
-
 def run_debugger_command(command, debug_helper_lib):
   """Run one debugger command with the shared bridge library configured."""
   env = os.environ.copy()
@@ -106,8 +89,7 @@ def run_debugger_command(command, debug_helper_lib):
   )
   output = completed.stdout + completed.stderr
   if completed.returncode != 0:
-    raise RuntimeError(
-        f"Debugger exited with code {completed.returncode}\n"
-        f"Command: {' '.join(command)}\n"
-        f"Output:\n{output}")
+    raise RuntimeError(f"Debugger exited with code {completed.returncode}\n"
+                       f"Command: {' '.join(command)}\n"
+                       f"Output:\n{output}")
   return output

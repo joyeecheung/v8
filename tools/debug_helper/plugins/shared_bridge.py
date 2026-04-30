@@ -259,8 +259,8 @@ class DebuggerBridge:
   def _decode_position(self, script_source, function_name, offset_prop,
                        read_memory):
     """Decode function_character_offset into a (line, column) pair."""
-    if (offset_prop is None or not offset_prop.address
-        or offset_prop.num_struct_fields == 0):
+    if (offset_prop is None or not offset_prop.address or
+        offset_prop.num_struct_fields == 0):
       return None
 
     fields = {}

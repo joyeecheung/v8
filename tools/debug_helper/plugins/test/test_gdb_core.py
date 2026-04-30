@@ -6,13 +6,10 @@
 import os
 import unittest
 
-from .helpers.backtrace import check_backtrace
-from .helpers.corruptions import check_corruption
-from .helpers.corruptions import get_corruption_cases
-from .helpers.runtime import get_backtrace_core_path
-from .helpers.runtime import get_corruption_core_path
-from .helpers.runtime import get_gdb_core_test_config
-from .helpers.runtime import run_debugger_command
+from .helpers.backtrace import assert_core_backtrace
+from .helpers.corruptions import assert_core_corruption_cases
+from .helpers.utils import get_gdb_core_test_config
+from .helpers.utils import run_debugger_command
 
 
 def run_gdb_core(config, binary_path, core_path):
@@ -43,37 +40,47 @@ def run_gdb_core(config, binary_path, core_path):
 class GdbCoreBacktraceTest(unittest.TestCase):
   """Checks the d8 throw fixture backtrace loaded from a core file."""
 
+  debugger_name = "GDB core"
+
+  @classmethod
+  def get_config(cls):
+    return get_gdb_core_test_config()
+
+  @staticmethod
+  def run_debugger(config, binary_path, argument):
+    return run_gdb_core(config, binary_path, argument)
+
   @classmethod
   def setUpClass(cls):
-    cls.config = get_gdb_core_test_config()
+    cls.config = cls.get_config()
 
   def test_backtrace(self):
     """Ensure the prepared backtrace core yields the expected annotations."""
-    output = run_gdb_core(self.config, self.config.d8_binary,
-                          get_backtrace_core_path(self.config))
-    failure = check_backtrace(output, "GDB core")
-    if failure is not None:
-      self.fail(failure)
+    assert_core_backtrace(self, self.debugger_name, self.config,
+                          self.run_debugger)
 
 
 class GdbCoreCorruptionTest(unittest.TestCase):
   """Checks corruption-harness backtraces loaded from core files under GDB."""
 
+  debugger_name = "GDB core"
+
+  @classmethod
+  def get_config(cls):
+    return get_gdb_core_test_config()
+
+  @staticmethod
+  def run_debugger(config, binary_path, argument):
+    return run_gdb_core(config, binary_path, argument)
+
   @classmethod
   def setUpClass(cls):
-    cls.config = get_gdb_core_test_config()
+    cls.config = cls.get_config()
 
   def test_corruption_cases(self):
     """Verify each prepared corruption core yields the expected trace."""
-    test_dir = os.path.dirname(os.path.abspath(__file__))
-    for case in get_corruption_cases(test_dir):
-      with self.subTest(corruption=case["name"]):
-        output = run_gdb_core(
-            self.config, self.config.corruption_binary,
-            get_corruption_core_path(self.config, case["name"]))
-        failure = check_corruption(output, case, "GDB core")
-        if failure is not None:
-          self.fail(failure)
+    assert_core_corruption_cases(self, __file__, self.debugger_name,
+                                 self.config, self.run_debugger)
 
 
 if __name__ == "__main__":

@@ -63,7 +63,7 @@ define generate_core
 endef
 endif
 
-define run_gdb
+define run_gdb_live
 	V8_DEBUG_HELPER_LIB_PATH="$(abspath $(DEBUG_HELPER_LIB))" \
 	$(GDB) -nx -q -batch \
 		-iex 'set debuginfod enabled off' \
@@ -75,7 +75,7 @@ define run_gdb
 		-ex 'quit'
 endef
 
-define run_lldb
+define run_lldb_live
 	V8_DEBUG_HELPER_LIB_PATH="$(abspath $(DEBUG_HELPER_LIB))" \
 	$(LLDB) -b \
 		-O 'command script import "$(abspath $(LLDB_PLUGIN))"' \
@@ -141,18 +141,18 @@ $(CORE_DIR)/%.core: $(FIXTURES_DIR)/%.js $(CORRUPTION_BIN)
 run-live-gdb: run-live-backtrace-gdb run-live-corruption-gdb
 
 run-live-backtrace-gdb:
-	$(call run_gdb,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))")
+	$(call run_gdb_live,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))")
 
 run-live-lldb: run-live-backtrace-lldb run-live-corruption-lldb
 
 run-live-backtrace-lldb:
-	$(call run_lldb,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))")
+	$(call run_lldb_live,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))")
 
 run-live-corruption-gdb:
-	$(call run_gdb,$(abspath $(CORRUPTION_BIN)),"$(abspath $(CORRUPTION_SCRIPT))")
+	$(call run_gdb_live,$(abspath $(CORRUPTION_BIN)),"$(abspath $(CORRUPTION_SCRIPT))")
 
 run-live-corruption-lldb:
-	$(call run_lldb,$(abspath $(CORRUPTION_BIN)),"$(abspath $(CORRUPTION_SCRIPT))")
+	$(call run_lldb_live,$(abspath $(CORRUPTION_BIN)),"$(abspath $(CORRUPTION_SCRIPT))")
 
 run-core-gdb: run-core-backtrace-gdb run-core-corruption-gdb
 
