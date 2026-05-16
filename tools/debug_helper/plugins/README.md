@@ -38,28 +38,75 @@ it in a debugger session where that takeover is acceptable.
 
 ### Current features
 
-The plugins currently only annotate V8 frames in backtraces, but the bridge can
-support more features later.
-
 Once loaded, the plugins append JavaScript annotations to candidate V8 frames
-when you print a backtrace via `bt`. The annotation format is:
+when you print a backtrace via `bt`, and add a `v8 inspect <addr>` command for
+walking tagged objects. Both work on release builds and core dumps -- no
+debug-symbol requirements beyond what `libv8_debug_helper` itself needs.
+
+#### Frame annotations
+
+The annotation format is:
 
 ```
-[<function_name> @ <script_name>:<line>:<column>]
+[<function_name> @ <script_name>:<line>:<column>] (this=0xADDR, argc=N)
+```
+
+The trailing `(this=..., argc=...)` breadcrumb publishes the receiver
+tagged-pointer and user-visible arg count for the JS frame so you can paste
+the receiver straight into `v8 inspect`:
+
+```
+(gdb) bt
+...
+#5 0x... in InterpreterEntryTrampoline [test_func_3 @ throw.js:15:21] (this=0x34f49880471, argc=4)
+...
+(gdb) v8 inspect 0x34f49880471
 ```
 
 If source text cannot be recovered but the script name still can, the
-annotation degrades to:
-
-```
-[<function_name> @ <script_name>]
-```
+annotation degrades to drop the `@ ...` location. If the frame's slots are
+unreadable (e.g. partial core dump), the trailing breadcrumb is dropped.
 
 For anonymous functions the name is shown as `<anonymous>`. The line and column
 point to the start of the function scope in its definition, which is
 normally the `(` of the parameter list (or position 1:1 for the top-level
 script scope), not where the function is called, which we cannot
 reliably recover in the debugger.
+
+#### `v8 inspect <addr>`
+
+Walks the tagged V8 object at `<addr>` and prints its properties as a head
+line followed by one indented `.name=value` line per property. Works on
+both gdb and lldb:
+
+```
+(gdb) v8 inspect 0x34f49880471
+0x34f49880471 <JSArray: length=3>
+  .map=0x34f49880409 <Map: for JSArray>
+  .properties_or_hash=0x34f49880421 <FixedArray: empty>
+  .elements=0x34f49880491 <FixedArray: length=3>
+  .length=<Smi: 3>
+```
+
+Options:
+
+| Flag | Effect |
+|---|---|
+| `--type <T>` | Type hint when the Map is unreadable (e.g. `v8::internal::JSArray`). |
+| `--depth N` | Inline-recursion depth for child references (default 1). |
+| `--array-length N` / `-l N` | Per-array element cap (default 16). |
+
+When the object's Map can't be read (partial dump, corrupted memory),
+debug-helper's brief still describes the failure, and the renderer adds a
+`could be one of ...` footer with ready-to-paste `--type` suggestions.
+
+#### Release- vs. debug-build coverage
+
+| Surface | Release build / core | Debug build / core |
+|---|---|---|
+| `bt` JS-frame annotations | Yes | Yes |
+| `v8 inspect <addr>` | Yes | Yes |
+| `job` / `jss` / `jh` (from [tools/gdbinit](../../gdbinit) / [tools/lldb_commands.py](../../lldb_commands.py)) | No -- uses `_v8_internal_Print_*` which is debug-only | Yes |
 
 ## How To Test It
 
@@ -80,12 +127,12 @@ There are several types of targets in the Makefile:
   the plugins themselves.
   - `run-core-*` targets run the same sessions but load from a prepared core
     file instead of a live process.
-- `test-live-*` targets run the same live sessions but also assert the
-  expected annotations in Python.
-  - `test-core-*` targets run the same assertions but against the prepared
-    core files instead of live processes.
-  - `test-core` runs core-file test suites on both debuggers.
-  - `test-live` runs live test suites on both debuggers.
+- `test-live-{gdb,lldb}` and `test-core-{gdb,lldb}` run the full test
+  matrix (backtrace, corruption, and inspect) for one debugger against a
+  live process or prepared core file respectively.
+- `test-live-{backtrace,corruption,inspect}-{gdb,lldb}` and the matching
+  `test-core-inspect-*` targets run individual suites.
+- `test-live` and `test-core` run the full matrix on both debuggers.
 
 On macOS, with `lldb` installed globally, the output directory is
 assumed to be `out/arm64.release`. Build and run the tests with:
@@ -129,22 +176,37 @@ make -C tools/debug_helper/plugins run-live-backtrace-lldb
 
 ## Directory Layout
 
-- `shared_bridge.py`: shared `ctypes` bridge and `DebuggerBridge` class.
 - `gdb_plugin.py`: GDB plugin entry point.
 - `lldb_plugin.py`: LLDB plugin entry point.
+- `v8dbg/`: shared plugin code
+  - `shared_bridge.py`: `ctypes` bridge and `DebuggerBridge` class
+    (C-ABI plumbing, JS frame annotation).
+  - `inspect.py`: `v8 inspect` data model, ctypes -> dataclass conversion,
+    and the renderer.
+  - `heap_hints.py`: `HeapHints` dataclass and `resolve_heap_hints` for
+    populating it from V8 symbols/offsets.
+  - `dispatch.py`: hand-rolled parser and dispatcher for the `v8`
+    debugger command.
 - `test/`
   - `fixtures/`: test scripts and expected annotation fixtures.
   - `helpers/`: Python helpers for the tests
-  - `test_gdb_live.py`: live-process GDB tests.
-  - `test_lldb_live.py`: live-process LLDB tests.
-  - `test_gdb_core.py`: core-file GDB tests.
-  - `test_lldb_core.py`: core-file LLDB tests.
+    - `backtrace.py`, `corruptions.py`: shared assertion helpers for the
+      backtrace and corruption suites.
+    - `session.py`: interactive gdb / lldb session over a pty, with
+      marker-based per-command output capture. Used by the `v8 inspect`
+      suites to send commands and parse their output.
+    - `inspect.py`: structural assertion helpers and fixture-specific
+      `check_*` helpers for the `v8 inspect` suites.
+    - `utils.py`: test-config dataclasses and subprocess runner.
+  - `test_*.py`: one unittest module per (debugger, mode, feature) combo,
+    named `test_{gdb,lldb}_{,inspect_}{live,core}.py`. Run them through
+    the Makefile (see "How To Test It").
 
 ## Design
 
 `libv8_debug_helper` is the dynamic library built by `v8_debug_helper_shared`,
 which exposes C APIs whose definitions can be found in
-`debug_helper.h`. The `DebuggerBridge` class in `shared_bridge.py`
+`debug_helper.h`. The `DebuggerBridge` class in `v8dbg/shared_bridge.py`
 wraps those APIs in Python via `ctypes` for the debugger plugins
 to call into.
 
@@ -172,3 +234,6 @@ The current `DebuggerBridge` API includes:
 - `frame_suffix`: takes a frame pointer plus a memory-reading callback and
   returns the JS annotation suffix for that frame when enough V8 metadata
   can be recovered.
+- `inspect`: wraps `_v8_debug_helper_GetObjectProperties` and returns a
+  decoupled `InspectResult` dataclass that callers can keep references to
+  after the C result has been freed.

@@ -8,40 +8,47 @@ import os
 import re
 
 _BACKTRACE_ANNOTATION_LINE_RE = re.compile(
-    r"(?P<annotation>\[(?:[^\]]+ @ .+?(?::\d+:\d+)?|<anonymous>)\])(?:\s*\([^\)]*\))?\s*$"
-)
+    r"(?P<annotation>\[(?:[^\[\]]*? @ [^\[\]]+?(?::\d+:\d+)?|<anonymous>)\])")
 _SCRIPT_ANNOTATION_RE = re.compile(
     r"^\[(?P<function>[^\]]+?) @ (?P<script>.+?):(?P<line>\d+):(?P<column>\d+)\]$"
 )
 _SCRIPT_ONLY_ANNOTATION_RE = re.compile(
     r"^\[(?P<function>[^\]]+?) @ (?P<script>.+)\]$")
 
+# Default expected backtrace for fixtures/throw.js.
 _DEFAULT_EXPECTED_ANNOTATIONS = (
-    "[test_func_3 @ <base>/throw.js:15:21]",
-    "[<anonymous> @ <base>/throw.js:10:19]",
-    "[test_func_2 @ <base>/throw.js:9:21]",
-    "[test_func_1 @ <base>/throw.js:5:21]",
-    "[<anonymous> @ <base>/throw.js:1:1]",
+    ("test_func_3", "<base>/throw.js:15:21"),
+    ("<anonymous>", "<base>/throw.js:10:19"),
+    ("test_func_2", "<base>/throw.js:9:21"),
+    ("test_func_1", "<base>/throw.js:5:21"),
+    ("<anonymous>", "<base>/throw.js:1:1"),
 )
 
 
 def _normalize_annotation(annotation):
-  """Reduce debugger-specific paths to a stable, basename-only annotation."""
+  """Reduce a debugger-specific annotation to a (function, location) pair.
+
+  The location is `<base>/<script>:<line>:<col>` or `<base>/<script>`.
+  """
   annotation = annotation.strip()
   match = _SCRIPT_ANNOTATION_RE.match(annotation)
   if match:
-    return (f"[{match.group('function').strip()} @ <base>/"
-            f"{os.path.basename(match.group('script'))}:"
-            f"{match.group('line')}:{match.group('column')}]")
+    return (
+        match.group("function").strip(),
+        f"<base>/{os.path.basename(match.group('script'))}"
+        f":{match.group('line')}:{match.group('column')}",
+    )
   match = _SCRIPT_ONLY_ANNOTATION_RE.match(annotation)
   if not match:
-    return annotation
-  return (f"[{match.group('function').strip()} @ <base>/"
-          f"{os.path.basename(match.group('script'))}]")
+    return (annotation, None)
+  return (
+      match.group("function").strip(),
+      f"<base>/{os.path.basename(match.group('script'))}",
+  )
 
 
 def extract_backtrace_annotations(output):
-  """Collect rendered annotations from raw debugger backtrace text."""
+  """Collect (function, location) tuples from raw debugger backtrace text."""
   annotations = []
   for line in output.splitlines():
     match = _BACKTRACE_ANNOTATION_LINE_RE.search(line)
@@ -52,7 +59,7 @@ def extract_backtrace_annotations(output):
 
 
 def check_backtrace(output, label, expected_annotations=None):
-  """Check normalized backtrace annotations against the expected rendering."""
+  """Check backtrace annotations against the expected function+location list."""
   expected = (
       _DEFAULT_EXPECTED_ANNOTATIONS
       if expected_annotations is None else expected_annotations)

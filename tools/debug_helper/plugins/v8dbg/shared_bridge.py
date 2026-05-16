@@ -1,10 +1,10 @@
 # Copyright 2026 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-"""Shared ctypes bridge for the v8_debug_helper C ABI.
+"""ctypes bridge to libv8_debug_helper, plus JS frame annotation.
 
-This module loads libv8_debug_helper and exposes frame annotation
-helpers used by the GDB and LLDB plugins.
+The data model and renderer for `v8 inspect` live in `inspect`; heap hints
+in `heap_hints`; command dispatch in `dispatch`.
 """
 
 import ctypes
@@ -12,10 +12,22 @@ import os
 import re
 import types
 
+from .heap_hints import HeapHints
+from .inspect import (
+    InspectResult,
+    decode_tagged_smi,
+    extract_brief_address,
+    read_frame_breadcrumb,
+    summarize_property,
+)
+
 _MEMORY_ACCESS_OK = 0
 _MEMORY_ACCESS_INVALID = 1
 
 _STRING_LITERAL_RE = re.compile(r'"(?:[^"\\]|\\.)*"')
+
+# Per-field char cap for frame annotations; pass max_chars=None to disable.
+_MAX_PROP_STRING_CHARS = 80
 
 
 class StructProperty(ctypes.Structure):
@@ -102,6 +114,7 @@ class DebuggerBridge:
     self._library_handle = None
     if ptr_size is None:
       ptr_size = ctypes.sizeof(ctypes.c_void_p)
+    self._ptr_size = ptr_size
     self._t = _make_types(ptr_size)
 
   def _resolved_library_path(self):
@@ -157,6 +170,65 @@ class DebuggerBridge:
 
     return self._t.MemoryAccessor(callback)
 
+  def _hints_to_c(self, hints):
+    """Convert a HeapHints dataclass into the C HeapAddresses struct."""
+    return self._t.HeapAddresses(
+        int(hints.map_space_first_page) & self._t.uintptr_max,
+        int(hints.old_space_first_page) & self._t.uintptr_max,
+        int(hints.read_only_space_first_page) & self._t.uintptr_max,
+        int(hints.any_heap_pointer) & self._t.uintptr_max,
+        int(hints.metadata_pointer_table) & self._t.uintptr_max,
+        int(hints.isolate_heap_member_offset) & self._t.uintptr_max,
+    )
+
+  @property
+  def ptr_size(self):
+    """Target pointer size in bytes (4 or 8)."""
+    return self._ptr_size
+
+  def inspect(self, tagged_ptr, heap_hints, read_memory, type_hint=None):
+    """Wrap _v8_debug_helper_GetObjectProperties; return an InspectResult.
+
+    Returns None only if the C call fails outright; partial-data conditions
+    surface via `type_check_result`.
+    """
+    if heap_hints is None:
+      heap_hints = HeapHints()
+    memory_callback = self._make_memory_accessor(read_memory)
+    c_hints = self._hints_to_c(heap_hints)
+    library = self._library()
+    type_hint_bytes = (
+        type_hint.encode("utf-8") if isinstance(type_hint, str) else type_hint)
+    tagged = int(tagged_ptr) & self._t.uintptr_max
+    result_ptr = library._v8_debug_helper_GetObjectProperties(
+        tagged, memory_callback, ctypes.byref(c_hints), type_hint_bytes)
+    if not result_ptr:
+      return None
+    try:
+      result = result_ptr.contents
+      brief = result.brief.decode("utf-8",
+                                  errors="replace") if result.brief else ""
+      type_name = result.type.decode("utf-8") if result.type else ""
+      properties = []
+      for i in range(result.num_properties):
+        properties.append(summarize_property(result.properties[i].contents, self._t.uintptr_max))
+      guessed_types = []
+      for i in range(result.num_guessed_types):
+        g = result.guessed_types[i]
+        if g:
+          guessed_types.append(g.decode("utf-8", errors="replace"))
+      return InspectResult(
+          brief=brief,
+          type=type_name,
+          type_check_result=int(result.type_check_result),
+          properties=properties,
+          guessed_types=guessed_types,
+          address=tagged,
+          display_address=(extract_brief_address(brief) or 0),
+      )
+    finally:
+      library._v8_debug_helper_Free_ObjectPropertiesResult(result_ptr)
+
   def _extract_string_from_brief(self, brief):
     """Extract string content from object briefs."""
     if not brief:
@@ -173,8 +245,13 @@ class DebuggerBridge:
                                props,
                                prop_name,
                                read_memory,
-                               allow_brief_fallback=True):
-    """Resolve one debug-helper property into a Python string when possible."""
+                               allow_brief_fallback=True,
+                               max_chars=_MAX_PROP_STRING_CHARS):
+    """Resolve a debug-helper string property into Python.
+
+    `max_chars`, if set, caps how many chars are read; pass None for the
+    full string (script_source needs it for line/column calculation).
+    """
     prop = props.get(prop_name)
     if prop is None or not prop.address or not prop.size:
       return ""
@@ -182,62 +259,34 @@ class DebuggerBridge:
     raw_value = int.from_bytes(
         read_memory(prop.address, prop.size), byteorder="little", signed=False)
 
-    memory_callback = self._make_memory_accessor(read_memory)
-    # `any_heap_pointer` is used by the debug helper to locate the V8 cage /
-    # read-only space. We pass `prop.address` here, which is the address of
-    # the parent object's *field* rather than a heap object pointer, but it
-    # still lies within the isolate's heap and is therefore good enough for
-    # cage detection.
-    heap_addresses = self._t.HeapAddresses(
-        0,
-        0,
-        0,
-        int(prop.address) & self._t.uintptr_max,
-        0,
-        0,
-    )
-    library = self._library()
-    result_ptr = library._v8_debug_helper_GetObjectProperties(
-        int(raw_value) & self._t.uintptr_max,
-        memory_callback,
-        ctypes.byref(heap_addresses),
-        None,
-    )
-    if not result_ptr:
+    # any_heap_pointer just needs to lie inside the isolate's heap for cage
+    # detection; the parent's field address qualifies.
+    hints = HeapHints(any_heap_pointer=int(prop.address))
+    result = self.inspect(raw_value, hints, read_memory)
+    if result is None:
       return ""
-    try:
-      result = result_ptr.contents
-      # TODO(joyee): repeatedly decoding the same string can be expensive,
-      # but for live debugging stale caches can be tricky to manage. Find
-      # a way to tie the lifetime of these caches correctly with debugger
-      # action cycles so that we can speed up repeated reads.
-      for i in range(result.num_properties):
-        p = result.properties[i].contents
-        name = p.name.decode("utf-8")
-        if name in ("chars", "raw_characters") and p.num_values > 0:
-          size_per_char = p.size  # 1 for char, 2 for char16_t
-          try:
-            data = read_memory(p.address, p.num_values * size_per_char)
-            if size_per_char == 1:
-              return data.decode("latin-1")
-            return data.decode("utf-16-le")
-          except Exception:
-            break
-      if not allow_brief_fallback:
-        return ""
-      # Fall back to the display-oriented brief only for non-source strings.
-      brief = ""
-      if result.brief:
-        brief = result.brief.decode("utf-8", errors="replace")
-      return self._extract_string_from_brief(brief)
-    finally:
-      library._v8_debug_helper_Free_ObjectPropertiesResult(result_ptr)
-
-  def _decode_tagged_smi(self, raw_value, field_width):
-    """Decode one tagged Smi value read from target memory."""
-    if field_width <= 4:
-      return ctypes.c_int32(raw_value).value >> 1
-    return ctypes.c_int64(raw_value).value >> 32
+    # TODO(joyee): cache string decodes (invalidate per debugger action cycle).
+    for p in result.properties:
+      if p.name in ("chars", "raw_characters") and p.num_values > 0:
+        size_per_char = p.size  # 1 for char, 2 for char16_t
+        chars_to_read = p.num_values
+        if max_chars is not None:
+          chars_to_read = min(chars_to_read, max_chars)
+        try:
+          data = read_memory(p.address, chars_to_read * size_per_char)
+          if size_per_char == 1:
+            text = data.decode("latin-1")
+          else:
+            text = data.decode("utf-16-le")
+        except Exception:
+          break
+        if max_chars is not None and p.num_values > chars_to_read:
+          text += "..."
+        return text
+    if not allow_brief_fallback:
+      return ""
+    # Fall back to the display-oriented brief only for non-source strings.
+    return self._extract_string_from_brief(result.brief or "")
 
   def _position_from_offset(self, script_source, char_offset):
     """Convert a source character offset to a user-facing line and column."""
@@ -257,14 +306,10 @@ class DebuggerBridge:
                        read_memory):
     """Decode function_character_offset into a (line, column) pair."""
     if (offset_prop is None or not offset_prop.address or
-        offset_prop.num_struct_fields == 0):
+        not offset_prop.struct_fields):
       return None
 
-    fields = {}
-    # Convert the struct fields array into a dict for easier lookup.
-    for index in range(offset_prop.num_struct_fields):
-      field = offset_prop.struct_fields[index].contents
-      fields[field.name.decode("utf-8")] = field
+    fields = {f.name: f for f in offset_prop.struct_fields}
     start_field = fields.get("start")
     end_field = fields.get("end")
     if start_field is None or end_field is None:
@@ -282,7 +327,7 @@ class DebuggerBridge:
         byteorder="little",
         signed=False,
     )
-    char_offset = self._decode_tagged_smi(raw_start, field_width)
+    char_offset = decode_tagged_smi(raw_start, field_width)
     position = self._position_from_offset(script_source, char_offset)
     if position is not None:
       return position
@@ -306,19 +351,25 @@ class DebuggerBridge:
     try:
       result = result_ptr.contents
       props = {}
-      # Convert the properties array into a dict for easier lookup.
       for index in range(result.num_properties):
-        prop = result.properties[index].contents
-        props[prop.name.decode("utf-8")] = prop
+        summary = summarize_property(result.properties[index].contents,
+                                      self._t.uintptr_max)
+        props[summary.name] = summary
       if "currently_executing_jsfunction" not in props:
         return None
 
       function_name = self._resolve_property_string(props, "function_name",
                                                     read_memory)
+      # Script names are paths -- CI/build paths blow past the default cap
+      # and we don't want to truncate the basename.
       script_name = self._resolve_property_string(props, "script_name",
-                                                  read_memory)
+                                                  read_memory, max_chars=None)
       script_source = self._resolve_property_string(
-          props, "script_source", read_memory, allow_brief_fallback=False)
+          props,
+          "script_source",
+          read_memory,
+          allow_brief_fallback=False,
+          max_chars=None)
       position = self._decode_position(
           script_source,
           function_name,
@@ -339,14 +390,12 @@ class DebuggerBridge:
       library._v8_debug_helper_Free_StackFrameResult(result_ptr)
 
   def frame_suffix(self, frame_pointer, read_memory):
-    """Format one bracket-wrapped JS annotation suffix for a debugger frame:
+    """Format the JS annotation suffix for a debugger frame:
 
-    [<function_name> @ <script_name>:<line>:<column>]
+      [<function> @ <script>:<line>:<column>] (this=0xADDR, argc=N)
 
-    If source text cannot be recovered but the script name still can, the
-    annotation degrades to:
-
-    [<function_name> @ <script_name>]
+    Drops `@ ...` if source location is unavailable; drops the trailing
+    `(this=..., argc=...)` if the frame slots are unreadable.
     """
     annotation = self.describe_js_frame(frame_pointer, read_memory)
     if not annotation:
@@ -358,5 +407,11 @@ class DebuggerBridge:
     if position:
       location_suffix = f":{position[0]}:{position[1]}"
     if script_name:
-      return f" [{function_name} @ {script_name}{location_suffix}]"
-    return f" [{function_name}]"
+      head = f" [{function_name} @ {script_name}{location_suffix}]"
+    else:
+      head = f" [{function_name}]"
+    receiver, argc = read_frame_breadcrumb(frame_pointer, self._ptr_size,
+                                           read_memory)
+    if receiver is None:
+      return head
+    return f"{head} (this=0x{receiver:x}, argc={argc})"

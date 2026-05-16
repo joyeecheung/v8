@@ -13,7 +13,7 @@ from .backtrace import check_backtrace
 class CorruptionCase:
   name: str
   script_path: str
-  expected_annotations: tuple[str, ...]
+  expected_annotations: tuple
   absent_output: tuple[str, ...] = ()
 
   def resolve(self, test_dir):
@@ -31,19 +31,19 @@ CORRUPTION_CASES = (
         name="invalid-script-source",
         script_path="fixtures/invalid-script-source.js",
         expected_annotations=(
-            "[test_func_3 @ <base>/invalid-script-source.js]",
-            "[test_func_2 @ <base>/invalid-script-source.js]",
-            "[test_func_1 @ <base>/invalid-script-source.js]",
-            "[<anonymous> @ <base>/invalid-script-source.js:1:1]",
+            ("test_func_3", "<base>/invalid-script-source.js"),
+            ("test_func_2", "<base>/invalid-script-source.js"),
+            ("test_func_1", "<base>/invalid-script-source.js"),
+            ("<anonymous>", "<base>/invalid-script-source.js:1:1"),
         ),
     ),
     CorruptionCase(
         name="invalid-shared-function-info",
         script_path="fixtures/invalid-shared-function-info.js",
         expected_annotations=(
-            "[test_func_2 @ <base>/invalid-shared-function-info.js:9:21]",
-            "[test_func_1 @ <base>/invalid-shared-function-info.js:13:21]",
-            "[<anonymous> @ <base>/invalid-shared-function-info.js:1:1]",
+            ("test_func_2", "<base>/invalid-shared-function-info.js:9:21"),
+            ("test_func_1", "<base>/invalid-shared-function-info.js:13:21"),
+            ("<anonymous>", "<base>/invalid-shared-function-info.js:1:1"),
         ),
         absent_output=("test_func_3",),
     ),

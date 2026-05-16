@@ -17,6 +17,7 @@ CORRUPTION_BIN ?= $(dir $(DEBUG_HELPER_LIB))corruption_harness
 TEST_DIR ?= ./test
 FIXTURES_DIR ?= $(TEST_DIR)/fixtures
 BACKTRACE_SCRIPT ?= $(FIXTURES_DIR)/throw.js
+INSPECT_SCRIPT ?= $(FIXTURES_DIR)/inspect-fixture.js
 CORRUPTION_SCRIPT ?= $(FIXTURES_DIR)/invalid-script-source.js
 D8_ARGS ?= --abort-on-uncaught-exception
 GDBINIT ?= ../../gdbinit
@@ -25,6 +26,7 @@ LLDB_PLUGIN ?= ./lldb_plugin.py
 TEST_PACKAGE ?= test
 CORE_DIR ?= $(OUT_DIR)/debug_helper.cores
 BACKTRACE_CORE ?= $(CORE_DIR)/throw.core
+INSPECT_CORE ?= $(CORE_DIR)/inspect-fixture.core
 CORRUPTION_CORE ?= $(CORE_DIR)/$(basename $(notdir $(CORRUPTION_SCRIPT))).core
 CORRUPTION_CORE_CASES := invalid-script-source invalid-shared-function-info
 CORRUPTION_CORES := $(foreach case,$(CORRUPTION_CORE_CASES),$(CORE_DIR)/$(case).core)
@@ -128,10 +130,13 @@ define run_lldb_test
 	$(PYTHON) -m unittest -v $(TEST_PACKAGE).$(1)
 endef
 
-.PHONY: run-live-gdb run-live-backtrace-gdb run-live-corruption-gdb run-live-lldb run-live-backtrace-lldb run-live-corruption-lldb run-live run-core-gdb run-core-backtrace-gdb run-core-corruption-gdb run-core-lldb run-core-backtrace-lldb run-core-corruption-lldb run-core run prepare-cores clean-cores test-live-gdb test-live-backtrace-gdb test-live-corruption-gdb test-live-lldb test-live-backtrace-lldb test-live-corruption-lldb test-live test-core-gdb test-core-lldb test-core test
+.PHONY: run-live-gdb run-live-backtrace-gdb run-live-corruption-gdb run-live-lldb run-live-backtrace-lldb run-live-corruption-lldb run-live run-core-gdb run-core-backtrace-gdb run-core-corruption-gdb run-core-lldb run-core-backtrace-lldb run-core-corruption-lldb run-core run prepare-cores clean-cores test-live-gdb test-live-backtrace-gdb test-live-corruption-gdb test-live-inspect-gdb test-live-lldb test-live-backtrace-lldb test-live-corruption-lldb test-live-inspect-lldb test-live test-core-gdb test-core-lldb test-core-inspect-gdb test-core-inspect-lldb test-core test
 
 $(BACKTRACE_CORE): $(BACKTRACE_SCRIPT) $(D8)
 	$(call generate_core,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))",$(abspath $@))
+
+$(INSPECT_CORE): $(INSPECT_SCRIPT) $(D8)
+	$(call generate_core,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(INSPECT_SCRIPT))",$(abspath $@))
 
 # The corruption cores depend on the harness binary too, so they get
 # regenerated whenever the harness changes.
@@ -172,13 +177,14 @@ run-core-corruption-lldb: $(CORRUPTION_CORE)
 
 run-core: run-core-gdb run-core-lldb
 
-prepare-cores: $(BACKTRACE_CORE) $(CORRUPTION_CORES)
+prepare-cores: $(BACKTRACE_CORE) $(INSPECT_CORE) $(CORRUPTION_CORES)
 
 clean-cores:
 	rm -rf "$(CORE_DIR)"
 
 test-live-gdb:
 	$(call run_gdb_test,test_gdb_live)
+	$(call run_gdb_test,test_gdb_inspect_live)
 
 test-live-backtrace-gdb:
 	$(call run_gdb_test,test_gdb_live.GdbBacktraceTest)
@@ -186,8 +192,12 @@ test-live-backtrace-gdb:
 test-live-corruption-gdb:
 	$(call run_gdb_test,test_gdb_live.GdbCorruptionTest)
 
+test-live-inspect-gdb:
+	$(call run_gdb_test,test_gdb_inspect_live)
+
 test-live-lldb:
 	$(call run_lldb_test,test_lldb_live)
+	$(call run_lldb_test,test_lldb_inspect_live)
 
 test-live-backtrace-lldb:
 	$(call run_lldb_test,test_lldb_live.LldbBacktraceTest)
@@ -195,11 +205,22 @@ test-live-backtrace-lldb:
 test-live-corruption-lldb:
 	$(call run_lldb_test,test_lldb_live.LldbCorruptionTest)
 
+test-live-inspect-lldb:
+	$(call run_lldb_test,test_lldb_inspect_live)
+
 test-core-gdb: prepare-cores
 	$(call run_gdb_test,test_gdb_core)
+	$(call run_gdb_test,test_gdb_inspect_core)
+
+test-core-inspect-gdb: prepare-cores
+	$(call run_gdb_test,test_gdb_inspect_core)
 
 test-core-lldb: prepare-cores
 	$(call run_lldb_test,test_lldb_core)
+	$(call run_lldb_test,test_lldb_inspect_core)
+
+test-core-inspect-lldb: prepare-cores
+	$(call run_lldb_test,test_lldb_inspect_core)
 
 test-live: test-live-gdb test-live-lldb
 
