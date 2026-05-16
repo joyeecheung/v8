@@ -38,28 +38,73 @@ it in a debugger session where that takeover is acceptable.
 
 ### Current features
 
-The plugins currently only annotate V8 frames in backtraces, but the bridge can
-support more features later.
-
 Once loaded, the plugins append JavaScript annotations to candidate V8 frames
-when you print a backtrace via `bt`. The annotation format is:
+when you print a backtrace via `bt`, and add a `v8 inspect <addr>` command for
+walking tagged objects. Both work on release builds and core dumps -- no
+debug-symbol requirements beyond what `libv8_debug_helper` itself needs.
+
+#### Frame annotations
+
+The annotation format is:
+
+```
+[<function_name>(this=<brief>, <brief>, ...) @ <script_name>:<line>:<column>]
+```
+
+The receiver and the first few positional arguments are summarised inline as
+`<Smi: 42>`, `<String: "world">`, `<JSObject>`, and so on. To suppress the
+brief and fall back to the bare form, set `V8_DEBUG_HELPER_FRAME_BRIEFS=0`:
 
 ```
 [<function_name> @ <script_name>:<line>:<column>]
 ```
 
 If source text cannot be recovered but the script name still can, the
-annotation degrades to:
-
-```
-[<function_name> @ <script_name>]
-```
+annotation degrades to drop the `@ ...` location.
 
 For anonymous functions the name is shown as `<anonymous>`. The line and column
 point to the start of the function scope in its definition, which is
 normally the `(` of the parameter list (or position 1:1 for the top-level
 script scope), not where the function is called, which we cannot
 reliably recover in the debugger.
+
+#### `v8 inspect <addr>`
+
+Walks the tagged V8 object at `<addr>` and prints its properties using a
+compact, llnode-compatible grammar. Works on both gdb and lldb:
+
+```
+(gdb) v8 inspect 0x34f49880471
+0x34f49880471:<JSArray: length=3 {
+  .map=0x34f49880409:<Map for JSArray>,
+  .properties_or_hash=0x34f49880421:<empty FixedArray>,
+  .elements=0x34f49880491:<FixedArray: length=3>,
+  .length=<Smi: 3>}>
+```
+
+Options:
+
+| Flag | Effect |
+|---|---|
+| `--type <T>` | Type hint when the Map is unreadable (e.g. `v8::internal::JSArray`). |
+| `--depth N` | Inline-recursion depth for child references (default 1). |
+| `--array-length N` / `-l N` | Per-array element cap (default 16). |
+| `--string-length N` | String truncation length (default 80). |
+
+When the object's Map can't be read (partial dump, corrupted memory), the
+output falls back to a `<HeapObject [Map inaccessible]>` brief plus a
+`could be one of ...` footer with ready-to-paste `--type` suggestions.
+
+`v8 help` lists available subcommands; additional subcommands can be added
+without restructuring the surface.
+
+#### Release- vs. debug-build coverage
+
+| Surface | Release build / core | Debug build / core |
+|---|---|---|
+| `bt` JS-frame annotations | Yes | Yes |
+| `v8 inspect <addr>` | Yes | Yes |
+| `job` / `jss` / `jh` (from [tools/gdbinit](../../gdbinit) / [tools/lldb_commands.py](../../lldb_commands.py)) | No -- uses `_v8_internal_Print_*` which is debug-only | Yes |
 
 ## How To Test It
 
@@ -171,4 +216,15 @@ The current `DebuggerBridge` API includes:
 
 - `frame_suffix`: takes a frame pointer plus a memory-reading callback and
   returns the JS annotation suffix for that frame when enough V8 metadata
-  can be recovered.
+  can be recovered. The annotation includes per-arg briefs by default; set
+  `V8_DEBUG_HELPER_FRAME_BRIEFS=0` to disable them.
+- `inspect`: wraps `_v8_debug_helper_GetObjectProperties` and returns a
+  decoupled `InspectResult` dataclass that callers can keep references to
+  after the C result has been freed.
+- `resolve_heap_hints`: walks `v8::internal::g_current_isolate_` ->
+  `IsolateGroup` to populate a `HeapHints` struct with
+  `metadata_pointer_table` and `isolate_heap_member_offset`. Required for
+  correct inspection on compressed-pointer builds.
+- `dispatch_v8_command`: argument-parsing/dispatch helper for the `v8`
+  command. Plugins forward their post-`v8` argv to it; the shared dispatcher
+  routes to subcommand handlers (currently `inspect`, `help`).

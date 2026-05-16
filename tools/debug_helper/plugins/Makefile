@@ -131,7 +131,7 @@ define run_lldb_test
 	$(PYTHON) -m unittest -v $(TEST_PACKAGE).$(1)
 endef
 
-.PHONY: run-live-gdb run-live-backtrace-gdb run-live-corruption-gdb run-live-lldb run-live-backtrace-lldb run-live-corruption-lldb run-live run-core-gdb run-core-backtrace-gdb run-core-corruption-gdb run-core-lldb run-core-backtrace-lldb run-core-corruption-lldb run-core run prepare-cores clean-cores test-live-gdb test-live-backtrace-gdb test-live-corruption-gdb test-live-lldb test-live-backtrace-lldb test-live-corruption-lldb test-live test-core-gdb test-core-lldb test-core test
+.PHONY: run-live-gdb run-live-backtrace-gdb run-live-corruption-gdb run-live-lldb run-live-backtrace-lldb run-live-corruption-lldb run-live run-core-gdb run-core-backtrace-gdb run-core-corruption-gdb run-core-lldb run-core-backtrace-lldb run-core-corruption-lldb run-core run prepare-cores clean-cores test-live-gdb test-live-backtrace-gdb test-live-corruption-gdb test-live-inspect-gdb test-live-gdb-all test-live-lldb test-live-backtrace-lldb test-live-corruption-lldb test-live-inspect-lldb test-live-lldb-all test-live test-core-gdb test-core-lldb test-core-inspect-gdb test-core-inspect-lldb test-core test
 
 $(BACKTRACE_CORE): $(BACKTRACE_SCRIPT) $(D8)
 	$(call generate_core,$(abspath $(D8)),$(D8_ARGS) "$(abspath $(BACKTRACE_SCRIPT))",$(abspath $@))
@@ -189,6 +189,9 @@ test-live-backtrace-gdb:
 test-live-corruption-gdb:
 	$(call run_gdb_test,test_gdb_live.GdbCorruptionTest)
 
+test-live-inspect-gdb:
+	$(call run_gdb_test,test_gdb_inspect_live)
+
 test-live-lldb:
 	$(call run_lldb_test,test_lldb_live)
 
@@ -198,13 +201,28 @@ test-live-backtrace-lldb:
 test-live-corruption-lldb:
 	$(call run_lldb_test,test_lldb_live.LldbCorruptionTest)
 
+test-live-inspect-lldb:
+	$(call run_lldb_test,test_lldb_inspect_live)
+
 test-core-gdb: prepare-cores
 	$(call run_gdb_test,test_gdb_core)
+	$(call run_gdb_test,test_gdb_inspect_core)
+
+test-core-inspect-gdb: prepare-cores
+	$(call run_gdb_test,test_gdb_inspect_core)
 
 test-core-lldb: prepare-cores
 	$(call run_lldb_test,test_lldb_core)
+	$(call run_lldb_test,test_lldb_inspect_core)
 
-test-live: test-live-gdb test-live-lldb
+test-core-inspect-lldb: prepare-cores
+	$(call run_lldb_test,test_lldb_inspect_core)
+
+test-live-gdb-all: test-live-gdb test-live-inspect-gdb
+
+test-live-lldb-all: test-live-lldb test-live-inspect-lldb
+
+test-live: test-live-gdb-all test-live-lldb-all
 
 test-core: test-core-gdb test-core-lldb
 

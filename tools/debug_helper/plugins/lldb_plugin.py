@@ -3,7 +3,9 @@
 # found in the LICENSE file.
 """LLDB integration for the V8 debugger bridge."""
 
+import io
 import os
+import shlex
 import traceback
 
 import lldb
@@ -28,6 +30,88 @@ _DEFAULT_FRAME_FORMAT = ("frame #${frame.index}:{ ${frame.no-debug}${frame.pc}}"
                          "{${function.is-optimized} [opt]}")
 
 
+def _make_read_memory(process):
+  """Return a memory-read callback bound to one lldb process."""
+
+  def read_memory(address, byte_count):
+    error = lldb.SBError()
+    data = process.ReadMemory(address, byte_count, error)
+    if not error.Success():
+      raise RuntimeError(error.GetCString() or "unable to read memory")
+    return data
+
+  return read_memory
+
+
+class _LldbHintsResolver:
+  """Adapter from the shared bridge's HeapHintsResolver protocol to lldb."""
+
+  def __init__(self, target, process):
+    self._target = target
+    self._process = process
+    self._ptr_size = target.GetAddressByteSize() if target else 8
+
+  def read_pointer(self, addr):
+    if not self._process:
+      return None
+    error = lldb.SBError()
+    data = self._process.ReadMemory(addr, self._ptr_size, error)
+    if not error.Success() or not data or len(data) != self._ptr_size:
+      return None
+    return int.from_bytes(data, "little", signed=False)
+
+  def global_symbol_address(self, name):
+    if not self._target:
+      return None
+    try:
+      values = self._target.FindGlobalVariables(name, 1)
+    except Exception:
+      return None
+    if not values or values.GetSize() == 0:
+      return None
+    var = values.GetValueAtIndex(0)
+    if not var or not var.IsValid():
+      return None
+    load_addr = var.GetLoadAddress()
+    if load_addr == lldb.LLDB_INVALID_ADDRESS:
+      return None
+    return int(load_addr)
+
+  def field_offset(self, type_name, field_name):
+    if not self._target:
+      return None
+    try:
+      sb_type = self._target.FindFirstType(type_name)
+    except Exception:
+      return None
+    if not sb_type or not sb_type.IsValid():
+      return None
+    for i in range(sb_type.GetNumberOfFields()):
+      field = sb_type.GetFieldAtIndex(i)
+      if field.GetName() == field_name:
+        return int(field.GetOffsetInBytes())
+    return None
+
+
+def _evaluate_address_in_lldb(target, frame, text):
+  """Evaluate a debugger expression as an integer address."""
+  if frame and frame.IsValid():
+    value = frame.EvaluateExpression(text)
+  elif target and target.IsValid():
+    value = target.EvaluateExpression(text)
+  else:
+    return None
+  if value is None or not value.IsValid():
+    return None
+  err = value.GetError()
+  if err and not err.Success():
+    return None
+  try:
+    return int(value.GetValueAsUnsigned())
+  except Exception:
+    return None
+
+
 def frame_annotation(frame, _unused):
   """Return the V8 JS suffix for one LLDB frame, or an empty string."""
   try:
@@ -40,23 +124,71 @@ def frame_annotation(frame, _unused):
       return ""
 
     process = frame.GetThread().GetProcess()
-
-    def read_memory(address, byte_count):
-      error = lldb.SBError()
-      data = process.ReadMemory(address, byte_count, error)
-      if not error.Success():
-        raise RuntimeError(error.GetCString() or "unable to read memory")
-      return data
+    target = process.GetTarget()
+    read_memory = _make_read_memory(process)
 
     fp = frame.GetFP()
     if fp == lldb.LLDB_INVALID_ADDRESS:
       return ""
-    ptr_size = process.GetTarget().GetAddressByteSize()
-    return _get_bridge(ptr_size).frame_suffix(fp, read_memory)
+    ptr_size = target.GetAddressByteSize()
+    bridge = _get_bridge(ptr_size)
+    hints = None
+    try:
+      hints = bridge.resolve_heap_hints(_LldbHintsResolver(target, process))
+    except Exception:
+      if _VERBOSE:
+        traceback.print_exc()
+      hints = None
+    return bridge.frame_suffix(fp, read_memory, hints)
   except Exception:
     if _VERBOSE:
       traceback.print_exc()
     return ""
+
+
+def cmd_v8(debugger, command, result, _internal_dict):
+  """`v8 <subcommand> ...` dispatcher entry point for LLDB."""
+  try:
+    argv = shlex.split(command or "")
+  except ValueError:
+    argv = (command or "").split()
+  target = debugger.GetSelectedTarget()
+  process = target.GetProcess() if target else None
+  frame = None
+  if process:
+    thread = process.GetSelectedThread()
+    if thread:
+      frame = thread.GetSelectedFrame()
+
+  if not process or not process.IsValid():
+    result.SetError("v8: no running process / loaded core to inspect")
+    return
+
+  ptr_size = target.GetAddressByteSize()
+  bridge = _get_bridge(ptr_size)
+  buffer = io.StringIO()
+
+  read_memory = _make_read_memory(process)
+
+  def eval_address(text):
+    return _evaluate_address_in_lldb(target, frame, text)
+
+  try:
+    bridge.dispatch_v8_command(
+        argv,
+        buffer,
+        read_memory=read_memory,
+        eval_address=eval_address,
+        hints_resolver=_LldbHintsResolver(target, process),
+    )
+  except Exception:
+    if _VERBOSE:
+      traceback.print_exc()
+    result.SetError("v8: command failed; rerun with V8_DEBUG_HELPER_VERBOSE=1")
+    return
+  text = buffer.getvalue()
+  if text:
+    result.AppendMessage(text.rstrip("\n"))
 
 
 def _current_frame_format(debugger):
@@ -70,7 +202,7 @@ def _current_frame_format(debugger):
 
 
 def __lldb_init_module(debugger, _internal_dict):
-  """Hook the LLDB frame format once to annotate V8 frames."""
+  """Hook the LLDB frame format and register the `v8` command."""
   callback = f"${{script.frame:{__name__}.frame_annotation}}"
   # We will take over the frame formatting as documented. Warn the user if
   # they had already customised `frame-format` so the takeover is not silent.
@@ -83,3 +215,4 @@ def __lldb_init_module(debugger, _internal_dict):
       print(f"v8 debug helper: previous frame-format was: {current}")
   debugger.HandleCommand(
       f"settings set frame-format '{_DEFAULT_FRAME_FORMAT}{callback}\\n'")
+  debugger.HandleCommand(f"command script add -f {__name__}.cmd_v8 v8")
